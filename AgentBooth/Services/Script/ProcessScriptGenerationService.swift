@@ -267,6 +267,7 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         process.standardOutput = outputPipe
         process.standardError = errorPipe
         process.standardInput = nil
+        process.currentDirectoryURL = (try? makeSessionLog())?.directoryURL
 
         do {
             try process.run()

@@ -1,4 +1,5 @@
 import Combine
+import CoreGraphics
 import Foundation
 
 @MainActor
@@ -57,6 +58,11 @@ final class MainViewModel: ObservableObject {
 
     /// 録音を有効にしたうえで番組を開始する
     func startShowWithRecording() {
+        guard CGPreflightScreenCaptureAccess() else {
+            CGRequestScreenCaptureAccess()
+            radioState.errorMessage = "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。"
+            return
+        }
         isRecordingEnabled = true
         isRecordingSession = true
         Task {
