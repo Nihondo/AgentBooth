@@ -8,6 +8,7 @@ final class MainViewModel: ObservableObject {
     @Published var selectedService: MusicServiceKind
     @Published var selectedPlaylistName: String = ""
     @Published private(set) var radioState = RadioState()
+    @Published private(set) var isRecordingSession = false
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: AppServiceFactory
@@ -57,6 +58,7 @@ final class MainViewModel: ObservableObject {
     /// 録音を有効にしたうえで番組を開始する
     func startShowWithRecording() {
         isRecordingEnabled = true
+        isRecordingSession = true
         Task {
             await startShow()
         }
@@ -138,6 +140,7 @@ final class MainViewModel: ObservableObject {
                 self?.radioState = nextState
                 if !nextState.isRunning {
                     self?.radioOrchestrator = nil
+                    self?.isRecordingSession = false
                 }
             }
         }

@@ -225,7 +225,8 @@ actor RadioOrchestrator {
                 track: track,
                 nextTrack: nextTrack,
                 overlapMode: overlapMode,
-                startInstruction: startInstruction
+                startInstruction: startInstruction,
+                trackIndex: indexValue
             )
 
             playedTracks.append(track)
@@ -252,6 +253,8 @@ actor RadioOrchestrator {
         updateState {
             $0.upcomingTracks = tracks
             $0.phase = .opening
+            $0.playlistTrackCount = tracks.count
+            $0.trackIndex = 0
         }
         return tracks
     }
@@ -319,14 +322,14 @@ actor RadioOrchestrator {
     }
 
     private func prepareClosingScript(tracks: [TrackInfo]) async throws -> RadioScript {
-        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）" }
+        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）"; $0.isProcessing = true }
         let closingScript = try await scriptService.generateClosing(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = "スクリプト作成終了" }
+        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
         return closingScript
     }
 
     private func prepareClosingTask(tracks: [TrackInfo]) -> Task<RadioScript, Error> {
-        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）" }
+        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）"; $0.isProcessing = true }
         let scriptService = self.scriptService
         let settings = self.settings
         return Task.detached {
@@ -335,9 +338,9 @@ actor RadioOrchestrator {
     }
 
     private func prepareOpeningNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
-        updateState { $0.statusMessage = "スクリプト作成開始（オープニング）" }
+        updateState { $0.statusMessage = "スクリプト作成開始（オープニング）"; $0.isProcessing = true }
         let script = try await scriptService.generateOpening(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = "スクリプト作成終了" }
+        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: script.dialogues,
             segmentLabel: "オープニング"
@@ -374,13 +377,13 @@ actor RadioOrchestrator {
         previousTrack: TrackInfo
     ) async throws -> PreparedNarration {
         let continuityNote = buildContinuityNote(for: track, previousTrack: previousTrack)
-        updateState { $0.statusMessage = "スクリプト作成開始（\(track.name) のイントロ）" }
+        updateState { $0.statusMessage = "スクリプト作成開始（\(track.name) のイントロ）"; $0.isProcessing = true }
         let script = try await scriptService.generateIntro(
             track: track,
             settings: settings,
             continuityNote: continuityNote
         )
-        updateState { $0.statusMessage = "スクリプト作成終了" }
+        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: script.dialogues,
             segmentLabel: "\(track.name) のイントロ"
@@ -393,14 +396,14 @@ actor RadioOrchestrator {
         nextTrack: TrackInfo
     ) async throws -> PreparedNarration {
         let continuityNote = buildContinuityNote(for: nextTrack, previousTrack: currentTrack)
-        updateState { $0.statusMessage = "スクリプト作成開始（\(currentTrack.name) → \(nextTrack.name)）" }
+        updateState { $0.statusMessage = "スクリプト作成開始（\(currentTrack.name) → \(nextTrack.name)）"; $0.isProcessing = true }
         let script = try await scriptService.generateTransition(
             currentTrack: currentTrack,
             nextTrack: nextTrack,
             settings: settings,
             continuityNote: continuityNote
         )
-        updateState { $0.statusMessage = "スクリプト作成終了" }
+        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: script.dialogues,
             segmentLabel: "\(currentTrack.name) から \(nextTrack.name) へのトランジション"
@@ -446,7 +449,7 @@ actor RadioOrchestrator {
         let closingScript: RadioScript
         if let closingTask {
             closingScript = try await closingTask.value
-            updateState { $0.statusMessage = "スクリプト作成終了" }
+            updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
         } else {
             closingScript = try await prepareClosingScript(tracks: tracks)
         }
@@ -461,12 +464,14 @@ actor RadioOrchestrator {
         track: TrackInfo,
         nextTrack: TrackInfo?,
         overlapMode: OverlapMode,
-        startInstruction: TrackStartInstruction
+        startInstruction: TrackStartInstruction,
+        trackIndex: Int
     ) async throws -> TrackPlaybackOutcome {
         try await playIntroIfNeeded(
             track: track,
             overlapMode: overlapMode,
-            startInstruction: startInstruction
+            startInstruction: startInstruction,
+            trackIndex: trackIndex
         )
 
         if isStopRequested {
@@ -488,9 +493,14 @@ actor RadioOrchestrator {
     private func playIntroIfNeeded(
         track: TrackInfo,
         overlapMode: OverlapMode,
-        startInstruction: TrackStartInstruction
+        startInstruction: TrackStartInstruction,
+        trackIndex: Int
     ) async throws {
-        updateState { $0.currentTrack = track }
+        updateState {
+            $0.currentTrack = track
+            $0.trackIndex = trackIndex
+            $0.trackStartedAtDate = nil
+        }
 
         switch startInstruction {
         case .trackAlreadyStarted:
@@ -590,6 +600,7 @@ actor RadioOrchestrator {
         updateState { $0.volume = settings.volumeSettings.normalVolume }
         try await musicService.play(track: track)
         trackStartedAt = ContinuousClock.now
+        updateState { $0.trackStartedAtDate = Date() }
     }
 
     private func playStandaloneNarration(wavData: Data) async throws {
@@ -598,14 +609,14 @@ actor RadioOrchestrator {
     }
 
     private func synthesizeNarration(dialogues: [DialogueLine], segmentLabel: String) async throws -> Data {
-        updateState { $0.statusMessage = "TTS音声作成開始（\(segmentLabel)）" }
+        updateState { $0.statusMessage = "TTS音声作成開始（\(segmentLabel)）"; $0.isProcessing = true }
         do {
             let result = try await ttsService.synthesize(dialogues: dialogues, settings: settings)
             let isFallback = result.modelUsed != settings.geminiTTSModel
             if isFallback {
-                updateState { $0.statusMessage = "TTS音声作成終了（副モデル: \(result.modelUsed)）" }
+                updateState { $0.statusMessage = "TTS音声作成終了（副モデル: \(result.modelUsed)）"; $0.isProcessing = false }
             } else {
-                updateState { $0.statusMessage = "TTS音声作成終了" }
+                updateState { $0.statusMessage = "TTS音声作成終了"; $0.isProcessing = false }
             }
             return result.wavData
         } catch {
@@ -643,6 +654,7 @@ actor RadioOrchestrator {
         }
         try await musicService.play(track: track)
         trackStartedAt = ContinuousClock.now
+        updateState { $0.trackStartedAtDate = Date() }
     }
 
     private func fadeMusicVolume(targetVolume: Int, durationSeconds: Double) async {
@@ -822,7 +834,11 @@ actor RadioOrchestrator {
             $0.upcomingTracks = []
             $0.volume = settings.volumeSettings.normalVolume
             $0.statusMessage = ""
+            $0.isProcessing = false
             $0.isRecording = false
+            $0.trackIndex = 0
+            $0.playlistTrackCount = 0
+            $0.trackStartedAtDate = nil
             // recordingOutputURL は番組終了後もユーザーが確認できるよう保持する
         }
     }

@@ -8,7 +8,9 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             controlRow
             Divider()
-            statusSection
+            trackInfoRow
+            statusInfoRow
+            recordingInfoRow
             Spacer()
         }
         .padding(24)
@@ -67,7 +69,7 @@ struct ContentView: View {
             .accessibilityLabel(viewModel.primaryControlState.buttonLabelText)
             .help(viewModel.primaryControlState.buttonLabelText)
             .disabled(
-                viewModel.radioState.isRecording
+                viewModel.isRecordingSession
                 || (viewModel.primaryControlState == .start && !viewModel.canStart)
             )
 
@@ -95,26 +97,59 @@ struct ContentView: View {
         }
     }
 
-    private var statusSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("状態")
-                .font(.headline)
-
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                statusRow("Phase", value: viewModel.radioState.phase.rawValue)
-                statusRow("Status", value: viewModel.radioState.statusMessage.isEmpty ? "-" : viewModel.radioState.statusMessage)
-                statusRow("Playlist", value: viewModel.radioState.playlistName.isEmpty ? "-" : viewModel.radioState.playlistName)
-                statusRow("Track", value: viewModel.radioState.currentTrack?.displayText ?? "-")
-                statusRow("Running", value: viewModel.radioState.isRunning ? "true" : "false")
-                statusRow("Paused", value: viewModel.radioState.isPaused ? "true" : "false")
-                statusRow("Volume", value: "\(viewModel.radioState.volume)")
+    /// 再生中の曲番号と再生位置を表示する行
+    private var trackInfoRow: some View {
+        Group {
+            if viewModel.radioState.isRunning, let track = viewModel.radioState.currentTrack {
+                HStack(spacing: 8) {
+                    let total = viewModel.radioState.playlistTrackCount
+                    let index = viewModel.radioState.trackIndex
+                    Text("\(index + 1)/\(total)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                        let position: Double = viewModel.radioState.trackStartedAtDate.map {
+                            max(0, context.date.timeIntervalSince($0))
+                        } ?? 0
+                        let duration = Double(track.durationSeconds)
+                        Text("\(formatTime(position)) / \(formatTime(duration))")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .font(.subheadline)
             }
+        }
+    }
 
-            if let errorMessage = viewModel.radioState.errorMessage, !errorMessage.isEmpty {
-                Text(errorMessage)
+    /// ステータスメッセージとスピナーを表示する行
+    private var statusInfoRow: some View {
+        Group {
+            if viewModel.radioState.isProcessing {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(viewModel.radioState.statusMessage)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+            } else if !viewModel.radioState.statusMessage.isEmpty {
+                Text(viewModel.radioState.statusMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if let error = viewModel.radioState.errorMessage, !error.isEmpty {
+                Text(error)
+                    .font(.subheadline)
                     .foregroundStyle(.red)
             }
+        }
+    }
 
+    /// 録音完了URLを表示する行
+    private var recordingInfoRow: some View {
+        Group {
             if let recordingURL = viewModel.radioState.recordingOutputURL, !viewModel.radioState.isRecording {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
@@ -127,27 +162,13 @@ struct ContentView: View {
                     .buttonStyle(.link)
                     .help(recordingURL.path)
                 }
-            }
-
-            if !viewModel.radioState.upcomingTracks.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Upcoming Tracks")
-                        .font(.headline)
-                    ForEach(viewModel.radioState.upcomingTracks.prefix(5)) { track in
-                        Text(track.displayText)
-                            .font(.body.monospaced())
-                    }
-                }
+                .font(.subheadline)
             }
         }
     }
 
-    private func statusRow(_ labelText: String, value: String) -> some View {
-        GridRow {
-            Text(labelText)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+    private func formatTime(_ seconds: Double) -> String {
+        let total = Int(max(0, seconds))
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }

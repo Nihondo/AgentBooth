@@ -30,6 +30,7 @@ enum PromptBuilder {
         - 読みが不明ならばWeb検索を活用してもよい
         - speaker に使ってよい値は male と female のみ
         \(summaryRuleLines())
+        - text の中で ASCII の二重引用符は使わず、日本語のカギ括弧を使う
         - 最後は曲を流す合図で締める
         - JSONのみ出力し、余計な説明は不要
 
@@ -126,9 +127,9 @@ enum PromptBuilder {
         - リスナーへの感謝と次回への期待を入れる
         - speaker に使ってよい値は male と female のみ
         \(summaryRuleLines())
+        - text の中で ASCII の二重引用符は使わず、日本語のカギ括弧を使う
         - 最後の挨拶で番組を締める
         - JSONのみ出力し、余計な説明は不要
-
         【出力形式】
         \(formatExample())
         """

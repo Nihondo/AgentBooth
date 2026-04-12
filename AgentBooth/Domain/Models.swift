@@ -244,8 +244,12 @@ struct RadioState: Equatable, Sendable {
     var overlapMode: OverlapMode = .fullRadio
     var errorMessage: String?
     var statusMessage: String = ""
+    var isProcessing: Bool = false
     var isRecording: Bool = false
     var recordingOutputURL: URL?
+    var trackIndex: Int = 0
+    var playlistTrackCount: Int = 0
+    var trackStartedAtDate: Date?
 
     var primaryControlState: PrimaryControlState {
         if isPaused {
