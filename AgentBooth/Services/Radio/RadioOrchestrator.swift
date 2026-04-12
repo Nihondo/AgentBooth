@@ -167,7 +167,7 @@ actor RadioOrchestrator {
     }
 
     private func runShow(playlistName: String, overlapMode: OverlapMode) async {
-        var closingTask: Task<RadioScript, Error>?
+        var closingTask: Task<PreparedNarration, Error>?
         defer {
             closingTask?.cancel()
             playbackTask = nil
@@ -186,7 +186,7 @@ actor RadioOrchestrator {
     private func performShow(
         playlistName: String,
         overlapMode: OverlapMode,
-        closingTask: inout Task<RadioScript, Error>?
+        closingTask: inout Task<PreparedNarration, Error>?
     ) async throws {
         let tracks = try await loadTracks(for: playlistName)
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
@@ -209,7 +209,7 @@ actor RadioOrchestrator {
             let nextTrack = indexValue + 1 < tracks.count ? tracks[indexValue + 1] : nil
             if nextTrack == nil && closingTask == nil {
                 let closingTracks = playedTracks + [track]
-                closingTask = prepareClosingTask(tracks: closingTracks)
+                closingTask = prepareClosingNarration(tracks: closingTracks)
             }
 
             let startInstruction = await determineTrackStartInstruction(
@@ -321,20 +321,21 @@ actor RadioOrchestrator {
         return outputURL
     }
 
-    private func prepareClosingScript(tracks: [TrackInfo]) async throws -> RadioScript {
+    private func prepareClosingNarration(tracks: [TrackInfo]) -> Task<PreparedNarration, Error> {
+        Task {
+            try await generatePreparedClosingNarration(tracks: tracks)
+        }
+    }
+
+    private func generatePreparedClosingNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
         updateState { $0.statusMessage = "スクリプト作成開始（クロージング）"; $0.isProcessing = true }
         let closingScript = try await scriptService.generateClosing(tracks: tracks, settings: settings)
         updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
-        return closingScript
-    }
-
-    private func prepareClosingTask(tracks: [TrackInfo]) -> Task<RadioScript, Error> {
-        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）"; $0.isProcessing = true }
-        let scriptService = self.scriptService
-        let settings = self.settings
-        return Task.detached {
-            try await scriptService.generateClosing(tracks: tracks, settings: settings)
-        }
+        let wavData = try await synthesizeNarration(
+            dialogues: closingScript.dialogues,
+            segmentLabel: "クロージング"
+        )
+        return PreparedNarration(script: closingScript, wavData: wavData)
     }
 
     private func prepareOpeningNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
@@ -440,24 +441,19 @@ actor RadioOrchestrator {
 
     private func playClosingIfNeeded(
         tracks: [TrackInfo],
-        closingTask: Task<RadioScript, Error>?
+        closingTask: Task<PreparedNarration, Error>?
     ) async throws {
         guard !isStopRequested else {
             return
         }
         updateState { $0.phase = .closing }
-        let closingScript: RadioScript
+        let narration: PreparedNarration
         if let closingTask {
-            closingScript = try await closingTask.value
-            updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
+            narration = try await closingTask.value
         } else {
-            closingScript = try await prepareClosingScript(tracks: tracks)
+            narration = try await generatePreparedClosingNarration(tracks: tracks)
         }
-        let closingWAV = try await synthesizeNarration(
-            dialogues: closingScript.dialogues,
-            segmentLabel: "クロージング"
-        )
-        try await playStandaloneNarration(wavData: closingWAV)
+        try await playStandaloneNarration(wavData: narration.wavData)
     }
 
     private func playTrack(
