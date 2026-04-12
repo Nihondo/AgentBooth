@@ -54,6 +54,14 @@ final class MainViewModel: ObservableObject {
         }
     }
 
+    /// 録音を有効にしたうえで番組を開始する
+    func startShowWithRecording() {
+        isRecordingEnabled = true
+        Task {
+            await startShow()
+        }
+    }
+
     func loadPlaylists() async {
         do {
             let musicService = serviceFactory.makeMusicService(for: selectedService)

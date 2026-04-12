@@ -66,7 +66,10 @@ struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .accessibilityLabel(viewModel.primaryControlState.buttonLabelText)
             .help(viewModel.primaryControlState.buttonLabelText)
-            .disabled(viewModel.primaryControlState == .start && !viewModel.canStart)
+            .disabled(
+                viewModel.radioState.isRecording
+                || (viewModel.primaryControlState == .start && !viewModel.canStart)
+            )
 
             Button {
                 viewModel.stopShow()
@@ -82,21 +85,20 @@ struct ContentView: View {
             Divider()
                 .frame(height: 24)
 
-            Toggle(isOn: Binding(
-                get: { viewModel.isRecordingEnabled },
-                set: { viewModel.isRecordingEnabled = $0 }
-            )) {
-                HStack(spacing: 4) {
-                    if viewModel.radioState.isRecording {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 8, height: 8)
-                    }
+            Button {
+                viewModel.startShowWithRecording()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: viewModel.radioState.isRecording ? "record.circle.fill" : "record.circle")
+                        .frame(width: 18, height: 18)
                     Text("録音")
                 }
             }
-            .disabled(viewModel.radioState.isRunning)
-            .help("番組をシステム音声キャプチャで録音します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。")
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .accessibilityLabel("録音して再生")
+            .help("番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。")
+            .disabled(!viewModel.canStart)
         }
     }
 

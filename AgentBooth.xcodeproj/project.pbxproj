@@ -56,6 +56,8 @@
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
 		3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
+		421289C32F8BA3ED004B7798 /* DevelopmentTeam.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DevelopmentTeam.xcconfig; sourceTree = "<group>"; };
+		421289C42F8BA3ED004B7798 /* DevelopmentTeam.local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DevelopmentTeam.local.xcconfig; sourceTree = "<group>"; };
 		53A10060D47AD1B4B46BF389 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
 		58975426E0097C0CFE155B8E /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
@@ -139,6 +141,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		421289C52F8BA3ED004B7798 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				421289C32F8BA3ED004B7798 /* DevelopmentTeam.xcconfig */,
+				421289C42F8BA3ED004B7798 /* DevelopmentTeam.local.xcconfig */,
+			);
+			path = Configurations;
+			sourceTree = "<group>";
+		};
 		4700049B0C2541AD74A07BD0 /* Recording */ = {
 			isa = PBXGroup;
 			children = (
@@ -212,6 +223,7 @@
 				53E41026457537A5DA38B7A3 /* AgentBoothTests */,
 				971490876855A881DC0DF84A /* Frameworks */,
 				2FE4B8FCD37D01DDF1C2B4CE /* Products */,
+				421289C52F8BA3ED004B7798 /* Configurations */,
 			);
 			sourceTree = "<group>";
 		};
@@ -451,6 +463,7 @@
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = UAC4B833KN;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -595,6 +608,7 @@
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = UAC4B833KN;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;

@@ -173,8 +173,6 @@ actor RadioOrchestrator {
             playbackTask = nil
         }
 
-        await startRecordingIfNeeded(playlistName: playlistName)
-
         do {
             try await performShow(playlistName: playlistName, overlapMode: overlapMode, closingTask: &closingTask)
             await finishRunShow(errorMessage: nil)
@@ -193,6 +191,10 @@ actor RadioOrchestrator {
         let tracks = try await loadTracks(for: playlistName)
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
         rememberTopics(for: tracks[0], script: openingNarration.script)
+
+        // オープニング音声の準備が完了した直後に録音を開始する。
+        // これにより、録音冒頭の無音時間（CLI/TTS の処理待ち）を排除する。
+        await startRecordingIfNeeded(playlistName: playlistName)
 
         var playedTracks: [TrackInfo] = []
         var nextIntroPreparation: TimedPreparation<PreparedNarration>?
