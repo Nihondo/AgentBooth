@@ -192,6 +192,25 @@ actor FailingTTSService: TTSService {
     }
 }
 
+actor ConditionalDelayTTSService: TTSService {
+    private let delaysByToken: [String: UInt64]
+
+    init(delaysByToken: [String: UInt64]) {
+        self.delaysByToken = delaysByToken
+    }
+
+    func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
+        let joinedText = dialogues.map(\.text).joined(separator: " ")
+        for (token, delayNanoseconds) in delaysByToken where joinedText.contains(token) {
+            try await Task.sleep(nanoseconds: delayNanoseconds)
+        }
+
+        var wavData = Data(repeating: 0, count: 44)
+        wavData.append(Data(repeating: 1, count: 4_800))
+        return TTSResult(wavData: wavData, modelUsed: settings.geminiTTSModel)
+    }
+}
+
 actor FakeAudioPlaybackService: AudioPlaybackServiceProtocol {
     private(set) var playCount = 0
     private(set) var isPlaying = false
