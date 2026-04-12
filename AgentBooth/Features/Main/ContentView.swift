@@ -5,7 +5,7 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 10) {
             controlRow
             Divider()
             statusSection
@@ -82,20 +82,13 @@ struct ContentView: View {
             .help("停止")
             .disabled(!viewModel.radioState.isRunning)
 
-            Divider()
-                .frame(height: 24)
-
             Button {
                 viewModel.startShowWithRecording()
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: viewModel.radioState.isRecording ? "record.circle.fill" : "record.circle")
-                        .frame(width: 18, height: 18)
-                    Text("録音")
-                }
+                Image(systemName: viewModel.radioState.isRecording ? "record.circle.fill" : "record.circle")
+                    .frame(width: 18, height: 18)
             }
             .buttonStyle(.bordered)
-            .tint(.red)
             .accessibilityLabel("録音して再生")
             .help("番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。")
             .disabled(!viewModel.canStart)

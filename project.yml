@@ -4,13 +4,16 @@ options:
     macOS: "14.0"
 settings:
   base:
-    SWIFT_VERSION: 5.10
+    SWIFT_VERSION: "5.10"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
 targets:
   AgentBooth:
     type: application
     platform: macOS
     deploymentTarget: "14.0"
+    configFiles:
+      Debug: Configurations/DevelopmentTeam.xcconfig
+      Release: Configurations/DevelopmentTeam.xcconfig
     sources:
       - path: AgentBooth
     dependencies:
@@ -23,6 +26,7 @@ targets:
         PRODUCT_NAME: AgentBooth
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.music"
         INFOPLIST_KEY_NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
         INFOPLIST_KEY_NSScreenCaptureUsageDescription: AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。
         CODE_SIGN_STYLE: Automatic
@@ -33,6 +37,9 @@ targets:
     type: bundle.unit-test
     platform: macOS
     deploymentTarget: "14.0"
+    configFiles:
+      Debug: Configurations/DevelopmentTeam.xcconfig
+      Release: Configurations/DevelopmentTeam.xcconfig
     sources:
       - path: AgentBoothTests
     dependencies:
