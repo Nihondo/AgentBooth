@@ -420,7 +420,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nihondo.AgentBoothTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBoothTests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AgentBooth.app/Contents/MacOS/AgentBooth";
 			};
@@ -438,7 +438,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nihondo.AgentBoothTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBoothTests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AgentBooth.app/Contents/MacOS/AgentBooth";
 			};
@@ -455,6 +455,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
 				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -462,7 +463,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nihondo.AgentBooth;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBooth;
 				PRODUCT_NAME = AgentBooth;
 				SDKROOT = macosx;
 			};
@@ -598,6 +599,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
 				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -605,7 +607,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nihondo.AgentBooth;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBooth;
 				PRODUCT_NAME = AgentBooth;
 				SDKROOT = macosx;
 			};

@@ -13,7 +13,7 @@ final class AppSettingsStore: ObservableObject {
 
     init(
         userDefaults: UserDefaults = .standard,
-        keychainStore: KeychainStore = KeychainStore(serviceName: "com.nihondo.AgentBooth")
+        keychainStore: KeychainStore = KeychainStore(serviceName: "com.dmng.AgentBooth")
     ) {
         self.userDefaults = userDefaults
         self.keychainStore = keychainStore

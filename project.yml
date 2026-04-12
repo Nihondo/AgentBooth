@@ -19,7 +19,7 @@ targets:
       - sdk: CoreMedia.framework
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.nihondo.AgentBooth
+        PRODUCT_BUNDLE_IDENTIFIER: com.dmng.AgentBooth
         PRODUCT_NAME: AgentBooth
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
@@ -39,5 +39,5 @@ targets:
       - target: AgentBooth
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.nihondo.AgentBoothTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.dmng.AgentBoothTests
         GENERATE_INFOPLIST_FILE: YES
