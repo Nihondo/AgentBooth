@@ -1,0 +1,38 @@
+name: AgentBooth
+options:
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+targets:
+  AgentBooth:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: AgentBooth
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nihondo.AgentBooth
+        PRODUCT_NAME: AgentBooth
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
+        INFOPLIST_KEY_NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: AgentBooth/AgentBooth.entitlements
+  AgentBoothTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: AgentBoothTests
+    dependencies:
+      - target: AgentBooth
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nihondo.AgentBoothTests
+        GENERATE_INFOPLIST_FILE: YES

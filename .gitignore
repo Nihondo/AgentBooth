@@ -1,0 +1,10 @@
+.*/
+docs/
+logs/
+handoff.md
+DerivedData/
+*.xcuserstate
+*.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+default.profraw
+.DS_Store
