@@ -220,7 +220,8 @@ actor RadioOrchestrator {
                 introPreparation: nextIntroPreparation
             )
 
-            let preparedNextIntro = nextTrack.map { prepareIntroNarration(for: $0, previousTrack: track) }
+            // nextTrack がある場合はトランジションを優先するため、イントロの事前準備は行わない
+            let preparedNextIntro: TimedPreparation<PreparedNarration>? = nil
             let outcome = try await playTrack(
                 track: track,
                 nextTrack: nextTrack,
