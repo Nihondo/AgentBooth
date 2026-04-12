@@ -7,6 +7,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     var tracksByPlaylist: [String: [TrackInfo]]
     var playedTracks: [TrackInfo] = []
     var currentVolume: Int = 100
+    var volumeHistory: [Int] = []
     var isPlaying = false
 
     init(
@@ -44,6 +45,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
 
     func setVolume(level: Int) async {
         currentVolume = level
+        volumeHistory.append(level)
     }
 
     func fetchVolume() async -> Int { currentVolume }
@@ -55,6 +57,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
 
 final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationService {
     private let continuityRecorder = ContinuityNoteRecorder()
+    private let generationStepRecorder = GenerationStepRecorder()
 
     var openingScript = RadioScript(
         segmentType: "opening",
@@ -82,7 +85,8 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
     )
 
     func generateOpening(tracks: [TrackInfo], settings: AppSettings) async throws -> RadioScript {
-        RadioScript(
+        await generationStepRecorder.record("opening")
+        return RadioScript(
             segmentType: openingScript.segmentType,
             dialogues: openingScript.dialogues,
             summaryBullets: openingScript.summaryBullets,
@@ -92,6 +96,7 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
 
     func generateIntro(track: TrackInfo, settings: AppSettings, continuityNote: String?) async throws -> RadioScript {
         await continuityRecorder.recordIntro(continuityNote)
+        await generationStepRecorder.record("intro:\(track.name)")
         return RadioScript(
             segmentType: introScript.segmentType,
             dialogues: introScript.dialogues,
@@ -107,6 +112,7 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
         continuityNote: String?
     ) async throws -> RadioScript {
         await continuityRecorder.recordTransition(continuityNote)
+        await generationStepRecorder.record("transition:\(currentTrack.name)->\(nextTrack.name)")
         return RadioScript(
             segmentType: transitionScript.segmentType,
             dialogues: transitionScript.dialogues,
@@ -116,7 +122,8 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
     }
 
     func generateClosing(tracks: [TrackInfo], settings: AppSettings) async throws -> RadioScript {
-        RadioScript(
+        await generationStepRecorder.record("closing")
+        return RadioScript(
             segmentType: closingScript.segmentType,
             dialogues: closingScript.dialogues,
             summaryBullets: closingScript.summaryBullets,
@@ -130,6 +137,10 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
 
     func recordedTransitionContinuityNotes() async -> [String?] {
         await continuityRecorder.transitionNotes
+    }
+
+    func recordedGenerationSteps() async -> [String] {
+        await generationStepRecorder.steps
     }
 
     static func sampleDialogues() -> [DialogueLine] {
@@ -150,6 +161,14 @@ private actor ContinuityNoteRecorder {
 
     func recordTransition(_ note: String?) {
         transitionNotes.append(note)
+    }
+}
+
+private actor GenerationStepRecorder {
+    private(set) var steps: [String] = []
+
+    func record(_ step: String) {
+        steps.append(step)
     }
 }
 
@@ -195,11 +214,27 @@ actor FakeAudioPlaybackService: AudioPlaybackServiceProtocol {
     func fetchIsPlaying() async -> Bool { isPlaying }
 }
 
+actor FakeRecordingService: ShowRecordingServiceProtocol {
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
+    private(set) var lastOutputURL: URL?
+
+    func startRecording(outputURL: URL) async throws {
+        startCallCount += 1
+        lastOutputURL = outputURL
+    }
+
+    func stopRecording() async throws {
+        stopCallCount += 1
+    }
+}
+
 struct FakeServiceFactory: AppServiceFactory {
     let musicService: FakeMusicService
     let scriptService: FakeScriptGenerationService
     let ttsService: any TTSService
     let audioPlaybackService: any AudioPlaybackServiceProtocol
+    let recordingService: (any ShowRecordingServiceProtocol)?
     let supportedServices: [MusicServiceKind]
 
     init(
@@ -207,12 +242,14 @@ struct FakeServiceFactory: AppServiceFactory {
         scriptService: FakeScriptGenerationService = FakeScriptGenerationService(),
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
+        recordingService: (any ShowRecordingServiceProtocol)? = nil,
         supportedServices: [MusicServiceKind] = [.appleMusic]
     ) {
         self.musicService = musicService
         self.scriptService = scriptService
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
+        self.recordingService = recordingService
         self.supportedServices = supportedServices
     }
 
@@ -225,4 +262,6 @@ struct FakeServiceFactory: AppServiceFactory {
     func makeTTSService(settings: AppSettings) -> any TTSService { ttsService }
 
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol { audioPlaybackService }
+
+    func makeRecordingService() -> (any ShowRecordingServiceProtocol)? { recordingService }
 }

@@ -5,6 +5,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     case music
     case program
     case tts
+    case recording
 
     var id: String { rawValue }
 
@@ -18,6 +19,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return "番組"
         case .tts:
             return "TTS"
+        case .recording:
+            return "録音"
         }
     }
 
@@ -31,6 +34,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return "dot.radiowaves.left.and.right"
         case .tts:
             return "waveform"
+        case .recording:
+            return "record.circle"
         }
     }
 
@@ -44,6 +49,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return "番組名やパーソナリティ名を設定します。"
         case .tts:
             return "Gemini TTS と台本生成 CLI を設定します。"
+        case .recording:
+            return "番組のシステム音声キャプチャ録音の設定をします。"
         }
     }
 }
@@ -129,6 +136,8 @@ struct SettingsView: View {
             programSettingsView
         case .tts:
             ttsSettingsView
+        case .recording:
+            recordingSettingsView
         }
     }
 
@@ -282,6 +291,36 @@ struct SettingsView: View {
                     TextField("未指定なら CLI の既定値", text: $draftSettings.scriptCLIModel)
                         .textFieldStyle(.roundedBorder)
                 }
+            }
+        }
+    }
+
+    private var recordingSettingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsGroup("録音設定") {
+                settingsRow("録音出力先") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "未入力なら ~/Music/AgentBooth/",
+                            text: $draftSettings.recordingOutputDirectory
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        Text("空欄の場合は ~/Music/AgentBooth/ に保存されます。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            settingsGroup("注意事項") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("録音はシステム音声キャプチャ（ScreenCaptureKit）を使用します。", systemImage: "info.circle")
+                    Label("初回使用時に「画面収録」の権限確認ダイアログが表示されます。", systemImage: "lock.shield")
+                    Label("録音中は他のアプリの通知音なども混入します。録音時はおやすみモードの使用を推奨します。", systemImage: "moon.fill")
+                    Label("ファイル形式: M4A (AAC 192kbps, 48kHz stereo)", systemImage: "music.note")
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
         }
     }

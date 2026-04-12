@@ -13,6 +13,10 @@ targets:
     deploymentTarget: "14.0"
     sources:
       - path: AgentBooth
+    dependencies:
+      - sdk: ScreenCaptureKit.framework
+      - sdk: AVFoundation.framework
+      - sdk: CoreMedia.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nihondo.AgentBooth
@@ -20,6 +24,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
         INFOPLIST_KEY_NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
+        INFOPLIST_KEY_NSScreenCaptureUsageDescription: AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。
         CODE_SIGN_STYLE: Automatic
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: YES

@@ -7,6 +7,7 @@ actor RadioOrchestrator {
     private let scriptService: any ScriptGenerationService
     private let ttsService: any TTSService
     private let audioPlaybackService: any AudioPlaybackServiceProtocol
+    private let recordingService: (any ShowRecordingServiceProtocol)?
     private let stateDidChange: @Sendable (RadioState) -> Void
 
     private var radioState = RadioState()
@@ -22,6 +23,7 @@ actor RadioOrchestrator {
         scriptService: any ScriptGenerationService,
         ttsService: any TTSService,
         audioPlaybackService: any AudioPlaybackServiceProtocol,
+        recordingService: (any ShowRecordingServiceProtocol)? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void
     ) {
         self.settings = settings
@@ -29,6 +31,7 @@ actor RadioOrchestrator {
         self.scriptService = scriptService
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
+        self.recordingService = recordingService
         self.stateDidChange = stateDidChange
     }
 
@@ -82,8 +85,24 @@ actor RadioOrchestrator {
     }
 
     private func runShow(playlistName: String, overlapMode: OverlapMode) async {
+        var closingTask: Task<RadioScript, Error>?
         defer {
+            closingTask?.cancel()
             playbackTask = nil
+        }
+
+        // 録音サービスがある場合、番組終了時（正常・エラー・キャンセル問わず）に必ず停止する
+        if let recordingService {
+            let outputURL = makeRecordingOutputURL(playlistName: playlistName)
+            do {
+                try await recordingService.startRecording(outputURL: outputURL)
+                updateState {
+                    $0.isRecording = true
+                    $0.recordingOutputURL = nil
+                }
+            } catch {
+                updateState { $0.errorMessage = "録音の開始に失敗しました: \(error.localizedDescription)" }
+            }
         }
 
         do {
@@ -107,6 +126,7 @@ actor RadioOrchestrator {
             rememberTopics(for: tracks[0], script: openingScript)
 
             var playedTracks: [TrackInfo] = []
+            var canSkipNextIntro = false
 
             for (indexValue, track) in tracks.enumerated() {
                 try Task.checkCancellation()
@@ -115,16 +135,26 @@ actor RadioOrchestrator {
                 }
 
                 let nextTrack = indexValue + 1 < tracks.count ? tracks[indexValue + 1] : nil
-                let introScript: RadioScript
-                let introWAV: Data
+                if nextTrack == nil && closingTask == nil {
+                    let closingTracks = playedTracks + [track]
+                    updateState { $0.statusMessage = "スクリプト作成開始（クロージング）" }
+                    let scriptService = self.scriptService
+                    let settings = self.settings
+                    closingTask = Task.detached {
+                        try await scriptService.generateClosing(tracks: closingTracks, settings: settings)
+                    }
+                }
+
+                let introWAV: Data?
 
                 if indexValue == 0 {
-                    introScript = openingScript
                     introWAV = openingWAV
+                } else if canSkipNextIntro {
+                    introWAV = nil
                 } else {
                     let continuityNote = buildContinuityNote(for: track, previousTrack: tracks[indexValue - 1])
                     updateState { $0.statusMessage = "スクリプト作成開始（\(track.name) のイントロ）" }
-                    introScript = try await scriptService.generateIntro(
+                    let introScript = try await scriptService.generateIntro(
                         track: track,
                         settings: settings,
                         continuityNote: continuityNote
@@ -137,21 +167,26 @@ actor RadioOrchestrator {
                     )
                 }
 
-                try await playTrack(
+                let didStartNextTrackDuringTransition = try await playTrack(
                     track: track,
                     nextTrack: nextTrack,
-                    introScript: introScript,
                     introWAV: introWAV,
-                    overlapMode: overlapMode
+                    overlapMode: overlapMode,
+                    canSkipIntro: canSkipNextIntro
                 )
                 playedTracks.append(track)
+                canSkipNextIntro = didStartNextTrackDuringTransition
             }
 
             if !isStopRequested {
                 updateState { $0.phase = .closing }
-                updateState { $0.statusMessage = "スクリプト作成開始（クロージング）" }
-                let closingScript = try await scriptService.generateClosing(tracks: playedTracks, settings: settings)
-                updateState { $0.statusMessage = "スクリプト作成終了" }
+                let closingScript: RadioScript
+                if let closingTask {
+                    closingScript = try await closingTask.value
+                    updateState { $0.statusMessage = "スクリプト作成終了" }
+                } else {
+                    closingScript = try await prepareClosingScript(tracks: playedTracks)
+                }
                 let closingWAV = try await synthesizeNarration(
                     dialogues: closingScript.dialogues,
                     segmentLabel: "クロージング"
@@ -159,10 +194,12 @@ actor RadioOrchestrator {
                 try await playStandaloneNarration(wavData: closingWAV)
             }
 
+            await finalizeRecording()
             resetState()
         } catch is CancellationError {
             await audioPlaybackService.stopPlayback()
             await musicService.stopPlayback()
+            await finalizeRecording()
             resetState()
         } catch {
             updateState { stateValue in
@@ -170,32 +207,86 @@ actor RadioOrchestrator {
             }
             await audioPlaybackService.stopPlayback()
             await musicService.stopPlayback()
+            await finalizeRecording()
             resetState()
         }
+    }
+
+    private func finalizeRecording() async {
+        guard let recordingService else { return }
+        do {
+            try await recordingService.stopRecording()
+        } catch {
+            updateState { $0.errorMessage = "録音の保存に失敗しました: \(error.localizedDescription)" }
+        }
+        let outputURL = radioState.recordingOutputURL
+        updateState {
+            $0.isRecording = false
+            $0.recordingOutputURL = outputURL
+        }
+    }
+
+    private func makeRecordingOutputURL(playlistName: String) -> URL {
+        let baseDir: URL
+        let customDir = settings.recordingOutputDirectory
+        if customDir.isEmpty {
+            baseDir = FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("AgentBooth", isDirectory: true)
+        } else {
+            baseDir = URL(fileURLWithPath: customDir, isDirectory: true)
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = formatter.string(from: Date())
+        let safeName = playlistName
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+        let filename = "\(timestamp)_\(safeName).m4a"
+        let outputURL = baseDir.appendingPathComponent(filename)
+        updateState { $0.recordingOutputURL = outputURL }
+        return outputURL
+    }
+
+    private func prepareClosingScript(tracks: [TrackInfo]) async throws -> RadioScript {
+        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）" }
+        let closingScript = try await scriptService.generateClosing(tracks: tracks, settings: settings)
+        updateState { $0.statusMessage = "スクリプト作成終了" }
+        return closingScript
     }
 
     private func playTrack(
         track: TrackInfo,
         nextTrack: TrackInfo?,
-        introScript: RadioScript,
-        introWAV: Data,
-        overlapMode: OverlapMode
-    ) async throws {
+        introWAV: Data?,
+        overlapMode: OverlapMode,
+        canSkipIntro: Bool
+    ) async throws -> Bool {
         updateState {
             $0.currentTrack = track
             $0.phase = .intro
         }
 
-        switch overlapMode {
-        case .introOver, .fullRadio:
-            try await playNarrationWithMusicLead(wavData: introWAV, track: track)
-        default:
-            try await playStandaloneNarration(wavData: introWAV)
-            try await startTrack(track)
+        if !canSkipIntro {
+            guard let introWAV else {
+                throw NSError(
+                    domain: "RadioOrchestrator",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "イントロ音声が準備されていません。"]
+                )
+            }
+
+            switch overlapMode {
+            case .introOver, .fullRadio:
+                try await playNarrationWithMusicLead(wavData: introWAV, track: track)
+            default:
+                try await playStandaloneNarration(wavData: introWAV)
+                try await startTrack(track)
+            }
         }
 
         if isStopRequested {
-            return
+            return false
         }
 
         updateState { $0.phase = .playing }
@@ -233,15 +324,18 @@ actor RadioOrchestrator {
                 await fadeMusicVolume(targetVolume: settings.volumeSettings.talkVolume, durationSeconds: settings.volumeSettings.fadeDuration)
                 await musicService.stopPlayback()
                 try await playTransition(wavData: transitionWAV, nextTrack: upcomingTrack)
-                return
+                return true
             }
         }
 
         let secondWaitSeconds = Double(nextTrack == nil ? settings.volumeSettings.fadeEarlySeconds : 0)
         if secondWaitSeconds > 0 {
-            try await waitRespectingPause(seconds: secondWaitSeconds)
+            updateState { $0.phase = .outro }
+            await fadeMusicVolume(targetVolume: 0, durationSeconds: secondWaitSeconds)
             await musicService.stopPlayback()
         }
+
+        return false
     }
 
     private func startTrack(_ track: TrackInfo) async throws {
@@ -460,6 +554,8 @@ actor RadioOrchestrator {
             $0.upcomingTracks = []
             $0.volume = settings.volumeSettings.normalVolume
             $0.statusMessage = ""
+            $0.isRecording = false
+            // recordingOutputURL は番組終了後もユーザーが確認できるよう保持する
         }
     }
 }

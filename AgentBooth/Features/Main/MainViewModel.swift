@@ -45,6 +45,15 @@ final class MainViewModel: ObservableObject {
         !selectedPlaylistName.isEmpty && !radioState.isRunning
     }
 
+    var isRecordingEnabled: Bool {
+        get { settingsStore.currentSettings.isRecordingEnabled }
+        set {
+            var updated = settingsStore.currentSettings
+            updated.isRecordingEnabled = newValue
+            try? settingsStore.saveSettings(updated)
+        }
+    }
+
     func loadPlaylists() async {
         do {
             let musicService = serviceFactory.makeMusicService(for: selectedService)
@@ -107,13 +116,15 @@ final class MainViewModel: ObservableObject {
         let scriptService = serviceFactory.makeScriptService(settings: currentSettings)
         let ttsService = serviceFactory.makeTTSService(settings: currentSettings)
         let audioPlaybackService = serviceFactory.makeAudioPlaybackService()
+        let recordingService = currentSettings.isRecordingEnabled ? serviceFactory.makeRecordingService() : nil
 
         let orchestrator = RadioOrchestrator(
             settings: currentSettings,
             musicService: musicService,
             scriptService: scriptService,
             ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
+            audioPlaybackService: audioPlaybackService,
+            recordingService: recordingService
         ) { [weak self] nextState in
             Task { @MainActor [weak self] in
                 self?.radioState = nextState

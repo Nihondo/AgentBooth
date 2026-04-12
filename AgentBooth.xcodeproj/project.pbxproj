@@ -21,10 +21,15 @@
 		57918480D551301E9AC01429 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */; };
 		6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */; };
 		7D84E7A8CF330A6F91EA20AB /* PromptBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3581E582CF14B056EA04E774 /* PromptBuilder.swift */; };
+		8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */; };
+		905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */; };
 		9792D589885A62488DC945DC /* GeminiTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */; };
+		A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */; };
+		ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58975426E0097C0CFE155B8E /* CoreMedia.framework */; };
 		AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */; };
 		C2E203168E6B66F11C887BE9 /* ScriptCommandBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */; };
 		C3C62647B02BF4B636812DA3 /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDB07082B0F31540781BF85 /* AppleMusicService.swift */; };
+		CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A10060D47AD1B4B46BF389 /* AVFoundation.framework */; };
 		DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943AD41DD032953E321C5B2E /* TestDoubles.swift */; };
 		DDD6D76DE783A43D072FC600 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */; };
 		E01A194D757B60EF31AEA51A /* AppSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */; };
@@ -51,9 +56,13 @@
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
 		3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
+		53A10060D47AD1B4B46BF389 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
+		58975426E0097C0CFE155B8E /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		633C58B34ED2C9421B9AEAB3 /* AgentBooth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AgentBooth.entitlements; sourceTree = "<group>"; };
 		6660A0E06C3D5BB0B6620C55 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		69967660B4C14A8BFACF20F7 /* ProcessScriptGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationService.swift; sourceTree = "<group>"; };
+		6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationServiceTests.swift; sourceTree = "<group>"; };
 		6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptCommandBuilderTests.swift; sourceTree = "<group>"; };
 		8EDB07082B0F31540781BF85 /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
 		943AD41DD032953E321C5B2E /* TestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDoubles.swift; sourceTree = "<group>"; };
@@ -69,7 +78,21 @@
 		F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiRetryPolicyTests.swift; sourceTree = "<group>"; };
 		F495016F14804CDB1C59A40E /* AgentBoothApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBoothApp.swift; sourceTree = "<group>"; };
 		F7C39922A308CE75BF0D1D5E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6E3895F76428CEBD92202513 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */,
+				CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */,
+				ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		052903E6DE3A402F94B8DB42 /* App */ = {
@@ -116,6 +139,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		4700049B0C2541AD74A07BD0 /* Recording */ = {
+			isa = PBXGroup;
+			children = (
+				FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */,
+			);
+			path = Recording;
+			sourceTree = "<group>";
+		};
 		53E41026457537A5DA38B7A3 /* AgentBoothTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -123,6 +154,7 @@
 				F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */,
 				04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */,
 				9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */,
+				6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */,
 				27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */,
 				6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */,
 				943AD41DD032953E321C5B2E /* TestDoubles.swift */,
@@ -163,11 +195,22 @@
 			path = Music;
 			sourceTree = "<group>";
 		};
+		971490876855A881DC0DF84A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				53A10060D47AD1B4B46BF389 /* AVFoundation.framework */,
+				58975426E0097C0CFE155B8E /* CoreMedia.framework */,
+				571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		B3F2187D0DB3C3839F080282 = {
 			isa = PBXGroup;
 			children = (
 				BDC4881B0601840D9516DFD1 /* AgentBooth */,
 				53E41026457537A5DA38B7A3 /* AgentBoothTests */,
+				971490876855A881DC0DF84A /* Frameworks */,
 				2FE4B8FCD37D01DDF1C2B4CE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -178,6 +221,7 @@
 				6625BB5105293248732DC2B0 /* Audio */,
 				1C710841CF2DCAFD87ED0DB5 /* Music */,
 				781F8F4E3A4319B553A19B82 /* Radio */,
+				4700049B0C2541AD74A07BD0 /* Recording */,
 				1DD8CB335B44E1CAC28AE0B5 /* Script */,
 				FDE075118B3F1F23B60FFA1B /* TTS */,
 			);
@@ -266,6 +310,7 @@
 			buildConfigurationList = 4ED951AABD9478FB71F9942E /* Build configuration list for PBXNativeTarget "AgentBooth" */;
 			buildPhases = (
 				E864D74EECC3785BE4BD007E /* Sources */,
+				6E3895F76428CEBD92202513 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -321,6 +366,7 @@
 				AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */,
 				1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */,
 				294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */,
+				8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */,
 				3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */,
 				C2E203168E6B66F11C887BE9 /* ScriptCommandBuilderTests.swift in Sources */,
 				DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */,
@@ -346,6 +392,7 @@
 				317EB41280CA3DC0D5B8EEE7 /* Protocols.swift in Sources */,
 				1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */,
 				DDD6D76DE783A43D072FC600 /* SettingsView.swift in Sources */,
+				905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */,
 				07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -409,6 +456,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -551,6 +599,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

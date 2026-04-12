@@ -228,6 +228,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     var personalitySettings: PersonalitySettings = .init()
     var volumeSettings: VolumeSettings = .init()
     var radioShowSettings: RadioShowSettings = .init()
+    var isRecordingEnabled: Bool = false
+    var recordingOutputDirectory: String = ""
 }
 
 /// The current UI-facing radio session state.
@@ -242,6 +244,8 @@ struct RadioState: Equatable, Sendable {
     var overlapMode: OverlapMode = .fullRadio
     var errorMessage: String?
     var statusMessage: String = ""
+    var isRecording: Bool = false
+    var recordingOutputURL: URL?
 
     var primaryControlState: PrimaryControlState {
         if isPaused {

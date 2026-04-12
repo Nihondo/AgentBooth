@@ -42,6 +42,12 @@ protocol AudioPlaybackServiceProtocol: Sendable {
     func fetchIsPlaying() async -> Bool
 }
 
+/// A recording service that captures system audio during a show.
+protocol ShowRecordingServiceProtocol: Sendable {
+    func startRecording(outputURL: URL) async throws
+    func stopRecording() async throws
+}
+
 /// A factory that wires live or fake services together.
 protocol AppServiceFactory: Sendable {
     func availableServices() -> [MusicServiceKind]
@@ -49,4 +55,5 @@ protocol AppServiceFactory: Sendable {
     func makeScriptService(settings: AppSettings) -> any ScriptGenerationService
     func makeTTSService(settings: AppSettings) -> any TTSService
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol
+    func makeRecordingService() -> (any ShowRecordingServiceProtocol)?
 }

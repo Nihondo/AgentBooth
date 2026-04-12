@@ -78,6 +78,25 @@ struct ContentView: View {
             .accessibilityLabel("停止")
             .help("停止")
             .disabled(!viewModel.radioState.isRunning)
+
+            Divider()
+                .frame(height: 24)
+
+            Toggle(isOn: Binding(
+                get: { viewModel.isRecordingEnabled },
+                set: { viewModel.isRecordingEnabled = $0 }
+            )) {
+                HStack(spacing: 4) {
+                    if viewModel.radioState.isRecording {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                    }
+                    Text("録音")
+                }
+            }
+            .disabled(viewModel.radioState.isRunning)
+            .help("番組をシステム音声キャプチャで録音します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。")
         }
     }
 
@@ -99,6 +118,20 @@ struct ContentView: View {
             if let errorMessage = viewModel.radioState.errorMessage, !errorMessage.isEmpty {
                 Text(errorMessage)
                     .foregroundStyle(.red)
+            }
+
+            if let recordingURL = viewModel.radioState.recordingOutputURL, !viewModel.radioState.isRecording {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("録音保存先: ")
+                        .foregroundStyle(.secondary)
+                    Button(recordingURL.lastPathComponent) {
+                        NSWorkspace.shared.activateFileViewerSelecting([recordingURL])
+                    }
+                    .buttonStyle(.link)
+                    .help(recordingURL.path)
+                }
             }
 
             if !viewModel.radioState.upcomingTracks.isEmpty {
