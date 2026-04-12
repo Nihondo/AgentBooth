@@ -10,6 +10,7 @@
 		07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */; };
 		1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */; };
 		1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */; };
+		2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3695314D2707876818736936 /* agentbooth.icon */; };
 		294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */; };
 		2BFFB6D78A1FEE04832B17F6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C39922A308CE75BF0D1D5E /* Models.swift */; };
 		317EB41280CA3DC0D5B8EEE7 /* Protocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7702F727F0D28028A7BA9A3 /* Protocols.swift */; };
@@ -55,6 +56,7 @@
 		27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestratorTests.swift; sourceTree = "<group>"; };
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
+		3695314D2707876818736936 /* agentbooth.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = agentbooth.icon; sourceTree = "<group>"; };
 		3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		53A10060D47AD1B4B46BF389 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
@@ -251,6 +253,7 @@
 			isa = PBXGroup;
 			children = (
 				633C58B34ED2C9421B9AEAB3 /* AgentBooth.entitlements */,
+				3695314D2707876818736936 /* agentbooth.icon */,
 				052903E6DE3A402F94B8DB42 /* App */,
 				0DADC5CB437B016001D87605 /* Domain */,
 				BC6D1C4441F580B0159341B4 /* Features */,
@@ -320,6 +323,7 @@
 			buildConfigurationList = 4ED951AABD9478FB71F9942E /* Build configuration list for PBXNativeTarget "AgentBooth" */;
 			buildPhases = (
 				E864D74EECC3785BE4BD007E /* Sources */,
+				8D4CD7358F5E10887190726D /* Resources */,
 				6E3895F76428CEBD92202513 /* Frameworks */,
 			);
 			buildRules = (
@@ -366,6 +370,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8D4CD7358F5E10887190726D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		90F06FECA1772377D9EF7921 /* Sources */ = {
@@ -460,7 +475,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = D499D54135ECCF1B538D617F /* DevelopmentTeam.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = agentbooth;
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -605,7 +620,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = D499D54135ECCF1B538D617F /* DevelopmentTeam.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = agentbooth;
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;

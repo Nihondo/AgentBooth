@@ -16,6 +16,10 @@ targets:
       Release: Configurations/DevelopmentTeam.xcconfig
     sources:
       - path: AgentBooth
+        excludes:
+          - agentbooth.icon
+      - path: AgentBooth/agentbooth.icon
+        buildPhase: resources
     dependencies:
       - sdk: ScreenCaptureKit.framework
       - sdk: AVFoundation.framework
@@ -24,6 +28,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dmng.AgentBooth
         PRODUCT_NAME: AgentBooth
+        ASSETCATALOG_COMPILER_APPICON_NAME: agentbooth
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.music"
