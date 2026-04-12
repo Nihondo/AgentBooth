@@ -542,7 +542,7 @@ actor RadioOrchestrator {
             case .ready(let narration):
                 rememberTopics(for: nextTrack, script: narration.script)
                 await fadeMusicVolume(
-                    targetVolume: settings.volumeSettings.talkVolume,
+                    targetVolume: 0,
                     durationSeconds: settings.volumeSettings.fadeDuration
                 )
                 await musicService.stopPlayback()
@@ -629,9 +629,8 @@ actor RadioOrchestrator {
         let startDelay = max(0, durationSeconds - settings.volumeSettings.musicLeadSeconds)
 
         async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        async let startTask: Void = startTrackAfterDelay(track: track, delaySeconds: startDelay)
+        async let startTask: Void = startTrackAfterDelay(track: track, delaySeconds: startDelay, startVolume: settings.volumeSettings.normalVolume)
         _ = try await (narrationTask, startTask)
-        await musicService.setVolume(level: settings.volumeSettings.normalVolume)
     }
 
     private func playTransition(wavData: Data, nextTrack: TrackInfo) async throws {
