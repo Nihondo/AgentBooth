@@ -14,7 +14,7 @@
 |------|------|
 | `startShow()` 呼び出し | ユーザーが「開始」ボタンを押す |
 | 状態初期化 | `isRunning=true`, `phase=idle` |
-| `loadTracks()` | Apple Music から指定プレイリストの曲一覧を取得 |
+| `loadTracks()` | 選択中の音楽サービスから指定プレイリストの曲一覧を取得 |
 | 状態更新 | `upcomingTracks` にセット、`phase=opening` |
 
 ---
@@ -70,7 +70,7 @@ CLI でスクリプト生成（closing）
 
 ```
 phase = playing
-音楽再生（Apple Music）
+音楽再生（選択中の音楽サービス）
 並行してトランジションスクリプトを非同期生成
   → CLI でスクリプト生成（transition: 前曲感想 + 次曲紹介）
   → Gemini TTS で音声合成
@@ -183,6 +183,85 @@ intro（次曲）        closing（クロージング再生）
 | `fadeEarlySeconds` | 10s | アウトロポイントの早出し秒数 |
 | `musicLeadSeconds` | 10.0s | ナレーション終了前に音楽を開始する秒数 |
 | `maxPlaybackDurationSeconds` | 0（無制限） | 1曲あたりの最大再生秒数 |
+
+### 曲再生タイムラインとの関係
+
+`effectivePlaybackDuration = min(曲の長さ, maxPlaybackDurationSeconds)`  
+`maxPlaybackDurationSeconds = 0` の場合は曲の長さをそのまま使う。
+
+```
+時間 →
+
+|----------------------------- 曲再生 -----------------------------|
+|<-------------------- effectivePlaybackDuration ----------------->|
+                                                       ^ 曲停止位置
+                                                       |<-- fadeDuration -->|
+                                         ^ アウトロ開始位置
+                                         |
+                                         +-- effectivePlaybackDuration - fadeEarlySeconds
+                                         |<------ fadeEarlySeconds ------>|
+```
+
+- `fadeEarlySeconds`
+  曲終端より何秒前からアウトロ処理に入るかを決める
+- `fadeDuration`
+  アウトロ開始後に音量を 0 まで落とす時間
+- `maxPlaybackDurationSeconds`
+  曲が長い場合でも待機計算とアウトロ開始位置の基準をここで打ち切る
+
+### 音量変化との関係
+
+#### 通常再生からアウトロに入る場合
+
+```
+音量
+100 | normalVolume  ────────────────────────────────╲
+    |                                                ╲
+    |                                                 ╲
+ 25 | talkVolume                                       ╲
+    |                                                   ╲
+  0 |                                                    └────
+    +--------------------------------------------------------------→ 時間
+                                             ^               ^
+                                             |               |
+                                   アウトロ開始位置   曲停止位置
+                                   (= fadeEarlySeconds 前)
+```
+
+#### トークと重ねて次曲を先行再生する場合
+
+`intro_over` / `full_radio` のイントロ、トランジション再生時に使用。
+
+```
+ナレーション時間 →
+
+|---------------- ナレーション再生 ----------------|
+|<----------- durationSeconds -------------------->|
+                     ^ 次曲開始
+                     |
+                     +-- durationSeconds - musicLeadSeconds
+                     |<----- musicLeadSeconds ----->|
+
+次曲音量
+100 | normalVolume                          ───────────────
+    |                                   ／
+ 25 | talkVolume               ─────────
+    |                        ／
+  0 |_______________________／____________________________________→ 時間
+                          ^               ^
+                          |               |
+                      次曲開始        fadeDuration で
+                                     talkVolume → normalVolume
+```
+
+- `talkVolume`
+  トークに重ねて曲を先行再生する開始音量
+- `normalVolume`
+  フェード完了後の通常音量
+- `musicLeadSeconds`
+  ナレーション終了前の何秒で次曲を出すかを決める
+- `fadeDuration`
+  先行再生した次曲を `talkVolume` から `normalVolume` に戻す時間
 
 ---
 

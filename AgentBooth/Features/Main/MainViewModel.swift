@@ -88,6 +88,8 @@ final class MainViewModel: ObservableObject {
 
     func selectService(_ serviceKind: MusicServiceKind) {
         selectedService = serviceKind
+        availablePlaylists = []
+        selectedPlaylistName = ""
         Task {
             await loadPlaylists()
         }

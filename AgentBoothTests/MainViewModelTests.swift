@@ -26,6 +26,25 @@ final class MainViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.radioState.phase == .opening || viewModel.radioState.phase == .intro || viewModel.radioState.phase == .playing || viewModel.radioState.phase == .closing || viewModel.radioState.phase == .idle)
     }
 
+    func testSelectServiceClearsPlaylistUntilReloadCompletes() async {
+        let musicService = FakeMusicService(playlists: ["Favorites"])
+        let factory = FakeServiceFactory(musicService: musicService)
+        let suiteName = "AgentBoothTests.\(UUID().uuidString)"
+        let settingsStore = AppSettingsStore(
+            userDefaults: UserDefaults(suiteName: suiteName)!,
+            keychainStore: KeychainStore(serviceName: suiteName)
+        )
+        let viewModel = MainViewModel(settingsStore: settingsStore, serviceFactory: factory)
+        viewModel.availablePlaylists = ["Favorites"]
+        viewModel.selectPlaylist("Favorites")
+
+        viewModel.selectService(.spotify)
+
+        XCTAssertEqual(viewModel.availablePlaylists, [])
+        XCTAssertEqual(viewModel.selectedPlaylistName, "")
+        XCTAssertFalse(viewModel.canStart)
+    }
+
     func testStartFlowSurfacesTTSErrorMessage() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
