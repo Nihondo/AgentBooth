@@ -215,6 +215,9 @@ function parseTrackRow(row) {
     contentType = "local";
   }
 
+  const artworkImg = row.querySelector('img[src*="i.scdn.co"]');
+  const artworkURL = artworkImg ? artworkImg.src || "" : "";
+
   return {
     title: trackTitle,
     artist: artistLinks[0] || "",
@@ -226,6 +229,7 @@ function parseTrackRow(row) {
     playlistURL: normalizeURL(window.location.href),
     isPlayable: Boolean(trackAnchor && trackTitle),
     contentType,
+    artworkURL,
   };
 }
 
@@ -428,10 +432,13 @@ function readPlayerTrack() {
   const artistLinks = Array.from(footer.querySelectorAll('a[href*="/artist/"]'))
     .map(element => textOf(element))
     .filter(Boolean);
+  const artworkImg = footer.querySelector('img[src*="i.scdn.co"]');
+  const artworkURL = artworkImg ? artworkImg.src || "" : "";
   return {
     href: normalizeURL(trackAnchor.getAttribute("href") || ""),
     title: textOf(trackAnchor),
     artist: artistLinks[0] || "",
+    artworkURL,
   };
 }
 """

@@ -136,6 +136,7 @@ struct TrackInfo: Codable, Equatable, Identifiable, Sendable {
     let durationSeconds: Int
     let playlistName: String
     let serviceID: String
+    let artworkURL: String?
 
     init(
         name: String,
@@ -143,7 +144,8 @@ struct TrackInfo: Codable, Equatable, Identifiable, Sendable {
         album: String,
         durationSeconds: Int = 0,
         playlistName: String = "",
-        serviceID: String = ""
+        serviceID: String = "",
+        artworkURL: String? = nil
     ) {
         self.name = name
         self.artist = artist
@@ -151,6 +153,7 @@ struct TrackInfo: Codable, Equatable, Identifiable, Sendable {
         self.durationSeconds = durationSeconds
         self.playlistName = playlistName
         self.serviceID = serviceID
+        self.artworkURL = artworkURL
     }
 
     var id: String {
@@ -268,6 +271,14 @@ struct AppSettings: Codable, Equatable, Sendable {
     var isRecordingEnabled: Bool = false
     var recordingOutputDirectory: String = ""
     var youtubeMusicUserAgent: String = defaultYouTubeMusicUserAgent
+}
+
+/// プレイリストのトラック一覧取得状態
+enum TrackListState: Equatable, Sendable {
+    case idle
+    case loading
+    case loaded([TrackInfo])
+    case failed(String)
 }
 
 /// The current UI-facing radio session state.

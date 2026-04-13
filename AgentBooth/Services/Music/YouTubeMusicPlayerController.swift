@@ -94,6 +94,7 @@ final class YouTubeMusicPlayerController {
             let artist: String
             let album: String
             let durationSeconds: Int
+            let thumbnailURL: String?
         }
         guard let json = try? await scriptRunner.runJSONScript(
             YouTubeMusicJSScripts.fetchCurrentTrack,
@@ -110,7 +111,8 @@ final class YouTubeMusicPlayerController {
             album: response.album,
             durationSeconds: response.durationSeconds,
             playlistName: playlistName,
-            serviceID: response.videoId
+            serviceID: response.videoId,
+            artworkURL: response.thumbnailURL
         )
     }
 

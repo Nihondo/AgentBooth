@@ -145,7 +145,8 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
             album: "",
             durationSeconds: 0,
             playlistName: currentPlaylist?.title ?? "",
-            serviceID: track.href
+            serviceID: track.href,
+            artworkURL: track.artworkURL
         )
     }
 
@@ -312,4 +313,5 @@ private struct SpotifyPlayerTrackResponse: Decodable {
     let href: String
     let title: String
     let artist: String
+    let artworkURL: String?
 }

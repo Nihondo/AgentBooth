@@ -72,7 +72,8 @@ final class YouTubeMusicService: MusicService, @unchecked Sendable {
                 album: item.album,
                 durationSeconds: item.durationSeconds,
                 playlistName: playlistName,
-                serviceID: item.videoId
+                serviceID: item.videoId,
+                artworkURL: item.thumbnailURL
             )
         }
     }

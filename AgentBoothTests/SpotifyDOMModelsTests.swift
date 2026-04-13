@@ -16,7 +16,8 @@ final class SpotifyDOMModelsTests: XCTestCase {
             href: "https://open.spotify.com/track/123",
             playlistURL: "https://open.spotify.com/playlist/456",
             isPlayable: true,
-            contentType: "track"
+            contentType: "track",
+            artworkURL: "https://i.scdn.co/image/abc123"
         )
 
         let track = item.toTrackInfo(playlistName: "Favorites")
@@ -24,6 +25,7 @@ final class SpotifyDOMModelsTests: XCTestCase {
         XCTAssertEqual(track?.artist, "Artist A")
         XCTAssertEqual(track?.playlistName, "Favorites")
         XCTAssertEqual(track?.serviceID, "https://open.spotify.com/track/123")
+        XCTAssertEqual(track?.artworkURL, "https://i.scdn.co/image/abc123")
     }
 
     func testSpotifyTrackItemExcludesNonTrackContent() {
@@ -35,7 +37,8 @@ final class SpotifyDOMModelsTests: XCTestCase {
             href: "https://open.spotify.com/episode/123",
             playlistURL: "https://open.spotify.com/playlist/456",
             isPlayable: true,
-            contentType: "episode"
+            contentType: "episode",
+            artworkURL: nil
         )
         let localFile = SpotifyTrackItem(
             title: "Local Song",
@@ -45,7 +48,8 @@ final class SpotifyDOMModelsTests: XCTestCase {
             href: "",
             playlistURL: "https://open.spotify.com/playlist/456",
             isPlayable: false,
-            contentType: "local"
+            contentType: "local",
+            artworkURL: nil
         )
         let unavailable = SpotifyTrackItem(
             title: "Missing Song",
@@ -55,7 +59,8 @@ final class SpotifyDOMModelsTests: XCTestCase {
             href: "https://open.spotify.com/track/789",
             playlistURL: "https://open.spotify.com/playlist/456",
             isPlayable: false,
-            contentType: "track"
+            contentType: "track",
+            artworkURL: nil
         )
 
         XCTAssertNil(episode.toTrackInfo(playlistName: "Favorites"))

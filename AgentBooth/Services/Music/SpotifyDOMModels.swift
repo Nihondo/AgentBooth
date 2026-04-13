@@ -16,6 +16,7 @@ struct SpotifyTrackItem: Codable, Equatable, Sendable {
     let playlistURL: String
     let isPlayable: Bool
     let contentType: String
+    let artworkURL: String?
 
     /// DOM 抽出結果を `TrackInfo` に変換する。
     func toTrackInfo(playlistName: String) -> TrackInfo? {
@@ -29,7 +30,8 @@ struct SpotifyTrackItem: Codable, Equatable, Sendable {
             album: album,
             durationSeconds: durationSeconds,
             playlistName: playlistName,
-            serviceID: href
+            serviceID: href,
+            artworkURL: artworkURL
         )
     }
 }

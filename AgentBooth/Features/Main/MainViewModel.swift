@@ -10,6 +10,7 @@ final class MainViewModel: ObservableObject {
     @Published var selectedPlaylistName: String = ""
     @Published private(set) var radioState = RadioState()
     @Published private(set) var isRecordingSession = false
+    @Published private(set) var previewTrackListState: TrackListState = .idle
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: AppServiceFactory
@@ -45,6 +46,22 @@ final class MainViewModel: ObservableObject {
 
     var canStart: Bool {
         !selectedPlaylistName.isEmpty && !radioState.isRunning
+    }
+
+    /// トラックリストに表示するトラック一覧（実行中はラジオ状態、停止中はプレビュー）
+    var displayTracks: [TrackInfo] {
+        if radioState.isRunning, !radioState.upcomingTracks.isEmpty {
+            return radioState.upcomingTracks
+        }
+        if case .loaded(let tracks) = previewTrackListState {
+            return tracks
+        }
+        return []
+    }
+
+    /// 現在再生中のトラックID（ハイライト用）
+    var currentPlayingTrackID: String? {
+        radioState.isRunning ? radioState.currentTrack?.id : nil
     }
 
     var isRecordingEnabled: Bool {
@@ -97,6 +114,24 @@ final class MainViewModel: ObservableObject {
 
     func selectPlaylist(_ playlistName: String) {
         selectedPlaylistName = playlistName
+        previewTrackListState = .idle
+        guard !playlistName.isEmpty else { return }
+        previewTrackListState = .loading
+        Task {
+            await loadPreviewTracks(for: playlistName)
+        }
+    }
+
+    private func loadPreviewTracks(for playlistName: String) async {
+        do {
+            let musicService = serviceFactory.makeMusicService(for: selectedService)
+            let tracks = try await musicService.fetchTracks(in: playlistName)
+            guard selectedPlaylistName == playlistName else { return }
+            previewTrackListState = .loaded(tracks)
+        } catch {
+            guard selectedPlaylistName == playlistName else { return }
+            previewTrackListState = .failed(error.localizedDescription)
+        }
     }
 
     func handlePrimaryControl(isTestMode: Bool = false) {

@@ -9,13 +9,22 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             controlRow
             Divider()
-            trackInfoRow
             statusInfoRow
             recordingInfoRow
-            Spacer()
+            Divider()
+            trackListSection
+            if viewModel.radioState.isRunning, let track = viewModel.radioState.currentTrack {
+                NowPlayingBar(
+                    track: track,
+                    playbackPosition: viewModel.radioState.currentPlaybackPosition,
+                    volume: viewModel.radioState.volume,
+                    trackIndex: viewModel.radioState.trackIndex,
+                    trackCount: viewModel.radioState.playlistTrackCount
+                )
+            }
         }
         .padding(24)
-        .frame(minWidth: 820, minHeight: 420)
+        .frame(minWidth: 820, minHeight: 620)
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -99,42 +108,19 @@ struct ContentView: View {
         }
     }
 
-    /// 再生中の曲番号・曲名・再生位置・音量を表示する行
-    private var trackInfoRow: some View {
-        Group {
-            if viewModel.radioState.isRunning, let track = viewModel.radioState.currentTrack {
-                HStack(spacing: 8) {
-                    let total = viewModel.radioState.playlistTrackCount
-                    let index = viewModel.radioState.trackIndex
-                    Text("\(index + 1)/\(total)")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    Text(track.name)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text("–")
-                        .foregroundStyle(.tertiary)
-                    Text(track.artist)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    let position = viewModel.radioState.currentPlaybackPosition
-                    let duration = Double(track.durationSeconds)
-                    Text("\(formatTime(position)) / \(formatTime(duration))")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    Label("\(viewModel.radioState.volume)%", systemImage: "speaker.wave.2.fill")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
-                .font(.subheadline)
-            }
-        }
+    /// トラック一覧テーブル
+    private var trackListSection: some View {
+        let effectiveState: TrackListState = viewModel.radioState.isRunning
+            ? .loaded(viewModel.displayTracks)
+            : viewModel.previewTrackListState
+
+        return TrackListView(
+            tracks: viewModel.displayTracks,
+            currentPlayingTrackID: viewModel.currentPlayingTrackID,
+            trackListState: effectiveState,
+            isRadioRunning: viewModel.radioState.isRunning,
+            currentPlaybackPosition: viewModel.radioState.currentPlaybackPosition
+        )
     }
 
     /// ステータスメッセージとスピナーを表示する行
@@ -180,8 +166,4 @@ struct ContentView: View {
         }
     }
 
-    private func formatTime(_ seconds: Double) -> String {
-        let total = Int(max(0, seconds))
-        return String(format: "%d:%02d", total / 60, total % 60)
-    }
 }

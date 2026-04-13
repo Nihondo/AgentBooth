@@ -43,6 +43,7 @@ struct YouTubeMusicTrackItem: Codable {
     let artist: String
     let album: String
     let durationSeconds: Int
+    let thumbnailURL: String?
 }
 
 // MARK: - Fetcher

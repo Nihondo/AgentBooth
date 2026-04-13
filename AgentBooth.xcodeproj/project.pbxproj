@@ -22,6 +22,7 @@
 		2BFFB6D78A1FEE04832B17F6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C39922A308CE75BF0D1D5E /* Models.swift */; };
 		317EB41280CA3DC0D5B8EEE7 /* Protocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7702F727F0D28028A7BA9A3 /* Protocols.swift */; };
 		334D851AD4987EDC07AE9045 /* YouTubeMusicWebViewStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C3B84DC9810AA270ECA415 /* YouTubeMusicWebViewStore.swift */; };
+		355D80EDF9B40A776C2E192D /* NowPlayingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A3EC2F5B06B360F429E4CC /* NowPlayingBar.swift */; };
 		3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */; };
 		3EFE8DA04411390A5860523A /* AgentBoothApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495016F14804CDB1C59A40E /* AgentBoothApp.swift */; };
 		4522F62CB093FF281D651C07 /* AppServiceContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */; };
@@ -47,6 +48,7 @@
 		C3C62647B02BF4B636812DA3 /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDB07082B0F31540781BF85 /* AppleMusicService.swift */; };
 		CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A10060D47AD1B4B46BF389 /* AVFoundation.framework */; };
 		CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */; };
+		CF0D5E1367928F78F888ACE7 /* TrackListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */; };
 		D4C1220AB0348360F51FD183 /* YouTubeMusicJSScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */; };
 		DA88A4F31020487B98A74E50 /* SpotifyLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5757CF1C6A91CB9099967AB3 /* SpotifyLoginViewModel.swift */; };
 		DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943AD41DD032953E321C5B2E /* TestDoubles.swift */; };
@@ -109,6 +111,7 @@
 		B0034334CB53C3E7CE0213C8 /* AppleScriptExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptExecutor.swift; sourceTree = "<group>"; };
 		B1805E0CA7CF453148013870 /* SpotifyBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyBrowserView.swift; sourceTree = "<group>"; };
 		B7702F727F0D28028A7BA9A3 /* Protocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocols.swift; sourceTree = "<group>"; };
+		B8A3EC2F5B06B360F429E4CC /* NowPlayingBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingBar.swift; sourceTree = "<group>"; };
 		C2C4A6657B19A76099CE0808 /* SpotifyScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyScriptRunner.swift; sourceTree = "<group>"; };
 		D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStore.swift; sourceTree = "<group>"; };
 		D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -120,6 +123,7 @@
 		E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestrator.swift; sourceTree = "<group>"; };
 		E8950BBEDA233AFFA12AC842 /* AgentBooth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentBooth.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserView.swift; sourceTree = "<group>"; };
+		EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListView.swift; sourceTree = "<group>"; };
 		F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiRetryPolicyTests.swift; sourceTree = "<group>"; };
 		F495016F14804CDB1C59A40E /* AgentBoothApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBoothApp.swift; sourceTree = "<group>"; };
 		F7C39922A308CE75BF0D1D5E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -341,6 +345,8 @@
 			children = (
 				6660A0E06C3D5BB0B6620C55 /* ContentView.swift */,
 				3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */,
+				B8A3EC2F5B06B360F429E4CC /* NowPlayingBar.swift */,
+				EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */,
 			);
 			path = Main;
 			sourceTree = "<group>";
@@ -508,6 +514,7 @@
 				6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */,
 				483EF38C595DEDECE64A292A /* MainViewModel.swift in Sources */,
 				2BFFB6D78A1FEE04832B17F6 /* Models.swift in Sources */,
+				355D80EDF9B40A776C2E192D /* NowPlayingBar.swift in Sources */,
 				E0FAE1567D838876CF736668 /* ProcessScriptGenerationService.swift in Sources */,
 				7D84E7A8CF330A6F91EA20AB /* PromptBuilder.swift in Sources */,
 				317EB41280CA3DC0D5B8EEE7 /* Protocols.swift in Sources */,
@@ -526,6 +533,7 @@
 				F6AB525CD75A66D466A8B0E6 /* TestModeAudioPlaybackService.swift in Sources */,
 				1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */,
 				CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */,
+				CF0D5E1367928F78F888ACE7 /* TrackListView.swift in Sources */,
 				67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */,
 				10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */,
 				28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */,

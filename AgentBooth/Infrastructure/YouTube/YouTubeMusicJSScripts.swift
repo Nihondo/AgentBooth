@@ -284,7 +284,12 @@ enum YouTubeMusicJSScripts {
               const durationText =
                 r.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer
                   ?.text?.runs?.[0]?.text || "0:00";
-              tracks.push({ videoId, title, artist, album, durationSeconds: parseDuration(durationText) });
+              const thumbnails = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails
+                || r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
+              const thumbnailURL = thumbnails.length > 0
+                ? thumbnails[thumbnails.length - 1].url || ""
+                : "";
+              tracks.push({ videoId, title, artist, album, durationSeconds: parseDuration(durationText), thumbnailURL });
             }
             return JSON.stringify(tracks);
           } catch (e) {
@@ -390,7 +395,9 @@ enum YouTubeMusicJSScripts {
         const videoId = new URLSearchParams(window.location.search).get('v') || "";
         const v = document.querySelector('video');
         const durationSeconds = v ? Math.round(v.duration) || 0 : 0;
-        return JSON.stringify({ videoId, title, artist, album: "", durationSeconds });
+        const artworkImg = bar.querySelector('img.image.style-scope.ytmusic-player-bar');
+        const thumbnailURL = artworkImg ? artworkImg.src || "" : "";
+        return JSON.stringify({ videoId, title, artist, album: "", durationSeconds, thumbnailURL });
       } catch (e) { return JSON.stringify({ "__error": e.message || String(e) }); }
     })();
     """
