@@ -274,7 +274,7 @@ struct FakeServiceFactory: AppServiceFactory {
 
     func availableServices() -> [MusicServiceKind] { supportedServices }
 
-    func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService { musicService }
+    @MainActor func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService { musicService }
 
     func makeScriptService(settings: AppSettings) -> any ScriptGenerationService { scriptService }
 

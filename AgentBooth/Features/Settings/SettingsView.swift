@@ -62,6 +62,7 @@ struct SettingsView: View {
     @State private var selectedCategory: SettingsCategory? = .general
     @State private var errorMessage: String?
     @State private var isSaved = false
+    @ObservedObject private var ytStore = LiveAppServiceFactory.sharedYouTubeMusicStore
 
     var body: some View {
         NavigationSplitView {
@@ -157,12 +158,30 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private var youtubeMusicLoginRow: some View {
+        settingsRow("ログイン状態") {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(ytStore.isLoggedIn ? Color.green : Color.orange)
+                    .frame(width: 10, height: 10)
+                Text(ytStore.isLoggedIn ? "ログイン済み" : "未ログイン")
+                    .foregroundStyle(ytStore.isLoggedIn ? .primary : .secondary)
+            }
+        }
+        settingsRow("") {
+            Button("YouTube Music でログイン") {
+                YouTubeMusicBrowserWindowController.shared.open(
+                    store: LiveAppServiceFactory.sharedYouTubeMusicStore
+                )
+            }
+        }
+    }
+
     private var musicSettingsView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            settingsGroup("サービス制御") {
-                Text("現時点の実装対象は Apple Music です。将来追加用にサービス設定を分離しています。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            settingsGroup("YouTube Music") {
+                youtubeMusicLoginRow
             }
 
             settingsGroup("再生バランス") {

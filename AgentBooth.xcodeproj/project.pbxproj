@@ -8,29 +8,38 @@
 
 /* Begin PBXBuildFile section */
 		07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */; };
+		10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */; };
 		1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */; };
 		1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */; };
+		1BEA39718509A107655F29FE /* YouTubeMusicPlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */; };
 		2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3695314D2707876818736936 /* agentbooth.icon */; };
+		28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */; };
 		294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */; };
 		2BFFB6D78A1FEE04832B17F6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C39922A308CE75BF0D1D5E /* Models.swift */; };
 		317EB41280CA3DC0D5B8EEE7 /* Protocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7702F727F0D28028A7BA9A3 /* Protocols.swift */; };
+		334D851AD4987EDC07AE9045 /* YouTubeMusicWebViewStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C3B84DC9810AA270ECA415 /* YouTubeMusicWebViewStore.swift */; };
 		3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */; };
 		3EFE8DA04411390A5860523A /* AgentBoothApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495016F14804CDB1C59A40E /* AgentBoothApp.swift */; };
 		4522F62CB093FF281D651C07 /* AppServiceContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */; };
 		4692DE91A11C64755EEF0A3A /* AppleScriptExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0034334CB53C3E7CE0213C8 /* AppleScriptExecutor.swift */; };
 		483EF38C595DEDECE64A292A /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */; };
 		57918480D551301E9AC01429 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */; };
+		67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */; };
+		6A03426E5CBD3D577F1B2A7E /* YouTubeMusicLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0006EEE51C46F3CE4BB4DB9 /* YouTubeMusicLoginViewModel.swift */; };
 		6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */; };
 		7D84E7A8CF330A6F91EA20AB /* PromptBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3581E582CF14B056EA04E774 /* PromptBuilder.swift */; };
 		8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */; };
 		905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */; };
 		9792D589885A62488DC945DC /* GeminiTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */; };
+		A00C081B0916E172E5067D44 /* YouTubeMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A703B9C53D2B555D308819FF /* YouTubeMusicService.swift */; };
 		A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */; };
 		ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58975426E0097C0CFE155B8E /* CoreMedia.framework */; };
 		AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */; };
+		B670E7A19D095C07893A8C12 /* YouTubeMusicScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A725F59DE59B73646C65CC43 /* YouTubeMusicScriptRunner.swift */; };
 		C2E203168E6B66F11C887BE9 /* ScriptCommandBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */; };
 		C3C62647B02BF4B636812DA3 /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDB07082B0F31540781BF85 /* AppleMusicService.swift */; };
 		CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A10060D47AD1B4B46BF389 /* AVFoundation.framework */; };
+		D4C1220AB0348360F51FD183 /* YouTubeMusicJSScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */; };
 		DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943AD41DD032953E321C5B2E /* TestDoubles.swift */; };
 		DDD6D76DE783A43D072FC600 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */; };
 		E01A194D757B60EF31AEA51A /* AppSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */; };
@@ -58,10 +67,13 @@
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
 		3695314D2707876818736936 /* agentbooth.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = agentbooth.icon; sourceTree = "<group>"; };
 		3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
+		505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicPlayerController.swift; sourceTree = "<group>"; };
 		53A10060D47AD1B4B46BF389 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		53C3B84DC9810AA270ECA415 /* YouTubeMusicWebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicWebViewStore.swift; sourceTree = "<group>"; };
 		571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
 		58975426E0097C0CFE155B8E /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		633C58B34ED2C9421B9AEAB3 /* AgentBooth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AgentBooth.entitlements; sourceTree = "<group>"; };
+		65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicAPIFetcher.swift; sourceTree = "<group>"; };
 		6660A0E06C3D5BB0B6620C55 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		69967660B4C14A8BFACF20F7 /* ProcessScriptGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationService.swift; sourceTree = "<group>"; };
 		6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationServiceTests.swift; sourceTree = "<group>"; };
@@ -70,14 +82,20 @@
 		943AD41DD032953E321C5B2E /* TestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDoubles.swift; sourceTree = "<group>"; };
 		9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServiceContainer.swift; sourceTree = "<group>"; };
 		9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryControlStateTests.swift; sourceTree = "<group>"; };
+		A703B9C53D2B555D308819FF /* YouTubeMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicService.swift; sourceTree = "<group>"; };
+		A725F59DE59B73646C65CC43 /* YouTubeMusicScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicScriptRunner.swift; sourceTree = "<group>"; };
+		B0006EEE51C46F3CE4BB4DB9 /* YouTubeMusicLoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicLoginViewModel.swift; sourceTree = "<group>"; };
 		B0034334CB53C3E7CE0213C8 /* AppleScriptExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptExecutor.swift; sourceTree = "<group>"; };
 		B7702F727F0D28028A7BA9A3 /* Protocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocols.swift; sourceTree = "<group>"; };
 		D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStore.swift; sourceTree = "<group>"; };
 		D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		D499D54135ECCF1B538D617F /* DevelopmentTeam.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DevelopmentTeam.xcconfig; sourceTree = "<group>"; };
+		D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicJSScripts.swift; sourceTree = "<group>"; };
+		E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserWindow.swift; sourceTree = "<group>"; };
 		E3BD548FFD67212BA64CAF3B /* AgentBoothTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentBoothTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestrator.swift; sourceTree = "<group>"; };
 		E8950BBEDA233AFFA12AC842 /* AgentBooth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentBooth.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserView.swift; sourceTree = "<group>"; };
 		F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiRetryPolicyTests.swift; sourceTree = "<group>"; };
 		F495016F14804CDB1C59A40E /* AgentBoothApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBoothApp.swift; sourceTree = "<group>"; };
 		F7C39922A308CE75BF0D1D5E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -120,6 +138,10 @@
 			isa = PBXGroup;
 			children = (
 				8EDB07082B0F31540781BF85 /* AppleMusicService.swift */,
+				65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */,
+				505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */,
+				A703B9C53D2B555D308819FF /* YouTubeMusicService.swift */,
+				53C3B84DC9810AA270ECA415 /* YouTubeMusicWebViewStore.swift */,
 			);
 			path = Music;
 			sourceTree = "<group>";
@@ -148,6 +170,15 @@
 				FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */,
 			);
 			path = Recording;
+			sourceTree = "<group>";
+		};
+		472C1EC5675D15124A367B60 /* YouTube */ = {
+			isa = PBXGroup;
+			children = (
+				D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */,
+				A725F59DE59B73646C65CC43 /* YouTubeMusicScriptRunner.swift */,
+			);
+			path = YouTube;
 			sourceTree = "<group>";
 		};
 		53E41026457537A5DA38B7A3 /* AgentBoothTests */ = {
@@ -245,6 +276,7 @@
 			children = (
 				CAB18AB41E4422B82F67960D /* Main */,
 				DB02D37BACB109646CCFC7AB /* Settings */,
+				E07D11EC287FD47B6A73672F /* YouTubeMusicBrowser */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -285,8 +317,19 @@
 			children = (
 				7D9756B18B04781290BC6507 /* Music */,
 				6C4610A9203D35B7E74AAFCD /* Settings */,
+				472C1EC5675D15124A367B60 /* YouTube */,
 			);
 			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		E07D11EC287FD47B6A73672F /* YouTubeMusicBrowser */ = {
+			isa = PBXGroup;
+			children = (
+				EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */,
+				E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */,
+				B0006EEE51C46F3CE4BB4DB9 /* YouTubeMusicLoginViewModel.swift */,
+			);
+			path = YouTubeMusicBrowser;
 			sourceTree = "<group>";
 		};
 		FDE075118B3F1F23B60FFA1B /* TTS */ = {
@@ -419,6 +462,15 @@
 				DDD6D76DE783A43D072FC600 /* SettingsView.swift in Sources */,
 				905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */,
 				07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */,
+				67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */,
+				10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */,
+				28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */,
+				D4C1220AB0348360F51FD183 /* YouTubeMusicJSScripts.swift in Sources */,
+				6A03426E5CBD3D577F1B2A7E /* YouTubeMusicLoginViewModel.swift in Sources */,
+				1BEA39718509A107655F29FE /* YouTubeMusicPlayerController.swift in Sources */,
+				B670E7A19D095C07893A8C12 /* YouTubeMusicScriptRunner.swift in Sources */,
+				A00C081B0916E172E5067D44 /* YouTubeMusicService.swift in Sources */,
+				334D851AD4987EDC07AE9045 /* YouTubeMusicWebViewStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -51,7 +51,7 @@ protocol ShowRecordingServiceProtocol: Sendable {
 /// A factory that wires live or fake services together.
 protocol AppServiceFactory: Sendable {
     func availableServices() -> [MusicServiceKind]
-    func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService
+    @MainActor func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService
     func makeScriptService(settings: AppSettings) -> any ScriptGenerationService
     func makeTTSService(settings: AppSettings) -> any TTSService
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol
