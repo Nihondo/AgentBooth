@@ -109,15 +109,11 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                     Text("·")
                         .foregroundStyle(.tertiary)
-                    TimelineView(.periodic(from: .now, by: 0.5)) { context in
-                        let position: Double = viewModel.radioState.trackStartedAtDate.map {
-                            max(0, context.date.timeIntervalSince($0))
-                        } ?? 0
-                        let duration = Double(track.durationSeconds)
-                        Text("\(formatTime(position)) / \(formatTime(duration))")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
+                    let position = viewModel.radioState.currentPlaybackPosition
+                    let duration = Double(track.durationSeconds)
+                    Text("\(formatTime(position)) / \(formatTime(duration))")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
                 }
                 .font(.subheadline)
             }

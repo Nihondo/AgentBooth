@@ -9,6 +9,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     var currentVolume: Int = 100
     var volumeHistory: [Int] = []
     var isPlaying = false
+    var currentPosition: Double = 0
 
     init(
         serviceKind: MusicServiceKind = .appleMusic,
@@ -53,6 +54,10 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     func fetchCurrentTrack() async throws -> TrackInfo? { playedTracks.last }
 
     func fetchIsPlaying() async -> Bool { isPlaying }
+
+    func fetchPlaybackPosition() async -> Double { currentPosition }
+
+    func seekToPosition(_ seconds: Double) async { currentPosition = seconds }
 }
 
 final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationService {

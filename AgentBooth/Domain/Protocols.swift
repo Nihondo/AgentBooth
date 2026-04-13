@@ -13,6 +13,10 @@ protocol MusicService: Sendable {
     func fetchVolume() async -> Int
     func fetchCurrentTrack() async throws -> TrackInfo?
     func fetchIsPlaying() async -> Bool
+    /// 現在の再生位置を秒単位で返す。
+    func fetchPlaybackPosition() async -> Double
+    /// 指定秒数へシークする。
+    func seekToPosition(_ seconds: Double) async
 }
 
 /// A script generator used for radio segment creation.

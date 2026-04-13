@@ -154,6 +154,25 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
         ((try? await fetchPlayerState())?.isPlaying) ?? false
     }
 
+    /// 現在の再生位置を秒単位で返す。
+    func fetchPlaybackPosition() async -> Double {
+        struct PositionResponse: Decodable { let positionSeconds: Double }
+        guard let response = try? await scriptRunner.decodeJSONScript(
+            PositionResponse.self,
+            script: SpotifyDOMScripts.fetchPlaybackPosition,
+            webView: store.playbackWebView
+        ) else { return 0 }
+        return response.positionSeconds
+    }
+
+    /// 指定秒数へシークする。
+    func seekToPosition(_ seconds: Double) async {
+        _ = try? await scriptRunner.runJSONScript(
+            SpotifyDOMScripts.seekToPosition(seconds),
+            webView: store.playbackWebView
+        )
+    }
+
     private func ensureLoggedInAndReady() async throws {
         await store.refreshLoginStatus()
         guard store.isLoggedIn else {

@@ -394,4 +394,29 @@ enum YouTubeMusicJSScripts {
       } catch (e) { return JSON.stringify({ "__error": e.message || String(e) }); }
     })();
     """
+
+    // MARK: - 再生位置
+
+    /// 現在の再生位置を秒単位で返す
+    static let fetchPlaybackPosition = """
+    return (async () => {
+      try {
+        const v = document.querySelector('video');
+        return JSON.stringify({ positionSeconds: v ? (v.currentTime || 0) : 0 });
+      } catch (e) { return JSON.stringify({ "__error": e.message || String(e) }); }
+    })();
+    """
+
+    /// 指定秒数へシークする
+    static func seekToPosition(_ seconds: Double) -> String {
+        """
+        return (async () => {
+          try {
+            const v = document.querySelector('video');
+            if (v) v.currentTime = \(seconds);
+            return JSON.stringify({ ok: true });
+          } catch (e) { return JSON.stringify({ "__error": e.message || String(e) }); }
+        })();
+        """
+    }
 }

@@ -97,6 +97,8 @@ actor RadioOrchestrator {
     private var isStopRequested = false
     private var artistTopicHistory: [String: [String]] = [:]
     private var albumTopicHistory: [String: [String]] = [:]
+    private var positionPollingTask: Task<Void, Never>?
+    /// 曲の実再生開始時刻（アウトロポイント計算のフォールバック用）
     private var trackStartedAt: ContinuousClock.Instant?
 
     init(
@@ -161,6 +163,7 @@ actor RadioOrchestrator {
         playbackTask?.cancel()
         playbackTask = nil
         trackStartedAt = nil
+        stopPositionPolling()
         await audioPlaybackService.stopPlayback()
         await musicService.stopPlayback()
         resetState()
@@ -496,7 +499,7 @@ actor RadioOrchestrator {
         updateState {
             $0.currentTrack = track
             $0.trackIndex = trackIndex
-            $0.trackStartedAtDate = nil
+            $0.currentPlaybackPosition = 0
         }
 
         switch startInstruction {
@@ -518,12 +521,25 @@ actor RadioOrchestrator {
         }
     }
 
+    /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機
+    /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機
     private func waitUntilOutroPoint(track: TrackInfo) async throws {
-        let waitSeconds = calculateWaitBeforeTransition(
-            trackDurationSeconds: track.durationSeconds,
-            fadeEarlySeconds: settings.volumeSettings.fadeEarlySeconds
-        )
-        try await waitRespectingPause(seconds: waitSeconds)
+        let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds)
+        let targetPosition = max(0, effectiveDuration - Double(settings.volumeSettings.fadeEarlySeconds))
+
+        while !isStopRequested {
+            try Task.checkCancellation()
+            let position = await musicService.fetchPlaybackPosition()
+            if position >= targetPosition { return }
+            // フォールバック: 再生位置が取得できない場合は経過時間で判定
+            if let startedAt = trackStartedAt {
+                let elapsed = ContinuousClock.now - startedAt
+                let elapsedSeconds = Double(elapsed.components.seconds)
+                    + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
+                if elapsedSeconds >= targetPosition { return }
+            }
+            try await waitRespectingPause(seconds: 0.5)
+        }
     }
 
     private func handleTrackEnding(
@@ -549,13 +565,13 @@ actor RadioOrchestrator {
                 try await playTransition(wavData: narration.wavData, nextTrack: nextTrack)
                 return .startedNextTrackViaTransition
             case .notReadyAtDeadline, .failed, .cancelled:
-                let fadeDuration = calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
+                let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
                 await fadeOutAndStopTrack(durationSeconds: fadeDuration)
                 return .finishedCurrentTrackOnly
             }
         }
 
-        let fadeDuration = calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
+        let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
         await fadeOutAndStopTrack(durationSeconds: fadeDuration)
         return .finishedFinalTrack
     }
@@ -586,6 +602,7 @@ actor RadioOrchestrator {
     }
 
     private func fadeOutAndStopTrack(durationSeconds: Double) async {
+        stopPositionPolling()
         if durationSeconds > 0 {
             await fadeMusicVolume(targetVolume: 0, durationSeconds: durationSeconds)
         }
@@ -597,7 +614,7 @@ actor RadioOrchestrator {
         updateState { $0.volume = settings.volumeSettings.normalVolume }
         try await musicService.play(track: track)
         trackStartedAt = ContinuousClock.now
-        updateState { $0.trackStartedAtDate = Date() }
+        startPositionPolling(track: track)
     }
 
     private func playStandaloneNarration(wavData: Data) async throws {
@@ -650,7 +667,7 @@ actor RadioOrchestrator {
         }
         try await musicService.play(track: track)
         trackStartedAt = ContinuousClock.now
-        updateState { $0.trackStartedAtDate = Date() }
+        startPositionPolling(track: track)
     }
 
     private func fadeMusicVolume(targetVolume: Int, durationSeconds: Double) async {
@@ -768,21 +785,8 @@ actor RadioOrchestrator {
         return ["\(track.name): \(fallbackText)"]
     }
 
-    /// 曲の実再生開始時刻を基準に、トランジション開始まで待機すべき秒数を計算する。
-    /// maxPlaybackDurationSeconds が 0 より大きい場合は、曲の再生時間をそこで打ち切る。
-    private func calculateWaitBeforeTransition(trackDurationSeconds: Int, fadeEarlySeconds: Int) -> Double {
-        let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: trackDurationSeconds)
-        guard let startedAt = trackStartedAt else {
-            return max(0, effectiveDuration - Double(fadeEarlySeconds))
-        }
-        let elapsed = ContinuousClock.now - startedAt
-        let elapsedSeconds = Double(elapsed.components.seconds)
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
-        return max(0, effectiveDuration - Double(fadeEarlySeconds) - elapsedSeconds)
-    }
-
-    private func calculateFadeOutDuration(trackDurationSeconds: Int) -> Double {
-        let remainingSeconds = remainingPlaybackSeconds(trackDurationSeconds: trackDurationSeconds)
+    private func calculateFadeOutDuration(trackDurationSeconds: Int) async -> Double {
+        let remainingSeconds = await remainingPlaybackSeconds(trackDurationSeconds: trackDurationSeconds)
         return min(Double(settings.volumeSettings.fadeEarlySeconds), remainingSeconds)
     }
 
@@ -795,15 +799,11 @@ actor RadioOrchestrator {
         return min(trackDuration, maxPlayback)
     }
 
-    private func remainingPlaybackSeconds(trackDurationSeconds: Int) -> Double {
+    /// 音楽サービスから実際の再生位置を取得し、残り再生可能秒数を返す
+    private func remainingPlaybackSeconds(trackDurationSeconds: Int) async -> Double {
         let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: trackDurationSeconds)
-        guard let startedAt = trackStartedAt else {
-            return max(0, effectiveDuration)
-        }
-        let elapsed = ContinuousClock.now - startedAt
-        let elapsedSeconds = Double(elapsed.components.seconds)
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
-        return max(0, effectiveDuration - elapsedSeconds)
+        let position = await musicService.fetchPlaybackPosition()
+        return max(0, effectiveDuration - position)
     }
 
     private func wavDurationSeconds(_ wavData: Data) -> Double {
@@ -813,6 +813,27 @@ actor RadioOrchestrator {
         let pcmBytes = wavData.count - 44
         let bytesPerSecond = 24_000 * 2
         return Double(pcmBytes) / Double(bytesPerSecond)
+    }
+
+    /// 曲の再生開始時に呼び出し、音楽サービスから再生位置を定期取得してStateを更新するポーリングを開始する
+    private func startPositionPolling(track: TrackInfo) {
+        stopPositionPolling()
+        let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds)
+        positionPollingTask = Task {
+            while !Task.isCancelled {
+                let position = await self.musicService.fetchPlaybackPosition()
+                self.updateState { $0.currentPlaybackPosition = position }
+                // 有効再生時間に達したらポーリングを終了
+                if position >= effectiveDuration { return }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+        }
+    }
+
+    /// ポーリングタスクを停止して再生位置をリセットする
+    private func stopPositionPolling() {
+        positionPollingTask?.cancel()
+        positionPollingTask = nil
     }
 
     private func updateState(_ mutateState: (inout RadioState) -> Void) {
@@ -834,7 +855,7 @@ actor RadioOrchestrator {
             $0.isRecording = false
             $0.trackIndex = 0
             $0.playlistTrackCount = 0
-            $0.trackStartedAtDate = nil
+            $0.currentPlaybackPosition = 0
             // recordingOutputURL は番組終了後もユーザーが確認できるよう保持する
         }
     }

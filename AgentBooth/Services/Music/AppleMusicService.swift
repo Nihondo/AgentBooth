@@ -159,6 +159,15 @@ final class AppleMusicService: @unchecked Sendable, MusicService {
         return rawValue == "playing"
     }
 
+    func fetchPlaybackPosition() async -> Double {
+        let rawValue = try? appleScriptExecutor.run(script: "tell application \"Music\" to get player position")
+        return Double(rawValue ?? "") ?? 0
+    }
+
+    func seekToPosition(_ seconds: Double) async {
+        _ = try? appleScriptExecutor.run(script: "tell application \"Music\" to set player position to \(seconds)")
+    }
+
     private func escapeAppleScriptString(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -195,4 +204,8 @@ struct YouTubeMusicPlaceholderService: MusicService {
     func fetchCurrentTrack() async throws -> TrackInfo? { nil }
 
     func fetchIsPlaying() async -> Bool { false }
+
+    func fetchPlaybackPosition() async -> Double { 0 }
+
+    func seekToPosition(_ seconds: Double) async {}
 }

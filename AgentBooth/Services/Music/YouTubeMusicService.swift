@@ -122,6 +122,14 @@ final class YouTubeMusicService: MusicService, @unchecked Sendable {
         await playerController.fetchIsPlaying(using: store.playbackWebView)
     }
 
+    func fetchPlaybackPosition() async -> Double {
+        await playerController.fetchPlaybackPosition(using: store.playbackWebView)
+    }
+
+    func seekToPosition(_ seconds: Double) async {
+        await playerController.seekToPosition(seconds, using: store.playbackWebView)
+    }
+
     // MARK: - プライベート
 
     private func requireLoggedIn() throws {

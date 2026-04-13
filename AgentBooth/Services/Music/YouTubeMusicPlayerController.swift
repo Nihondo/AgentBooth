@@ -114,6 +114,27 @@ final class YouTubeMusicPlayerController {
         )
     }
 
+    // MARK: - 再生位置
+
+    @MainActor
+    func fetchPlaybackPosition(using webView: WKWebView) async -> Double {
+        struct PositionResponse: Decodable { let positionSeconds: Double }
+        guard let response = try? await scriptRunner.decodeJSONScript(
+            PositionResponse.self,
+            script: YouTubeMusicJSScripts.fetchPlaybackPosition,
+            webView: webView
+        ) else { return 0 }
+        return response.positionSeconds
+    }
+
+    @MainActor
+    func seekToPosition(_ seconds: Double, using webView: WKWebView) async {
+        _ = try? await scriptRunner.runJSONScript(
+            YouTubeMusicJSScripts.seekToPosition(seconds),
+            webView: webView
+        )
+    }
+
     // MARK: - プライベートユーティリティ
 
     /// video 要素が DOM に現れるまで最大 `timeoutSeconds` 秒ポーリングする

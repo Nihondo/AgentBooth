@@ -253,7 +253,8 @@ struct RadioState: Equatable, Sendable {
     var recordingOutputURL: URL?
     var trackIndex: Int = 0
     var playlistTrackCount: Int = 0
-    var trackStartedAtDate: Date?
+    /// 音楽サービスから取得した現在の再生位置（秒）
+    var currentPlaybackPosition: Double = 0
 
     var primaryControlState: PrimaryControlState {
         if isPaused {

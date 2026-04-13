@@ -383,6 +383,46 @@ function describeVolumeControl(control) {
   };
 }
 
+function findSeekBarRoot() {
+  return firstElement([
+    '[data-testid="playback-progressbar"]',
+    'footer [data-testid="progress-bar"]:first-child',
+    'footer [data-testid="progress-bar"]',
+  ]);
+}
+
+function findSeekSlider() {
+  const root = findSeekBarRoot();
+  if (!root) return null;
+  return firstElement([
+    '[role="slider"][aria-valuemin]',
+    '[role="slider"]',
+    'input[type="range"]',
+  ], root) || (attributeOf(root, "role") === "slider" ? root : null);
+}
+
+// シークスライダーから再生位置（ms）を返す。取得できない場合は null。
+function readSeekPositionMs() {
+  const slider = findSeekSlider();
+  if (!slider) return null;
+  const now = parseNumericAttribute(slider, "aria-valuenow", Number.NaN);
+  return Number.isFinite(now) && now >= 0 ? now : null;
+}
+
+// シークスライダーから総再生時間（ms）を返す。取得できない場合は null。
+function readSeekDurationMs() {
+  const slider = findSeekSlider();
+  if (!slider) return null;
+  const max = parseNumericAttribute(slider, "aria-valuemax", Number.NaN);
+  return Number.isFinite(max) && max > 0 ? max : null;
+}
+
+// ms または秒と思われる値を秒単位に正規化する。
+// Spotify は通常ミリ秒を使用するため、10000 以上なら ms として扱う。
+function msOrSecondsToSeconds(value) {
+  return value > 10000 ? value / 1000 : value;
+}
+
 function readPlayerTrack() {
   const footer = document.querySelector("footer") || document;
   const trackAnchor = firstElement([
@@ -739,6 +779,56 @@ enum SpotifyDOMScripts {
       }
     })();
     """
+
+    /// 現在の再生位置を秒単位で返す。
+    static let fetchPlaybackPosition = """
+    return (async () => {
+      try {
+        \(sharedSpotifyDOMHelperJS)
+        const rawMs = readSeekPositionMs();
+        if (rawMs == null) {
+          return JSON.stringify({ "__error": "シークバーが見つかりませんでした。" });
+        }
+        return JSON.stringify({ positionSeconds: msOrSecondsToSeconds(rawMs) });
+      } catch (error) {
+        return JSON.stringify({ "__error": error.message || String(error) });
+      }
+    })();
+    """
+
+    /// 指定秒数へシークする。シークバーの位置をクリックで操作する。
+    static func seekToPosition(_ seconds: Double) -> String {
+        """
+        return (async () => {
+          try {
+            \(sharedSpotifyDOMHelperJS)
+            const desiredSeconds = \(seconds);
+            const rawDurationMs = readSeekDurationMs();
+            if (rawDurationMs == null || rawDurationMs <= 0) {
+              return JSON.stringify({ "__error": "総再生時間が不明です。" });
+            }
+            const totalSeconds = msOrSecondsToSeconds(rawDurationMs);
+            const ratio = Math.max(0, Math.min(1, desiredSeconds / totalSeconds));
+            const targetRoot = findSeekBarRoot();
+            if (!targetRoot) {
+              return JSON.stringify({ "__error": "シークバーが見つかりませんでした。" });
+            }
+            const rect = targetRoot.getBoundingClientRect();
+            if (!rect.width || !rect.height) {
+              return JSON.stringify({ "__error": "シークバーの描画領域が取得できませんでした。" });
+            }
+            if (targetRoot instanceof HTMLElement) {
+              targetRoot.scrollIntoView({ block: "center", inline: "nearest" });
+            }
+            dispatchPointerSequence(targetRoot, rect.left + rect.width * ratio, rect.top + rect.height / 2);
+            await sleep(120);
+            return JSON.stringify({ ok: true, ratio });
+          } catch (error) {
+            return JSON.stringify({ "__error": error.message || String(error) });
+          }
+        })();
+        """
+    }
 }
 
 private func quotedJSONString(_ value: String) -> String {
