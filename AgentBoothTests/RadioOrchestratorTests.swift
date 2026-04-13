@@ -242,29 +242,20 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertLessThan(elapsedSeconds, 3.0, "短い曲のフェードは残り再生時間に圧縮されること")
     }
 
-    func testTransitionFallsBackToStandaloneIntroWhenTransitionTTSMissesDeadline() async throws {
+    func testOutroOverDucksCurrentTrackToTalkVolumeBeforeFinalFadeOut() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
             TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let scriptService = FakeScriptGenerationService()
-        scriptService.transitionScript = RadioScript(
-            segmentType: "transition",
-            dialogues: [DialogueLine(speaker: "male", text: "delay-transition")],
-            summaryBullets: ["トランジションで触れた話題"],
-            track: nil
-        )
-        scriptService.introScript = RadioScript(
-            segmentType: "intro",
-            dialogues: [DialogueLine(speaker: "female", text: "ready-intro")],
-            summaryBullets: ["イントロで触れた話題"],
-            track: nil
-        )
-        let ttsService = ConditionalDelayTTSService(delaysByToken: ["delay-transition": 2_000_000_000])
+        let ttsService = FakeTTSService()
         let audioPlaybackService = FakeAudioPlaybackService()
         var settings = AppSettings()
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
         settings.volumeSettings.fadeEarlySeconds = 1
+        settings.volumeSettings.fadeDuration = 0.5
         settings.volumeSettings.musicLeadSeconds = 0
 
         let orchestrator = RadioOrchestrator(
@@ -275,76 +266,21 @@ final class RadioOrchestratorTests: XCTestCase {
             audioPlaybackService: audioPlaybackService
         ) { _ in }
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .fullRadio)
+        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .outroOver)
 
         for _ in 0..<50 {
             try await Task.sleep(nanoseconds: 100_000_000)
-            if (await audioPlaybackService.playCount) >= 3 {
+            if musicService.playedTracks.count >= 2 {
                 break
             }
         }
 
-        let generationSteps = await scriptService.recordedGenerationSteps()
-        let playCount = await audioPlaybackService.playCount
-        XCTAssertTrue(generationSteps.contains("transition:Song A->Song B"))
-        XCTAssertTrue(generationSteps.contains("intro:Song B"))
-        XCTAssertEqual(playCount, 3, "オープニング・次曲イントロ・クロージングのみが再生されること")
-    }
+        let history = musicService.volumeHistory
+        let normalIndex = try XCTUnwrap(history.firstIndex(of: 80))
+        let duckIndex = try XCTUnwrap(history[(normalIndex + 1)...].firstIndex(of: 20))
+        let fadeOutIndex = try XCTUnwrap(history.firstIndex(of: 0))
 
-    func testIntroSkipsNarrationWhenIntroTTSMissesDeadline() async throws {
-        let trackList = [
-            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
-            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
-        ]
-        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        scriptService.transitionScript = RadioScript(
-            segmentType: "transition",
-            dialogues: [DialogueLine(speaker: "male", text: "delay-transition")],
-            summaryBullets: ["トランジションで触れた話題"],
-            track: nil
-        )
-        scriptService.introScript = RadioScript(
-            segmentType: "intro",
-            dialogues: [DialogueLine(speaker: "female", text: "delay-intro")],
-            summaryBullets: ["イントロで触れた話題"],
-            track: nil
-        )
-        let ttsService = ConditionalDelayTTSService(
-            delaysByToken: [
-                "delay-transition": 2_000_000_000,
-                "delay-intro": 2_000_000_000,
-            ]
-        )
-        let audioPlaybackService = FakeAudioPlaybackService()
-        var settings = AppSettings()
-        settings.volumeSettings.fadeEarlySeconds = 1
-        settings.volumeSettings.musicLeadSeconds = 0
-
-        let orchestrator = RadioOrchestrator(
-            settings: settings,
-            musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { _ in }
-
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .fullRadio)
-
-        for _ in 0..<50 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            if !musicService.isPlaying, (await audioPlaybackService.playCount) >= 2 {
-                break
-            }
-        }
-
-        let generationSteps = await scriptService.recordedGenerationSteps()
-        let playCount = await audioPlaybackService.playCount
-        let playedTrackNames = musicService.playedTracks.map(\.name)
-        XCTAssertTrue(generationSteps.contains("transition:Song A->Song B"))
-        XCTAssertTrue(generationSteps.contains("intro:Song B"))
-        XCTAssertEqual(playCount, 2, "オープニングとクロージングのみが再生されること")
-        XCTAssertEqual(playedTrackNames, ["Song A", "Song B"])
+        XCTAssertLessThan(duckIndex, fadeOutIndex, "outro_over は停止前に talkVolume へダックしてから 0 へフェードすること")
     }
 
     func testRecordingServiceIsStartedAndStoppedDuringShow() async throws {

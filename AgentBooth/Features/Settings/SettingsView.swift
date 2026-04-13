@@ -218,39 +218,57 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             settingsGroup("再生バランス") {
                 settingsRow("通常音量") {
-                    TextField("100", value: $draftSettings.volumeSettings.normalVolume, formatter: numberFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                    playbackBalanceField(
+                        placeholder: "100",
+                        value: $draftSettings.volumeSettings.normalVolume,
+                        formatter: numberFormatter,
+                        description: "通常再生時の基準音量"
+                    )
                 }
 
                 settingsRow("トーク時音量") {
-                    TextField("25", value: $draftSettings.volumeSettings.talkVolume, formatter: numberFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                    playbackBalanceField(
+                        placeholder: "25",
+                        value: $draftSettings.volumeSettings.talkVolume,
+                        formatter: numberFormatter,
+                        description: "トーク重なり中の楽曲音量"
+                    )
                 }
 
                 settingsRow("フェード秒数") {
-                    TextField("5.0", value: $draftSettings.volumeSettings.fadeDuration, formatter: decimalFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                    playbackBalanceField(
+                        placeholder: "5.0",
+                        value: $draftSettings.volumeSettings.fadeDuration,
+                        formatter: decimalFormatter,
+                        description: "音量を滑らかに変える時間"
+                    )
                 }
 
-                settingsRow("曲終了前秒数") {
-                    TextField("10", value: $draftSettings.volumeSettings.fadeEarlySeconds, formatter: numberFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                settingsRow("楽曲先行開始秒数") {
+                    playbackBalanceField(
+                        placeholder: "10",
+                        value: $draftSettings.volumeSettings.musicLeadSeconds,
+                        formatter: decimalFormatter,
+                        description: "トーク終了前に次曲を出し始める秒数"
+                    )
                 }
 
-                settingsRow("BGM 先行開始秒数") {
-                    TextField("10", value: $draftSettings.volumeSettings.musicLeadSeconds, formatter: decimalFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                settingsRow("トーク先行開始秒数") {
+                    playbackBalanceField(
+                        placeholder: "10",
+                        value: $draftSettings.volumeSettings.fadeEarlySeconds,
+                        formatter: numberFormatter,
+                        description: "曲終了前にトークを再開する秒数"
+                    )
                 }
 
-                settingsRow("最大再生秒数") {
-                    TextField("0（制限なし）", value: $draftSettings.volumeSettings.maxPlaybackDurationSeconds, formatter: numberFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                settingsRow("楽曲最大再生秒数") {
+                    playbackBalanceField(
+                        placeholder: "0（制限なし）",
+                        value: $draftSettings.volumeSettings.maxPlaybackDurationSeconds,
+                        formatter: numberFormatter,
+                        description: "1曲あたりの再生上限。0で無制限"
+                    )
                 }
             }
         }
@@ -407,6 +425,24 @@ struct SettingsView: View {
                 .frame(maxWidth: 420, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func playbackBalanceField<Value>(
+        placeholder: String,
+        value: Binding<Value>,
+        formatter: NumberFormatter,
+        description: String
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            TextField(placeholder, value: value, formatter: formatter)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 140, height: 28)
+
+            Text(description)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(minHeight: 28, alignment: .leading)
+        }
     }
 
     private var numberFormatter: NumberFormatter {

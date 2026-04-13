@@ -40,37 +40,6 @@ enum PromptBuilder {
         """
     }
 
-    static func buildIntroPrompt(track: TrackInfo, settings: AppSettings, continuityNote: String?) -> String {
-        return """
-        あなたはラジオ番組の台本作家です。
-        以下の楽曲を紹介する、ラジオパーソナリティ2名による自然な掛け合いを作成してください。
-
-        【楽曲情報】
-        - 曲名: \(track.name)
-        - アーティスト: \(track.artist)
-        - アルバム: \(track.album)
-        \(continuityBlock(continuityNote))
-        【登場人物】
-        \(castBlock(settings: settings))
-
-        \(directionBlock(settings: settings))
-        【ルール】
-        - 会話は4〜8ターン程度
-        - 曲の豆知識、アーティストのエピソード、アルバムの背景など自然な雑談を含める
-        - 読みが不明な場合や、話題の検索にWeb検索を活用してもよい
-        - speaker に使ってよい値は male と female のみ
-        - 2人の掛け合いにし、片方だけが続かないようにする
-        - 重複しそうな話題は避ける
-        \(summaryRuleLines())
-        - text の中で ASCII の二重引用符は使わず、日本語のカギ括弧を使う
-        - 最後は曲を流す合図で締める
-        - JSONのみ出力し、余計な説明は不要
-
-        【出力形式】
-        \(formatExample())
-        """
-    }
-
     static func buildTransitionPrompt(
         currentTrack: TrackInfo,
         nextTrack: TrackInfo,
