@@ -7,6 +7,10 @@ actor TestModeScriptGenerationService: ScriptGenerationService {
         RadioScript(segmentType: "opening", dialogues: [], summaryBullets: [], track: tracks.first)
     }
 
+    func generateIntro(track: TrackInfo, settings: AppSettings, continuityNote: String?) async throws -> RadioScript {
+        RadioScript(segmentType: "intro", dialogues: [], summaryBullets: [], track: track)
+    }
+
     func generateTransition(
         currentTrack: TrackInfo,
         nextTrack: TrackInfo,

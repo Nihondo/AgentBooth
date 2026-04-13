@@ -70,6 +70,12 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
         summaryBullets: ["オープニングで触れた話題"],
         track: nil
     )
+    var introScript = RadioScript(
+        segmentType: "intro",
+        dialogues: FakeScriptGenerationService.sampleDialogues(),
+        summaryBullets: ["イントロで触れた話題"],
+        track: nil
+    )
     var transitionScript = RadioScript(
         segmentType: "transition",
         dialogues: FakeScriptGenerationService.sampleDialogues(),
@@ -90,6 +96,17 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
             dialogues: openingScript.dialogues,
             summaryBullets: openingScript.summaryBullets,
             track: tracks.first
+        )
+    }
+
+    func generateIntro(track: TrackInfo, settings: AppSettings, continuityNote: String?) async throws -> RadioScript {
+        await continuityRecorder.recordIntro(continuityNote)
+        await generationStepRecorder.record("intro:\(track.name)")
+        return RadioScript(
+            segmentType: introScript.segmentType,
+            dialogues: introScript.dialogues,
+            summaryBullets: introScript.summaryBullets,
+            track: track
         )
     }
 
@@ -127,6 +144,10 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
         await generationStepRecorder.steps
     }
 
+    func recordedIntroContinuityNotes() async -> [String?] {
+        await continuityRecorder.introNotes
+    }
+
     static func sampleDialogues() -> [DialogueLine] {
         [
             DialogueLine(speaker: "male", text: "こんにちは"),
@@ -136,7 +157,12 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
 }
 
 private actor ContinuityNoteRecorder {
+    private(set) var introNotes: [String?] = []
     private(set) var transitionNotes: [String?] = []
+
+    func recordIntro(_ note: String?) {
+        introNotes.append(note)
+    }
 
     func recordTransition(_ note: String?) {
         transitionNotes.append(note)

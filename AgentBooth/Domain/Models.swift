@@ -181,19 +181,22 @@ struct VolumeSettings: Codable, Equatable, Sendable {
     var normalVolume: Int = 100
     var talkVolume: Int = 25
     var fadeDuration: Double = 1.5
+    /// `intro_over` で曲開始後、この秒数が経過したらイントロトークを重ね始める。
+    var speakAfterSeconds: Int = 15
     var fadeEarlySeconds: Int = 15
     var musicLeadSeconds: Double = 10.0
     /// 最大再生秒数。0 の場合は制限なし（曲をフルで再生）。
     var maxPlaybackDurationSeconds: Int = 0
 
     enum CodingKeys: String, CodingKey {
-        case normalVolume, talkVolume, fadeDuration, fadeEarlySeconds, musicLeadSeconds, maxPlaybackDurationSeconds
+        case normalVolume, talkVolume, fadeDuration, speakAfterSeconds, fadeEarlySeconds, musicLeadSeconds, maxPlaybackDurationSeconds
     }
 
     init(
         normalVolume: Int = 100,
         talkVolume: Int = 25,
         fadeDuration: Double = 5.0,
+        speakAfterSeconds: Int = 15,
         fadeEarlySeconds: Int = 10,
         musicLeadSeconds: Double = 10.0,
         maxPlaybackDurationSeconds: Int = 0
@@ -201,6 +204,7 @@ struct VolumeSettings: Codable, Equatable, Sendable {
         self.normalVolume = normalVolume
         self.talkVolume = talkVolume
         self.fadeDuration = fadeDuration
+        self.speakAfterSeconds = speakAfterSeconds
         self.fadeEarlySeconds = fadeEarlySeconds
         self.musicLeadSeconds = musicLeadSeconds
         self.maxPlaybackDurationSeconds = maxPlaybackDurationSeconds
@@ -211,6 +215,7 @@ struct VolumeSettings: Codable, Equatable, Sendable {
         normalVolume = try container.decodeIfPresent(Int.self, forKey: .normalVolume) ?? 100
         talkVolume = try container.decodeIfPresent(Int.self, forKey: .talkVolume) ?? 25
         fadeDuration = try container.decodeIfPresent(Double.self, forKey: .fadeDuration) ?? 5.0
+        speakAfterSeconds = try container.decodeIfPresent(Int.self, forKey: .speakAfterSeconds) ?? 15
         fadeEarlySeconds = try container.decodeIfPresent(Int.self, forKey: .fadeEarlySeconds) ?? 10
         musicLeadSeconds = try container.decodeIfPresent(Double.self, forKey: .musicLeadSeconds) ?? 10.0
         maxPlaybackDurationSeconds = try container.decodeIfPresent(Int.self, forKey: .maxPlaybackDurationSeconds) ?? 0

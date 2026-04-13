@@ -324,6 +324,51 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertLessThan(duckIndex, fadeOutIndex, "outro_over は停止前に talkVolume へダックしてから 0 へフェードすること")
     }
 
+    func testIntroOverGeneratesMidTrackIntroWithoutTransitionNarration() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptService = FakeScriptGenerationService()
+        let ttsService = FakeTTSService()
+        let audioPlaybackService = FakeAudioPlaybackService()
+        var settings = AppSettings()
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.fadeDuration = 0.1
+        settings.volumeSettings.speakAfterSeconds = 0
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0
+
+        let orchestrator = RadioOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            scriptService: scriptService,
+            ttsService: ttsService,
+            audioPlaybackService: audioPlaybackService
+        ) { _ in }
+
+        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .introOver)
+
+        for _ in 0..<60 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            if musicService.playedTracks.count >= 2, !musicService.isPlaying {
+                break
+            }
+        }
+
+        let generationSteps = await scriptService.recordedGenerationSteps()
+        let history = musicService.volumeHistory
+        let duckIndex = try XCTUnwrap(history.firstIndex(of: 20))
+        let recoveryIndex = try XCTUnwrap(history[(duckIndex + 1)...].firstIndex(of: 80))
+
+        XCTAssertTrue(generationSteps.contains("intro:Song B"))
+        XCTAssertFalse(generationSteps.contains("transition:Song A->Song B"))
+        XCTAssertEqual(musicService.playedTracks.map(\.name), ["Song A", "Song B"])
+        XCTAssertLessThan(duckIndex, recoveryIndex, "intro_over は曲再生中に talkVolume へ下げてから通常音量へ戻すこと")
+    }
+
     func testRecordingServiceIsStartedAndStoppedDuringShow() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),

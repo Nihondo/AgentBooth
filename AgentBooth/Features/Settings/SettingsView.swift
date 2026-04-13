@@ -249,16 +249,25 @@ struct SettingsView: View {
                         placeholder: "10",
                         value: $draftSettings.volumeSettings.musicLeadSeconds,
                         formatter: decimalFormatter,
-                        description: "トーク終了前に次曲を出し始める秒数"
+                        description: "トーク終了前に次曲を重ねる秒数"
                     )
                 }
 
-                settingsRow("トーク先行開始秒数") {
+                settingsRow("曲開始後のトーク開始秒数") {
+                    playbackBalanceField(
+                        placeholder: "15",
+                        value: $draftSettings.volumeSettings.speakAfterSeconds,
+                        formatter: numberFormatter,
+                        description: "曲開始後にトークを重ねる秒数"
+                    )
+                }
+
+                settingsRow("曲終了前のトーク再開秒数") {
                     playbackBalanceField(
                         placeholder: "10",
                         value: $draftSettings.volumeSettings.fadeEarlySeconds,
                         formatter: numberFormatter,
-                        description: "曲終了前にトークを再開する秒数"
+                        description: "曲終了前にトークを重ねる秒数"
                     )
                 }
 

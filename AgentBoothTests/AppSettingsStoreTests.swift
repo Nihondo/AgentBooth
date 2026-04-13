@@ -14,6 +14,7 @@ final class AppSettingsStoreTests: XCTestCase {
         settings.scriptCLIKind = .codex
         settings.defaultOverlapMode = .introOver
         settings.radioShowSettings.showName = "Night Radio"
+        settings.volumeSettings.speakAfterSeconds = 12
         settings.volumeSettings.fadeEarlySeconds = 9
 
         try store.saveSettings(settings)
@@ -23,6 +24,7 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.currentSettings.scriptCLIKind, .codex)
         XCTAssertEqual(reloadedStore.currentSettings.defaultOverlapMode, .introOver)
         XCTAssertEqual(reloadedStore.currentSettings.radioShowSettings.showName, "Night Radio")
+        XCTAssertEqual(reloadedStore.currentSettings.volumeSettings.speakAfterSeconds, 12)
         XCTAssertEqual(reloadedStore.currentSettings.volumeSettings.fadeEarlySeconds, 9)
     }
 }

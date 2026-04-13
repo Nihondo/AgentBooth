@@ -22,6 +22,7 @@ protocol MusicService: Sendable {
 /// A script generator used for radio segment creation.
 protocol ScriptGenerationService: Sendable {
     func generateOpening(tracks: [TrackInfo], settings: AppSettings) async throws -> RadioScript
+    func generateIntro(track: TrackInfo, settings: AppSettings, continuityNote: String?) async throws -> RadioScript
     func generateTransition(
         currentTrack: TrackInfo,
         nextTrack: TrackInfo,

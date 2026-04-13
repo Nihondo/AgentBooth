@@ -63,7 +63,8 @@ CLI でスクリプト生成（closing）
 |--------|------|
 | `sequential` | ナレーション再生 → 曲開始（完全分離） |
 | `outro_over` | ナレーション再生 → 曲開始（完全分離） |
-| `intro_over` / `full_radio` | ナレーション再生と同時に、終了 `musicLeadSeconds` 秒前に曲を低音量で開始 |
+| `intro_over` | 1曲目のみナレーション終了 `musicLeadSeconds` 秒前に曲を低音量で開始 |
+| `full_radio` | ナレーション終了 `musicLeadSeconds` 秒前に曲を低音量で開始 |
 | `music_bed` | ナレーション再生 → 曲開始（完全分離） |
 
 ### 3-4. 曲再生中
@@ -71,9 +72,18 @@ CLI でスクリプト生成（closing）
 ```
 phase = playing
 音楽再生（選択中の音楽サービス）
-並行してトランジションスクリプトを非同期生成
-  → CLI でスクリプト生成（transition: 前曲感想 + 次曲紹介）
-  → Gemini TTS で音声合成
+intro_over の場合:
+  並行して各曲イントロを非同期生成
+    → CLI でスクリプト生成（intro: 再生中の曲への途中かぶせトーク）
+    → Gemini TTS で音声合成
+  → 曲開始 speakAfterSeconds 秒後に talkVolume までダック
+  → イントロトーク再生
+  → normalVolume へ復帰
+
+それ以外:
+  並行してトランジションスクリプトを非同期生成
+    → CLI でスクリプト生成（transition: 前曲感想 + 次曲紹介）
+    → Gemini TTS で音声合成
 ```
 
 `calculateWaitBeforeTransition()` で待機秒数を算出：
@@ -180,7 +190,8 @@ intro（次曲）        closing（クロージング再生）
 | `normalVolume` | 100 | 通常の音楽音量 |
 | `talkVolume` | 25 | トーク中の音楽音量 |
 | `fadeDuration` | 5.0s | フェード時間 |
-| `fadeEarlySeconds` | 10s | アウトロポイントの早出し秒数 |
+| `speakAfterSeconds` | 15s | `intro_over` で曲開始後にイントロトークを重ね始める秒数 |
+| `fadeEarlySeconds` | 10s | 曲終了前にアウトロ処理を開始する秒数 |
 | `musicLeadSeconds` | 10.0s | ナレーション終了前に音楽を開始する秒数 |
 | `maxPlaybackDurationSeconds` | 0（無制限） | 1曲あたりの最大再生秒数 |
 
@@ -210,6 +221,37 @@ intro（次曲）        closing（クロージング再生）
   曲が長い場合でも待機計算とアウトロ開始位置の基準をここで打ち切る
 
 ### 音量変化との関係
+
+#### `intro_over` で曲途中からイントロトークを重ねる場合
+
+```
+時間 →
+
+|----------------------------- 曲再生 -----------------------------|
+^ 曲開始
+|<-- speakAfterSeconds -->|
+                         ^ イントロトーク開始
+                         |<------ イントロトーク ------>|
+
+音量
+100 | normalVolume  ────────────────────────╲                      ──────
+    |                                        ╲                  ／
+ 25 | talkVolume                              └────────────────┘
+    |
+  0 |
+    +--------------------------------------------------------------→ 時間
+                              ^                          ^
+                              |                          |
+                     speakAfterSeconds 到達        fadeDuration で
+                                                 normalVolume 復帰
+```
+
+- `speakAfterSeconds`
+  `intro_over` で曲開始から何秒後にイントロトークを重ね始めるか
+- `talkVolume`
+  イントロトーク中に落とす楽曲音量
+- `fadeDuration`
+  `normalVolume → talkVolume → normalVolume` の変化時間
 
 #### 通常再生からアウトロに入る場合
 

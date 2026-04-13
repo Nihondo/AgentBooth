@@ -207,6 +207,7 @@ actor RadioOrchestrator {
                 return
             }
 
+            let previousTrack = indexValue > 0 ? tracks[indexValue - 1] : nil
             let nextTrack = indexValue + 1 < tracks.count ? tracks[indexValue + 1] : nil
             if nextTrack == nil && closingTask == nil {
                 let closingTracks = playedTracks + [track]
@@ -218,12 +219,18 @@ actor RadioOrchestrator {
                 openingNarration: openingNarration,
                 previousOutcome: previousOutcome
             )
+            let introPreparation = makeIntroPreparationIfNeeded(
+                track: track,
+                previousTrack: previousTrack,
+                overlapMode: overlapMode
+            )
             let outcome = try await playTrack(
                 track: track,
                 nextTrack: nextTrack,
                 overlapMode: overlapMode,
                 startInstruction: startInstruction,
-                trackIndex: indexValue
+                trackIndex: indexValue,
+                introPreparation: introPreparation
             )
 
             playedTracks.append(track)
@@ -352,6 +359,37 @@ actor RadioOrchestrator {
         }
     }
 
+    private func prepareIntroNarration(
+        track: TrackInfo,
+        previousTrack: TrackInfo
+    ) -> TimedPreparation<PreparedNarration> {
+        TimedPreparation { [weak self] in
+            guard let self else {
+                throw CancellationError()
+            }
+            return try await self.generatePreparedIntroNarration(track: track, previousTrack: previousTrack)
+        }
+    }
+
+    private func generatePreparedIntroNarration(
+        track: TrackInfo,
+        previousTrack: TrackInfo
+    ) async throws -> PreparedNarration {
+        let continuityNote = buildContinuityNote(for: track, previousTrack: previousTrack)
+        updateState { $0.statusMessage = "スクリプト作成開始（\(track.name) のイントロ）"; $0.isProcessing = true }
+        let script = try await scriptService.generateIntro(
+            track: track,
+            settings: settings,
+            continuityNote: continuityNote
+        )
+        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
+        let wavData = try await synthesizeNarration(
+            dialogues: script.dialogues,
+            segmentLabel: "\(track.name) のイントロ"
+        )
+        return PreparedNarration(script: script, wavData: wavData)
+    }
+
     private func generatePreparedTransitionNarration(
         currentTrack: TrackInfo,
         nextTrack: TrackInfo
@@ -410,7 +448,8 @@ actor RadioOrchestrator {
         nextTrack: TrackInfo?,
         overlapMode: OverlapMode,
         startInstruction: TrackStartInstruction,
-        trackIndex: Int
+        trackIndex: Int,
+        introPreparation: TimedPreparation<PreparedNarration>?
     ) async throws -> TrackPlaybackOutcome {
         try await playIntroIfNeeded(
             track: track,
@@ -425,8 +464,13 @@ actor RadioOrchestrator {
         }
 
         updateState { $0.phase = .playing }
-        let transitionPreparation = nextTrack.map {
-            prepareTransitionNarration(currentTrack: track, nextTrack: $0)
+        if overlapMode == .introOver, let introPreparation {
+            try await playMidTrackIntroIfNeeded(track: track, introPreparation: introPreparation)
+        }
+        let transitionPreparation: TimedPreparation<PreparedNarration>? = if overlapMode == .introOver {
+            nil
+        } else {
+            nextTrack.map { prepareTransitionNarration(currentTrack: track, nextTrack: $0) }
         }
         try await waitUntilOutroPoint(track: track)
         return try await handleTrackEnding(
@@ -467,6 +511,69 @@ actor RadioOrchestrator {
                 try await startTrack(track, fadeIn: fadeIn)
             }
         }
+    }
+
+    private func makeIntroPreparationIfNeeded(
+        track: TrackInfo,
+        previousTrack: TrackInfo?,
+        overlapMode: OverlapMode
+    ) -> TimedPreparation<PreparedNarration>? {
+        guard overlapMode == .introOver, let previousTrack else {
+            return nil
+        }
+        return prepareIntroNarration(track: track, previousTrack: previousTrack)
+    }
+
+    private func playMidTrackIntroIfNeeded(
+        track: TrackInfo,
+        introPreparation: TimedPreparation<PreparedNarration>
+    ) async throws {
+        let introStartSeconds = Double(settings.volumeSettings.speakAfterSeconds)
+        let outroStartSeconds = max(0, effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds) - Double(settings.volumeSettings.fadeEarlySeconds))
+
+        guard introStartSeconds < outroStartSeconds else {
+            introPreparation.cancel()
+            updateState { $0.statusMessage = "\(track.name) のイントロは再生位置が遅すぎるためスキップしました。" }
+            return
+        }
+
+        try await waitRespectingPause(seconds: introStartSeconds)
+
+        let introResult = await resolvePreparationAtDeadline(
+            introPreparation,
+            segmentName: "\(track.name) のイントロ"
+        )
+        guard case .ready(let narration) = introResult else {
+            return
+        }
+
+        let narrationDuration = wavDurationSeconds(narration.wavData)
+        let requiredWindow = max(narrationDuration, settings.volumeSettings.fadeDuration)
+            + settings.volumeSettings.fadeDuration
+        let availableWindow = max(0, outroStartSeconds - introStartSeconds)
+        guard requiredWindow <= availableWindow else {
+            updateState { $0.statusMessage = "\(track.name) のイントロは再生時間に収まらないためスキップしました。" }
+            return
+        }
+
+        updateState { $0.phase = .intro }
+        rememberTopics(for: track, script: narration.script)
+        try await playNarrationOverCurrentTrack(wavData: narration.wavData)
+        updateState { $0.phase = .playing }
+    }
+
+    private func playNarrationOverCurrentTrack(wavData: Data) async throws {
+        async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
+        async let duckTask: Void = fadeMusicVolume(
+            targetVolume: settings.volumeSettings.talkVolume,
+            durationSeconds: settings.volumeSettings.fadeDuration
+        )
+
+        _ = try await (narrationTask, duckTask)
+        await fadeMusicVolume(
+            targetVolume: settings.volumeSettings.normalVolume,
+            durationSeconds: settings.volumeSettings.fadeDuration
+        )
     }
 
     /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機

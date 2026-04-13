@@ -116,7 +116,7 @@ xcodebuild -project AgentBooth.xcodeproj -scheme AgentBooth -destination 'platfo
 |---|---|
 | `sequential` | 会話と楽曲を完全に直列で再生 |
 | `outro_over` | 曲終盤フェードにトークを重ねる |
-| `intro_over` | イントロ終盤に曲を先行スタート |
+| `intro_over` | 曲開始後 `speakAfterSeconds` 秒でイントロトークを重ねる |
 | `music_bed` | トーク中に曲を小音量 BGM として流す |
 | `full_radio` | イントロ重ね、アウトロ重ね、ダッキングを組み合わせる |
 

@@ -100,7 +100,7 @@ The CLI must return:
 |---|---|
 | `sequential` | Talk then music, fully separated |
 | `outro_over` | Talk overlaps the end of the track |
-| `intro_over` | Music starts near the end of talk |
+| `intro_over` | Start the track first, then overlay intro talk after `speakAfterSeconds` |
 | `music_bed` | Music plays quietly under talk |
 | `full_radio` | Combines intro_over + outro_over + ducking |
 
