@@ -384,6 +384,11 @@ function describeVolumeControl(control) {
 }
 
 function findSeekBarRoot() {
+  // progress-bar-handle を内包する progress-bar を優先（音量バーと区別）
+  const allBars = Array.from(document.querySelectorAll('[data-testid="progress-bar"]'));
+  for (const bar of allBars) {
+    if (bar.querySelector('[data-testid="progress-bar-handle"]')) return bar;
+  }
   return firstElement([
     '[data-testid="playback-progressbar"]',
     'footer [data-testid="progress-bar"]:first-child',
@@ -391,30 +396,20 @@ function findSeekBarRoot() {
   ]);
 }
 
-function findSeekSlider() {
-  const root = findSeekBarRoot();
-  if (!root) return null;
-  return firstElement([
-    '[role="slider"][aria-valuemin]',
-    '[role="slider"]',
-    'input[type="range"]',
-  ], root) || (attributeOf(root, "role") === "slider" ? root : null);
-}
-
-// シークスライダーから再生位置（ms）を返す。取得できない場合は null。
+// [data-testid="playback-position"] のテキストから再生位置（秒）を返す。
 function readSeekPositionMs() {
-  const slider = findSeekSlider();
-  if (!slider) return null;
-  const now = parseNumericAttribute(slider, "aria-valuenow", Number.NaN);
-  return Number.isFinite(now) && now >= 0 ? now : null;
+  const el = document.querySelector('[data-testid="playback-position"]');
+  if (!el) return null;
+  const text = textOf(el);
+  return /^\\d+:\\d{2}(:\\d{2})?$/.test(text) ? parseDuration(text) : null;
 }
 
-// シークスライダーから総再生時間（ms）を返す。取得できない場合は null。
+// [data-testid="playback-duration"] のテキストから総再生時間（秒）を返す。
 function readSeekDurationMs() {
-  const slider = findSeekSlider();
-  if (!slider) return null;
-  const max = parseNumericAttribute(slider, "aria-valuemax", Number.NaN);
-  return Number.isFinite(max) && max > 0 ? max : null;
+  const el = document.querySelector('[data-testid="playback-duration"]');
+  if (!el) return null;
+  const text = textOf(el);
+  return /^\\d+:\\d{2}(:\\d{2})?$/.test(text) ? parseDuration(text) : null;
 }
 
 // ms または秒と思われる値を秒単位に正規化する。

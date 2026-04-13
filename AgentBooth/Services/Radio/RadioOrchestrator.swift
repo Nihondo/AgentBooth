@@ -471,7 +471,8 @@ actor RadioOrchestrator {
             track: track,
             overlapMode: overlapMode,
             startInstruction: startInstruction,
-            trackIndex: trackIndex
+            trackIndex: trackIndex,
+            fadeIn: trackIndex == 0
         )
 
         if isStopRequested {
@@ -494,7 +495,8 @@ actor RadioOrchestrator {
         track: TrackInfo,
         overlapMode: OverlapMode,
         startInstruction: TrackStartInstruction,
-        trackIndex: Int
+        trackIndex: Int,
+        fadeIn: Bool = false
     ) async throws {
         updateState {
             $0.currentTrack = track
@@ -507,16 +509,16 @@ actor RadioOrchestrator {
             return
         case .startTrackOnly:
             updateState { $0.phase = .intro }
-            try await startTrack(track)
+            try await startTrack(track, fadeIn: fadeIn)
         case .playNarration(let narration):
             updateState { $0.phase = .intro }
             rememberTopics(for: track, script: narration.script)
             switch overlapMode {
             case .introOver, .fullRadio:
-                try await playNarrationWithMusicLead(wavData: narration.wavData, track: track)
+                try await playNarrationWithMusicLead(wavData: narration.wavData, track: track, fadeIn: fadeIn)
             default:
                 try await playStandaloneNarration(wavData: narration.wavData)
-                try await startTrack(track)
+                try await startTrack(track, fadeIn: fadeIn)
             }
         }
     }
@@ -609,12 +611,16 @@ actor RadioOrchestrator {
         await musicService.stopPlayback()
     }
 
-    private func startTrack(_ track: TrackInfo) async throws {
-        await musicService.setVolume(level: settings.volumeSettings.normalVolume)
-        updateState { $0.volume = settings.volumeSettings.normalVolume }
+    private func startTrack(_ track: TrackInfo, fadeIn: Bool = false) async throws {
+        let startVolume = fadeIn ? settings.volumeSettings.talkVolume : settings.volumeSettings.normalVolume
+        await musicService.setVolume(level: startVolume)
+        updateState { $0.volume = startVolume }
         try await musicService.play(track: track)
         trackStartedAt = ContinuousClock.now
         startPositionPolling(track: track)
+        if fadeIn {
+            await fadeMusicVolume(targetVolume: settings.volumeSettings.normalVolume, durationSeconds: settings.volumeSettings.fadeDuration)
+        }
     }
 
     private func playStandaloneNarration(wavData: Data) async throws {
@@ -641,13 +647,17 @@ actor RadioOrchestrator {
         }
     }
 
-    private func playNarrationWithMusicLead(wavData: Data, track: TrackInfo) async throws {
+    private func playNarrationWithMusicLead(wavData: Data, track: TrackInfo, fadeIn: Bool = false) async throws {
         let durationSeconds = wavDurationSeconds(wavData)
         let startDelay = max(0, durationSeconds - settings.volumeSettings.musicLeadSeconds)
+        let startVolume = fadeIn ? settings.volumeSettings.talkVolume : settings.volumeSettings.normalVolume
 
         async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        async let startTask: Void = startTrackAfterDelay(track: track, delaySeconds: startDelay, startVolume: settings.volumeSettings.normalVolume)
+        async let startTask: Void = startTrackAfterDelay(track: track, delaySeconds: startDelay, startVolume: startVolume)
         _ = try await (narrationTask, startTask)
+        if fadeIn {
+            await fadeMusicVolume(targetVolume: settings.volumeSettings.normalVolume, durationSeconds: settings.volumeSettings.fadeDuration)
+        }
     }
 
     private func playTransition(wavData: Data, nextTrack: TrackInfo) async throws {

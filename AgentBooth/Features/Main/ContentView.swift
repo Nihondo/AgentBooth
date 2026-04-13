@@ -99,7 +99,7 @@ struct ContentView: View {
         }
     }
 
-    /// 再生中の曲番号と再生位置を表示する行
+    /// 再生中の曲番号・曲名・再生位置・音量を表示する行
     private var trackInfoRow: some View {
         Group {
             if viewModel.radioState.isRunning, let track = viewModel.radioState.currentTrack {
@@ -111,9 +111,24 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                     Text("·")
                         .foregroundStyle(.tertiary)
+                    Text(track.name)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text("–")
+                        .foregroundStyle(.tertiary)
+                    Text(track.artist)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
                     let position = viewModel.radioState.currentPlaybackPosition
                     let duration = Double(track.durationSeconds)
                     Text("\(formatTime(position)) / \(formatTime(duration))")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Label("\(viewModel.radioState.volume)%", systemImage: "speaker.wave.2.fill")
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
