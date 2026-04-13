@@ -41,6 +41,10 @@ struct AgentBoothApp: App {
                     LiveAppServiceFactory.sharedYouTubeMusicStore.setUserAgent(
                         settingsStore.currentSettings.youtubeMusicUserAgent
                     )
+                    LiveAppServiceFactory.sharedSpotifyStore.setUserAgent(defaultSpotifyUserAgent)
+                    Task { @MainActor in
+                        await LiveAppServiceFactory.sharedSpotifyStore.refreshLoginStatus()
+                    }
                 }
         }
         .commands {

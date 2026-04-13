@@ -4,6 +4,7 @@ import Foundation
 enum MusicServiceKind: String, CaseIterable, Codable, Identifiable {
     case appleMusic = "apple_music"
     case youtubeMusic = "youtube_music"
+    case spotify = "spotify"
 
     var id: String { rawValue }
 
@@ -13,6 +14,8 @@ enum MusicServiceKind: String, CaseIterable, Codable, Identifiable {
             return "Apple Music"
         case .youtubeMusic:
             return "YouTube Music"
+        case .spotify:
+            return "Spotify"
         }
     }
 }

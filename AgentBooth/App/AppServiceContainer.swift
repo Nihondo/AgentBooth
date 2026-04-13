@@ -2,12 +2,14 @@ import Foundation
 
 struct LiveAppServiceFactory: AppServiceFactory {
     func availableServices() -> [MusicServiceKind] {
-        [.appleMusic, .youtubeMusic]
+        [.appleMusic, .youtubeMusic, .spotify]
     }
 
     /// YouTube Music 用 WebViewStore はシングルトンで保持（WKWebView インスタンスを共有）。
     /// @MainActor static let で初期化を MainActor に限定する。
     @MainActor static let sharedYouTubeMusicStore = YouTubeMusicWebViewStore()
+    /// Spotify 用 WebViewStore はシングルトンで保持（WKWebView インスタンスを共有）。
+    @MainActor static let sharedSpotifyStore = SpotifyWebViewStore()
 
     @MainActor
     func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService {
@@ -16,6 +18,8 @@ struct LiveAppServiceFactory: AppServiceFactory {
             return AppleMusicService()
         case .youtubeMusic:
             return YouTubeMusicService(store: LiveAppServiceFactory.sharedYouTubeMusicStore)
+        case .spotify:
+            return SpotifyMusicService(store: LiveAppServiceFactory.sharedSpotifyStore)
         }
     }
 

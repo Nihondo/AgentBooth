@@ -63,6 +63,7 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var isSaved = false
     @ObservedObject private var ytStore = LiveAppServiceFactory.sharedYouTubeMusicStore
+    @ObservedObject private var spotifyStore = LiveAppServiceFactory.sharedSpotifyStore
 
     var body: some View {
         NavigationSplitView {
@@ -79,6 +80,9 @@ struct SettingsView: View {
         .onAppear {
             draftSettings = settingsStore.currentSettings
             ytStore.setUserAgent(settingsStore.currentSettings.youtubeMusicUserAgent)
+            Task { @MainActor in
+                await spotifyStore.refreshLoginStatus()
+            }
         }
     }
 
@@ -189,10 +193,47 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private var spotifyLoginRow: some View {
+        settingsRow("ログイン状態") {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(spotifyStore.isLoggedIn ? Color.green : Color.orange)
+                    .frame(width: 10, height: 10)
+                Text(spotifyStore.isLoggedIn ? "ログイン済み" : "未ログイン")
+                    .foregroundStyle(spotifyStore.isLoggedIn ? .primary : .secondary)
+            }
+        }
+        settingsRow("") {
+            HStack(spacing: 10) {
+                Button("Spotify でログイン") {
+                    SpotifyBrowserWindowController.shared.open(
+                        store: LiveAppServiceFactory.sharedSpotifyStore
+                    )
+                }
+                Button("ログアウト") {
+                    Task {
+                        await spotifyStore.clearSessionData()
+                    }
+                }
+                .disabled(!spotifyStore.isLoggedIn)
+            }
+        }
+        settingsRow("注意") {
+            Text("Spotify Web Player の DOM 構造変更で取得や再生が失敗する場合があります。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var musicSettingsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             settingsGroup("YouTube Music") {
                 youtubeMusicLoginRow
+            }
+
+            settingsGroup("Spotify") {
+                spotifyLoginRow
             }
 
             settingsGroup("再生バランス") {

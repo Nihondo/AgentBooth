@@ -262,7 +262,7 @@ struct FakeServiceFactory: AppServiceFactory {
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
-        supportedServices: [MusicServiceKind] = [.appleMusic]
+        supportedServices: [MusicServiceKind] = [.appleMusic, .youtubeMusic, .spotify]
     ) {
         self.musicService = musicService
         self.scriptService = scriptService
