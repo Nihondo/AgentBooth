@@ -78,6 +78,7 @@ struct SettingsView: View {
         .navigationTitle("AgentBooth 設定")
         .onAppear {
             draftSettings = settingsStore.currentSettings
+            ytStore.setUserAgent(settingsStore.currentSettings.youtubeMusicUserAgent)
         }
     }
 
@@ -174,6 +175,16 @@ struct SettingsView: View {
                 YouTubeMusicBrowserWindowController.shared.open(
                     store: LiveAppServiceFactory.sharedYouTubeMusicStore
                 )
+            }
+        }
+        settingsRow("User Agent") {
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("Safari UA", text: $draftSettings.youtubeMusicUserAgent)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                Text("空欄にすると WKWebView デフォルト UA を使用。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -390,6 +401,7 @@ struct SettingsView: View {
     private func saveSettings() {
         do {
             try settingsStore.saveSettings(draftSettings)
+            ytStore.setUserAgent(draftSettings.youtubeMusicUserAgent)
             errorMessage = nil
             isSaved = true
         } catch {

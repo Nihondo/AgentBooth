@@ -37,6 +37,11 @@ struct AgentBoothApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: mainViewModel)
+                .onAppear {
+                    LiveAppServiceFactory.sharedYouTubeMusicStore.setUserAgent(
+                        settingsStore.currentSettings.youtubeMusicUserAgent
+                    )
+                }
         }
         .commands {
             AgentBoothCommands()

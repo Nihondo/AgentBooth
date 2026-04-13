@@ -15,7 +15,7 @@ private enum YouTubeCookieSpec {
     static let domain = ".youtube.com"
 }
 
-private let safariUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.4 Safari/605.1.15"
+let defaultYouTubeMusicUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.4 Safari/605.1.15"
 
 // MARK: - WebView Store
 
@@ -51,7 +51,6 @@ final class YouTubeMusicWebViewStore: ObservableObject {
         loginConfig.websiteDataStore = dataStore
         loginConfig.preferences.javaScriptCanOpenWindowsAutomatically = true
         let login = WKWebView(frame: .zero, configuration: loginConfig)
-        login.customUserAgent = safariUA
         self.webView = login
 
         // ── 再生用 WebView（オートプレイ許可）──
@@ -62,7 +61,6 @@ final class YouTubeMusicWebViewStore: ObservableObject {
             frame: NSRect(x: 0, y: 0, width: 1280, height: 720),
             configuration: playConfig
         )
-        play.customUserAgent = safariUA
         self.playbackWebView = play
 
         // ログイン WebView の delegate 設定
@@ -118,6 +116,13 @@ final class YouTubeMusicWebViewStore: ObservableObject {
     }
 
     // MARK: - ログイン UI
+
+    /// 両 WebView のユーザーエージェントを変更する。空文字列を渡すと UA をリセット（WKWebView デフォルトに戻る）。
+    func setUserAgent(_ ua: String) {
+        let value = ua.isEmpty ? nil : ua
+        webView.customUserAgent = value
+        playbackWebView.customUserAgent = value
+    }
 
     func reloadFromOrigin() {
         isPageReady = false

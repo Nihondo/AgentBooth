@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-AgentBooth is a macOS app (SwiftUI, macOS 14+) that runs an AI radio program using Apple Music playlists. It combines AI-generated scripts (via external CLI tools), Gemini TTS, and AppleScript-based music control.
+AgentBooth is a macOS app (SwiftUI, macOS 14+) that runs an AI radio program using Apple Music or YouTube Music playlists. It combines AI-generated scripts (via external CLI tools), Gemini TTS, and music control via AppleScript (Apple Music) or WKWebView JS injection (YouTube Music).
 
 ## Commands
 
@@ -33,9 +33,9 @@ open AgentBooth.xcodeproj
 ```
 Domain/           - Protocols.swift (service interfaces), Models.swift (all value types/enums)
 App/              - AgentBoothApp.swift (entry point), AppServiceContainer.swift (LiveAppServiceFactory)
-Features/         - ContentView + MainViewModel (UI), SettingsView
+Features/         - ContentView + MainViewModel (UI), SettingsView, YouTubeMusicBrowser/
 Services/         - Radio/, Script/, TTS/, Music/, Audio/, Recording/
-Infrastructure/   - Settings/AppSettingsStore, Music/AppleScriptExecutor
+Infrastructure/   - Settings/AppSettingsStore, Music/AppleScriptExecutor, YouTube/
 AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 ```
 
@@ -52,6 +52,22 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 **`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV audio. Includes retry/fallback model logic.
 
 **`AppleMusicService`** (`Services/Music/`) — Controls Apple Music.app via `AppleScriptExecutor` (Infrastructure layer).
+
+**`YouTubeMusicService`** (`Services/Music/`) — `@MainActor final class`. Implements `MusicService` for YouTube Music. Delegates to `YouTubeMusicAPIFetcher` (playlist/track fetch) and `YouTubeMusicPlayerController` (playback control). All operations run through `store.playbackWebView`.
+
+**`YouTubeMusicWebViewStore`** (`Services/Music/`) — Manages two WKWebViews sharing `WKWebsiteDataStore.default()`:
+- `webView` (login UI, shown in browser window)
+- `playbackWebView` (playback-only, always in offscreen NSWindow for audio)
+
+Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in `init` — must be deferred or SwiftUI's WindowGroup main window disappears.
+
+**`YouTubeMusicAPIFetcher`** (`Services/Music/`) — Fetches playlists and tracks from YouTube Music internal API (`/youtubei/v1/browse`) via JS injection into `playbackWebView`. Authentication: `SAPISIDHASH` header = `"SAPISIDHASH {timestamp}_{SHA1(timestamp + " " + SAPISID + " " + origin)}"` computed from `__Secure-3PAPISID` cookie using `crypto.subtle.digest("SHA-1")` (ytmusicapi-compatible).
+
+**`YouTubeMusicPlayerController`** (`Services/Music/`) — Controls playback by navigating `window.location.href` and manipulating `document.querySelector('video')` via JS.
+
+**`YouTubeMusicJSScripts`** (`Infrastructure/YouTube/`) — All JS constants. `sharedHelperJS` provides `buildContext()`, `browseUrl()`, `buildAuthHeader()`, `ytmFetch()`. Playlist path: `musicTwoRowItemRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId`. Track path uses `twoColumnBrowseResultsRenderer.secondaryContents` (not singleColumn).
+
+**`YouTubeMusicScriptRunner`** (`Infrastructure/YouTube/`) — `callAsyncJavaScript` + `CheckedContinuation` wrapper (mirrors AgentLimits `WebViewScriptRunner`).
 
 **`AppSettingsStore`** (`Infrastructure/Settings/`) — Persists settings to UserDefaults; stores Gemini API key in Keychain under service name `com.dmng.AgentBooth`.
 
@@ -92,7 +108,7 @@ The CLI must return:
 
 ## Constraints
 
-- `YouTubeMusicPlaceholderService` exists as a stub only — not implemented.
 - App Sandbox is disabled (`ENABLE_APP_SANDBOX: NO`) — Mac App Store distribution is not yet supported.
 - The project is managed by XcodeGen (`project.yml`). Edit `project.yml` for build settings changes, then regenerate.
 - External CLIs (`claude`, `gemini`, `codex`, `copilot`) must be installed in the user's environment.
+- YouTube Music requires manual login via Settings → 音楽 → "YouTube Music でログイン" before use.

@@ -230,6 +230,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var radioShowSettings: RadioShowSettings = .init()
     var isRecordingEnabled: Bool = false
     var recordingOutputDirectory: String = ""
+    var youtubeMusicUserAgent: String = defaultYouTubeMusicUserAgent
 }
 
 /// The current UI-facing radio session state.
