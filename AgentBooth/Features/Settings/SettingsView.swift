@@ -12,13 +12,13 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general:
-            return "一般"
+            return "サービス"
         case .music:
-            return "音楽"
+            return "楽曲の再生"
         case .program:
-            return "番組"
+            return "番組情報"
         case .tts:
-            return "TTS"
+            return "テキスト読み上げ"
         case .recording:
             return "録音"
         }
@@ -42,15 +42,15 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var descriptionText: String {
         switch self {
         case .general:
-            return "アプリ全体の既定値を設定します。"
+            return "音楽サービスの設定を行います。"
         case .music:
-            return "音楽サービス制御と再生バランスを設定します。"
+            return "楽曲の再生バランスを設定します。"
         case .program:
             return "番組名やパーソナリティ名を設定します。"
         case .tts:
-            return "Gemini TTS と台本生成 CLI を設定します。"
+            return "Gemini TTS と台本生成 CLI の設定を行います。"
         case .recording:
-            return "番組のシステム音声キャプチャ録音の設定をします。"
+            return "番組のシステム音声キャプチャ録音の設定を行います。"
         }
     }
 }
@@ -61,7 +61,6 @@ struct SettingsView: View {
     @State private var draftSettings = AppSettings()
     @State private var selectedCategory: SettingsCategory? = .general
     @State private var errorMessage: String?
-    @State private var isSaved = false
     @ObservedObject private var ytStore = LiveAppServiceFactory.sharedYouTubeMusicStore
     @ObservedObject private var spotifyStore = LiveAppServiceFactory.sharedSpotifyStore
 
@@ -84,6 +83,9 @@ struct SettingsView: View {
                 await spotifyStore.refreshLoginStatus()
             }
         }
+        .onChange(of: draftSettings) {
+            saveSettings()
+        }
     }
 
     @ViewBuilder
@@ -101,29 +103,6 @@ struct SettingsView: View {
                 }
 
                 contentView(for: category)
-
-                Divider()
-
-                HStack(spacing: 12) {
-                    Button("現在の設定を読み直す") {
-                        reloadSettings()
-                    }
-
-                    Button("保存") {
-                        saveSettings()
-                    }
-                    .keyboardShortcut("s", modifiers: [.command])
-
-                    if isSaved {
-                        Text("保存しました")
-                            .foregroundStyle(.green)
-                    }
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                    }
-                }
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,6 +139,15 @@ struct SettingsView: View {
                     .frame(width: 220, alignment: .leading)
                 }
             }
+
+            settingsGroup("YouTube Music") {
+                youtubeMusicLoginRow
+            }
+
+            settingsGroup("Spotify") {
+                spotifyLoginRow
+            }
+
         }
     }
 
@@ -228,14 +216,6 @@ struct SettingsView: View {
 
     private var musicSettingsView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            settingsGroup("YouTube Music") {
-                youtubeMusicLoginRow
-            }
-
-            settingsGroup("Spotify") {
-                spotifyLoginRow
-            }
-
             settingsGroup("再生バランス") {
                 settingsRow("通常音量") {
                     TextField("100", value: $draftSettings.volumeSettings.normalVolume, formatter: numberFormatter)
@@ -313,6 +293,15 @@ struct SettingsView: View {
                         .textFieldStyle(.roundedBorder)
                 }
             }
+
+            settingsGroup("ディレクション") {
+                settingsRow("シーン・セリフの指示") {
+                    TextField("例: 深夜帯、静かに話す", text: $draftSettings.directionSettings.sceneDirection, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3...)
+                }
+            }
+
         }
     }
 
@@ -436,7 +425,6 @@ struct SettingsView: View {
     private func reloadSettings() {
         draftSettings = settingsStore.currentSettings
         errorMessage = nil
-        isSaved = false
     }
 
     private func saveSettings() {
@@ -444,10 +432,8 @@ struct SettingsView: View {
             try settingsStore.saveSettings(draftSettings)
             ytStore.setUserAgent(draftSettings.youtubeMusicUserAgent)
             errorMessage = nil
-            isSaved = true
         } catch {
             errorMessage = error.localizedDescription
-            isSaved = false
         }
     }
 }

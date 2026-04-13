@@ -4,6 +4,58 @@ import WebKit
 
 let defaultSpotifyUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.4 Safari/605.1.15"
 
+private let spotifyLoginMediaBlockScript = """
+(() => {
+  if (window.__agentBoothSpotifyMediaBlocked) {
+    return;
+  }
+  window.__agentBoothSpotifyMediaBlocked = true;
+
+  const block = (element) => {
+    if (!(element instanceof HTMLMediaElement)) {
+      return;
+    }
+    try {
+      element.pause();
+      element.muted = true;
+      element.volume = 0;
+      element.removeAttribute('autoplay');
+    } catch (_) {}
+  };
+
+  const blockAll = () => {
+    document.querySelectorAll('audio, video').forEach(block);
+  };
+
+  const originalPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function() {
+    block(this);
+    return Promise.resolve();
+  };
+
+  document.addEventListener('play', (event) => block(event.target), true);
+  const root = document.documentElement;
+  if (root) {
+    new MutationObserver(blockAll).observe(root, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', blockAll, { once: true });
+  }
+  blockAll();
+})();
+"""
+
+private func configureSpotifyLoginBrowser(_ configuration: WKWebViewConfiguration) {
+    configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+    configuration.mediaTypesRequiringUserActionForPlayback = .all
+    configuration.userContentController.addUserScript(
+        WKUserScript(
+            source: spotifyLoginMediaBlockScript,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+    )
+}
+
 /// Spotify 用 WKWebView のライフサイクルを管理する。
 @MainActor
 final class SpotifyWebViewStore: ObservableObject {
@@ -35,7 +87,7 @@ final class SpotifyWebViewStore: ObservableObject {
 
         let loginConfig = WKWebViewConfiguration()
         loginConfig.websiteDataStore = dataStore
-        loginConfig.preferences.javaScriptCanOpenWindowsAutomatically = true
+        configureSpotifyLoginBrowser(loginConfig)
         let login = WKWebView(frame: .zero, configuration: loginConfig)
         login.customUserAgent = defaultSpotifyUserAgent
         self.webView = login
@@ -259,7 +311,7 @@ extension WebViewCoordinator: WKUIDelegate {
     ) -> WKWebView? {
         guard let store else { return nil }
         guard navigationAction.targetFrame == nil else { return nil }
-        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+        configureSpotifyLoginBrowser(configuration)
         let popup = WKWebView(frame: .zero, configuration: configuration)
         popup.navigationDelegate = self
         popup.uiDelegate = self

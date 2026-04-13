@@ -171,6 +171,11 @@ struct PersonalitySettings: Codable, Equatable, Sendable {
     var femaleHostName: String = "佐藤"
 }
 
+/// シーン・話し方などのディレクション設定。
+struct DirectionSettings: Codable, Equatable, Sendable {
+    var sceneDirection: String = ""
+}
+
 /// Playback volume tuning.
 struct VolumeSettings: Codable, Equatable, Sendable {
     var normalVolume: Int = 100
@@ -229,6 +234,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var defaultOverlapMode: OverlapMode = .fullRadio
     var voiceSettings: VoiceSettings = .init()
     var personalitySettings: PersonalitySettings = .init()
+    var directionSettings: DirectionSettings = .init()
     var volumeSettings: VolumeSettings = .init()
     var radioShowSettings: RadioShowSettings = .init()
     var isRecordingEnabled: Bool = false

@@ -20,6 +20,7 @@ enum PromptBuilder {
         【登場人物】
         \(castBlock(settings: settings))
 
+        \(directionBlock(settings: settings))
         【ルール】
         - 会話は6〜10ターン程度
         - 番組の開始挨拶から始める
@@ -52,6 +53,7 @@ enum PromptBuilder {
         【登場人物】
         \(castBlock(settings: settings))
 
+        \(directionBlock(settings: settings))
         【ルール】
         - 会話は4〜8ターン程度
         - 曲の豆知識、アーティストのエピソード、アルバムの背景など自然な雑談を含める
@@ -92,6 +94,7 @@ enum PromptBuilder {
         【登場人物】
         \(castBlock(settings: settings))
 
+        \(directionBlock(settings: settings))
         【ルール】
         - 会話は6〜10ターン
         - 前半は前の曲の感想や振り返り
@@ -121,6 +124,7 @@ enum PromptBuilder {
         【登場人物】
         \(castBlock(settings: settings))
 
+        \(directionBlock(settings: settings))
         【ルール】
         - 会話は4〜8ターン程度
         - 今日の放送の振り返りを含める
@@ -174,6 +178,12 @@ enum PromptBuilder {
         \(continuityNote)
 
         """
+    }
+
+    private static func directionBlock(settings: AppSettings) -> String {
+        let direction = settings.directionSettings.sceneDirection
+        guard !direction.isEmpty else { return "" }
+        return "【シーン・話し方などのディレクション】\n        \(direction)\n        "
     }
 
     private static func showInfoBlock(settings: AppSettings) -> String {
