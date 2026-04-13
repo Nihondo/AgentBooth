@@ -9,19 +9,21 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             controlRow
             Divider()
-            statusInfoRow
-            recordingInfoRow
-            Divider()
             trackListSection
-            if viewModel.radioState.isRunning, let track = viewModel.radioState.currentTrack {
+            if let track = viewModel.radioState.currentTrack ?? viewModel.displayTracks.first {
                 NowPlayingBar(
                     track: track,
                     playbackPosition: viewModel.radioState.currentPlaybackPosition,
                     volume: viewModel.radioState.volume,
                     trackIndex: viewModel.radioState.trackIndex,
-                    trackCount: viewModel.radioState.playlistTrackCount
+                    trackCount: viewModel.radioState.playlistTrackCount > 0
+                        ? viewModel.radioState.playlistTrackCount
+                        : viewModel.displayTracks.count,
+                    isAppleMusic: viewModel.selectedService == .appleMusic
                 )
             }
+            recordingInfoRow
+            statusInfoRow
         }
         .padding(24)
         .frame(minWidth: 820, minHeight: 620)

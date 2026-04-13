@@ -33,9 +33,9 @@ open AgentBooth.xcodeproj
 ```
 Domain/           - Protocols.swift (service interfaces), Models.swift (all value types/enums)
 App/              - AgentBoothApp.swift (entry point), AppServiceContainer.swift (LiveAppServiceFactory)
-Features/         - ContentView + MainViewModel (UI), SettingsView, YouTubeMusicBrowser/, SpotifyBrowser/
+Features/         - ContentView + MainViewModel (UI), SettingsView, NowPlayingBar, TrackListView, YouTubeMusicBrowser/, SpotifyBrowser/
 Services/         - Radio/, Script/, TTS/, Music/, Audio/, Recording/
-Infrastructure/   - Settings/AppSettingsStore, Music/AppleScriptExecutor, YouTube/, Spotify/
+Infrastructure/   - Settings/AppSettingsStore, Music/AppleScriptExecutor + AppleMusicArtworkFetcher, YouTube/, Spotify/
 AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 ```
 
@@ -78,6 +78,10 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 **`SpotifyScriptRunner`** (`Infrastructure/Spotify/`) — `callAsyncJavaScript` + `CheckedContinuation` wrapper for Spotify DOM scripts.
 
 **`AppSettingsStore`** (`Infrastructure/Settings/`) — Persists settings to UserDefaults; stores Gemini API key in Keychain under service name `com.dmng.AgentBooth`.
+
+**`NowPlayingBar`** (`Features/Main/NowPlayingBar.swift`) — SwiftUI `View`. 常時表示。`radioState.currentTrack` があればそれを、なければ `displayTracks.first`（プレイリスト読み込み後すぐ）を表示。`isAppleMusic && artworkURL == nil` の場合、`.task(id: track.id)` で `AppleMusicArtworkFetcher` を呼び出してアートワークを取得・キャッシュする。
+
+**`AppleMusicArtworkFetcher`** (`Infrastructure/Music/AppleMusicArtworkFetcher.swift`) — `NSAppleScript` 経由でアートワークを取得するユーティリティ（`enum` namespace）。`fetchArtwork(forTrack:)` は `playlistName / name / artist` でプレイリスト内のトラックを直接検索するため、カレントトラック設定不要・再生前でも取得可。バックグラウンドスレッド (`DispatchQueue.global`) で実行。
 
 ### Domain models (`Domain/Models.swift`)
 

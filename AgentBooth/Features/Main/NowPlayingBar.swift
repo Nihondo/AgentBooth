@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// 現在再生中のトラック情報をアートワーク付きで表示するバー。
 struct NowPlayingBar: View {
@@ -7,6 +8,9 @@ struct NowPlayingBar: View {
     let volume: Int
     let trackIndex: Int
     let trackCount: Int
+    let isAppleMusic: Bool
+
+    @State private var fetchedArtwork: NSImage?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -18,6 +22,10 @@ struct NowPlayingBar: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(.bar)
+        .task(id: track.id) {
+            guard isAppleMusic, track.artworkURL == nil else { return }
+            fetchedArtwork = await AppleMusicArtworkFetcher.fetchArtwork(forTrack: track)
+        }
     }
 
     /// アートワーク画像（60x60）
@@ -37,6 +45,10 @@ struct NowPlayingBar: View {
                             .frame(width: 60, height: 60)
                     }
                 }
+            } else if let artwork = fetchedArtwork {
+                Image(nsImage: artwork)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
             } else {
                 artworkPlaceholder
             }
@@ -59,15 +71,16 @@ struct NowPlayingBar: View {
     private var trackInfoView: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(track.name)
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.semibold)
                 .lineLimit(1)
             Text(track.artist)
-                .font(.subheadline)
+                .font(.headline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             if !track.album.isEmpty {
                 Text(track.album)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
@@ -78,15 +91,15 @@ struct NowPlayingBar: View {
     private var playbackInfoView: some View {
         VStack(alignment: .trailing, spacing: 2) {
             Text("\(trackIndex + 1)/\(trackCount)")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
             Text("\(formatTime(playbackPosition)) / \(formatTime(Double(track.durationSeconds)))")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
             Label("\(volume)%", systemImage: "speaker.wave.2.fill")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
