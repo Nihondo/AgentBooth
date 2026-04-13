@@ -14,6 +14,7 @@
 		1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */; };
 		1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */; };
 		1BEA39718509A107655F29FE /* YouTubeMusicPlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */; };
+		1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */; };
 		2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3695314D2707876818736936 /* agentbooth.icon */; };
 		28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */; };
 		294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */; };
@@ -45,6 +46,7 @@
 		C2E203168E6B66F11C887BE9 /* ScriptCommandBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */; };
 		C3C62647B02BF4B636812DA3 /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDB07082B0F31540781BF85 /* AppleMusicService.swift */; };
 		CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A10060D47AD1B4B46BF389 /* AVFoundation.framework */; };
+		CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */; };
 		D4C1220AB0348360F51FD183 /* YouTubeMusicJSScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */; };
 		DA88A4F31020487B98A74E50 /* SpotifyLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5757CF1C6A91CB9099967AB3 /* SpotifyLoginViewModel.swift */; };
 		DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943AD41DD032953E321C5B2E /* TestDoubles.swift */; };
@@ -53,6 +55,7 @@
 		E0FAE1567D838876CF736668 /* ProcessScriptGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69967660B4C14A8BFACF20F7 /* ProcessScriptGenerationService.swift */; };
 		E79C9EEA74E219FEBB943867 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6660A0E06C3D5BB0B6620C55 /* ContentView.swift */; };
 		F417194D93CF0362E6816279 /* SpotifyBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1805E0CA7CF453148013870 /* SpotifyBrowserView.swift */; };
+		F6AB525CD75A66D466A8B0E6 /* TestModeAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03AA8D4295F6E5709444B93C /* TestModeAudioPlaybackService.swift */; };
 		FC8D9E4AA5BF1D81F914D33E /* SpotifyBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4091AEFDEC8ED74F20F35BC1 /* SpotifyBrowserWindow.swift */; };
 /* End PBXBuildFile section */
 
@@ -67,6 +70,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		03AA8D4295F6E5709444B93C /* TestModeAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestModeAudioPlaybackService.swift; sourceTree = "<group>"; };
 		04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModelTests.swift; sourceTree = "<group>"; };
 		0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSService.swift; sourceTree = "<group>"; };
 		0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -86,6 +90,7 @@
 		571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
 		5757CF1C6A91CB9099967AB3 /* SpotifyLoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyLoginViewModel.swift; sourceTree = "<group>"; };
 		58975426E0097C0CFE155B8E /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestModeTTSService.swift; sourceTree = "<group>"; };
 		633C58B34ED2C9421B9AEAB3 /* AgentBooth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AgentBooth.entitlements; sourceTree = "<group>"; };
 		65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicAPIFetcher.swift; sourceTree = "<group>"; };
 		6660A0E06C3D5BB0B6620C55 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -109,6 +114,7 @@
 		D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		D499D54135ECCF1B538D617F /* DevelopmentTeam.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DevelopmentTeam.xcconfig; sourceTree = "<group>"; };
 		D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicJSScripts.swift; sourceTree = "<group>"; };
+		D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestModeScriptGenerationService.swift; sourceTree = "<group>"; };
 		E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserWindow.swift; sourceTree = "<group>"; };
 		E3BD548FFD67212BA64CAF3B /* AgentBoothTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentBoothTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestrator.swift; sourceTree = "<group>"; };
@@ -172,6 +178,7 @@
 			children = (
 				69967660B4C14A8BFACF20F7 /* ProcessScriptGenerationService.swift */,
 				3581E582CF14B056EA04E774 /* PromptBuilder.swift */,
+				D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */,
 			);
 			path = Script;
 			sourceTree = "<group>";
@@ -240,6 +247,7 @@
 			isa = PBXGroup;
 			children = (
 				14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */,
+				03AA8D4295F6E5709444B93C /* TestModeAudioPlaybackService.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -379,6 +387,7 @@
 			isa = PBXGroup;
 			children = (
 				0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */,
+				5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */,
 			);
 			path = TTS;
 			sourceTree = "<group>";
@@ -514,6 +523,9 @@
 				0F6B36BA02955D86BAF59BD5 /* SpotifyWebViewStore.swift in Sources */,
 				905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */,
 				07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */,
+				F6AB525CD75A66D466A8B0E6 /* TestModeAudioPlaybackService.swift in Sources */,
+				1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */,
+				CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */,
 				67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */,
 				10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */,
 				28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */,

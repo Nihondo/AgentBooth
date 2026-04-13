@@ -97,11 +97,15 @@ final class MainViewModel: ObservableObject {
         selectedPlaylistName = playlistName
     }
 
-    func handlePrimaryControl() {
+    func handlePrimaryControl(isTestMode: Bool = false) {
         switch primaryControlState {
         case .start:
             Task {
-                await startShow()
+                if isTestMode {
+                    await startShow(testMode: true)
+                } else {
+                    await startShow()
+                }
             }
         case .pause:
             Task {
@@ -121,7 +125,7 @@ final class MainViewModel: ObservableObject {
         }
     }
 
-    private func startShow() async {
+    private func startShow(testMode: Bool = false) async {
         guard !selectedPlaylistName.isEmpty else {
             radioState.errorMessage = "プレイリストを選択してください。"
             return
@@ -129,9 +133,15 @@ final class MainViewModel: ObservableObject {
 
         let currentSettings = settingsStore.currentSettings
         let musicService = serviceFactory.makeMusicService(for: selectedService)
-        let scriptService = serviceFactory.makeScriptService(settings: currentSettings)
-        let ttsService = serviceFactory.makeTTSService(settings: currentSettings)
-        let audioPlaybackService = serviceFactory.makeAudioPlaybackService()
+        let scriptService: any ScriptGenerationService = testMode
+            ? TestModeScriptGenerationService()
+            : serviceFactory.makeScriptService(settings: currentSettings)
+        let ttsService: any TTSService = testMode
+            ? TestModeTTSService()
+            : serviceFactory.makeTTSService(settings: currentSettings)
+        let audioPlaybackService: any AudioPlaybackServiceProtocol = testMode
+            ? TestModeAudioPlaybackService()
+            : serviceFactory.makeAudioPlaybackService()
         let recordingService = currentSettings.isRecordingEnabled ? serviceFactory.makeRecordingService() : nil
 
         let orchestrator = RadioOrchestrator(

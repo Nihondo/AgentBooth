@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -59,7 +60,8 @@ struct ContentView: View {
             .disabled(viewModel.radioState.isRunning)
 
             Button {
-                viewModel.handlePrimaryControl()
+                let isTestMode = NSEvent.modifierFlags.contains(.command)
+                viewModel.handlePrimaryControl(isTestMode: isTestMode)
             } label: {
                 Image(systemName: viewModel.primaryControlState.buttonSystemImageName)
                     .frame(width: 18, height: 18)
@@ -67,7 +69,7 @@ struct ContentView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .accessibilityLabel(viewModel.primaryControlState.buttonLabelText)
-            .help(viewModel.primaryControlState.buttonLabelText)
+            .help("再生")
             .disabled(
                 viewModel.isRecordingSession
                 || (viewModel.primaryControlState == .start && !viewModel.canStart)
