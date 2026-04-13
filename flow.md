@@ -13,7 +13,7 @@
 | 処理 | 詳細 |
 |------|------|
 | `startShow()` 呼び出し | ユーザーが「開始」ボタンを押す |
-| 状態初期化 | `isRunning=true`, `phase=idle` |
+| 状態初期化 | `isRunning=true`, `isPaused=false`, `phase=idle` |
 | `loadTracks()` | 選択中の音楽サービスから指定プレイリストの曲一覧を取得 |
 | 状態更新 | `upcomingTracks` にセット、`phase=opening` |
 
@@ -27,7 +27,7 @@
 CLI でスクリプト生成（opening）
   → Gemini TTS で音声合成（WAV）
   → preparedOpeningNarration 完成
-  → 録音開始（isRecordingEnabled=true の場合）
+  → 録音開始（isRecordingEnabled=true の場合）  ← オープニングTTS完了直後に開始
 ```
 
 - プロンプト: 番組挨拶 + プレイリスト紹介 + 1曲目への導入（6〜10ターン）
@@ -46,67 +46,92 @@ CLI でスクリプト生成（closing）
   → Gemini TTS で音声合成
 ```
 
-### 3-2. トラック開始指示の決定
+### 3-2. イントロ準備の並行開始（`intro_over` のみ）
+
+```
+makeIntroPreparationIfNeeded(track, previousTrack, overlapMode)
+  → overlapMode == .introOver かつ previousTrack が存在する場合のみ
+  → TimedPreparation<PreparedNarration> を返す（バックグラウンドで生成）
+      CLI でスクリプト生成（intro: 再生中の曲への途中かぶせトーク）
+      → Gemini TTS で音声合成
+```
+
+### 3-3. トラック開始指示の決定
 
 | 条件 | 指示 |
 |------|------|
 | 1曲目 | オープニングナレーションを再生 |
-| 前のアウトロでトランジション済み | トラック再生済みとしてスキップ |
-| イントロ事前準備が完了済み | イントロナレーションを再生 |
+| 前のアウトロで次曲を先行開始済み | トラック再生済みとしてスキップ |
 | 上記以外 | ナレーションなしで曲のみ開始 |
 
-### 3-3. イントロ再生（`playIntroIfNeeded`）
+### 3-4. イントロ再生（`playIntroIfNeeded`）
 
-`overlapMode` に応じて動作が異なる：
+`overlapMode` と `startInstruction` に応じて動作が異なる：
 
-| モード | 動作 |
-|--------|------|
-| `sequential` | ナレーション再生 → 曲開始（完全分離） |
-| `outro_over` | ナレーション再生 → 曲開始（完全分離） |
-| `intro_over` | 1曲目のみナレーション終了 `musicLeadSeconds` 秒前に曲を低音量で開始 |
-| `full_radio` | ナレーション終了 `musicLeadSeconds` 秒前に曲を低音量で開始 |
-| `music_bed` | ナレーション再生 → 曲開始（完全分離） |
+| startInstruction | overlapMode | 動作 |
+|-----------------|-------------|------|
+| `trackAlreadyStarted` | すべて | 何もしない |
+| `startTrackOnly` | すべて | 曲を通常音量で開始 |
+| `playOpeningNarration` | `sequential` / `outro_over` | ナレーション再生 → 曲を通常音量で開始 |
+| `playOpeningNarration` | `intro_over` / `full_radio` | ナレーション終了 `musicLeadSeconds` 秒前に曲を低音量で先行開始→フェードイン |
 
-### 3-4. 曲再生中
+### 3-5. 曲再生中
 
 ```
 phase = playing
-音楽再生（選択中の音楽サービス）
-intro_over の場合:
-  並行して各曲イントロを非同期生成
-    → CLI でスクリプト生成（intro: 再生中の曲への途中かぶせトーク）
-    → Gemini TTS で音声合成
-  → 曲開始 speakAfterSeconds 秒後に talkVolume までダック
-  → イントロトーク再生
-  → normalVolume へ復帰
-
-それ以外:
-  並行してトランジションスクリプトを非同期生成
-    → CLI でスクリプト生成（transition: 前曲感想 + 次曲紹介）
-    → Gemini TTS で音声合成
 ```
 
-`calculateWaitBeforeTransition()` で待機秒数を算出：
+#### `intro_over` の場合
 
 ```
-待機秒数 = 曲の実効再生時間 − fadeEarlySeconds − 経過秒数
+曲再生中に並行して awaited:
+  speakAfterSeconds 秒待機
+    → introPreparation が完了済みか確認
+    ├─ ready → 音量をダック（talkVolume）しながらイントロトーク再生
+    │          → normalVolume にフェードイン復帰
+    └─ pending/failed/cancelled → スキップ
+
+トランジションスクリプトは生成しない
 ```
 
-※ `maxPlaybackDurationSeconds > 0` の場合、曲の長さを打ち切り
+#### `intro_over` 以外の場合
 
-### 3-5. アウトロ処理（`handleTrackEnding`）
+```
+バックグラウンドで並行して開始:
+  CLI でスクリプト生成（transition: 前曲感想 + 次曲紹介）
+  → Gemini TTS で音声合成
+```
+
+#### アウトロポイントの検出（共通）
+
+`waitUntilOutroPoint()` が音楽サービスの再生位置をポーリング：
+
+```
+while 再生位置 < targetPosition:
+    position = musicService.fetchPlaybackPosition()
+    ├─ position >= targetPosition → 抜ける
+    └─ フォールバック: trackStartedAt からの経過時間で判定
+    0.5 秒待機してループ
+
+targetPosition = effectiveDuration − fadeEarlySeconds
+effectiveDuration = min(曲の長さ, maxPlaybackDurationSeconds)  // 0 の場合は曲の長さをそのまま使う
+```
+
+### 3-6. アウトロ処理（`handleTrackEnding`）
 
 #### 次の曲がある場合（トランジション）
 
-```
-トランジション準備が完了済みか確認
-  ├─ 完了 → フェードアウト → 曲停止 → トランジションナレーション再生
-  │          並行: ナレーション終了 musicLeadSeconds 前に次曲を低音量で開始
-  │          → 次曲の音量をフェードイン（normalVolume まで）
-  │          → outcome = startedNextTrackViaTransition
-  └─ 未完了/失敗 → フェードアウト → 曲停止
-                   → outcome = finishedCurrentTrackOnly
-```
+| overlapMode | transitionPreparation | 動作 | outcome |
+|-------------|----------------------|------|---------|
+| `sequential` | あり・完了 | フェードアウト→曲停止→ナレーション再生（終了前に次曲先行開始） | `startedNextTrackViaTransition` |
+| `sequential` | なし・失敗 | フェードアウト→曲停止 | `finishedCurrentTrackOnly` |
+| `outro_over` | あり・完了 | 即座に音量を talkVolume へ→ナレーションと残り時間フェードアウトを並行実行 | `finishedCurrentTrackOnly` |
+| `outro_over` | なし・失敗 | フェードアウト→曲停止 | `finishedCurrentTrackOnly` |
+| `full_radio` | あり・完了 | 即座に音量を talkVolume へ→ナレーション再生＆次曲先行開始を並行、フェードイン | `startedNextTrackViaTransition` |
+| `full_radio` | なし・失敗 | フェードアウト→曲停止 | `finishedCurrentTrackOnly` |
+| `intro_over` | nil（生成しない） | フェードアウト→曲停止 | `finishedCurrentTrackOnly` |
+
+> `outro_over`・`intro_over` で `finishedCurrentTrackOnly` の場合、次のループで `startTrackOnly` として次曲を開始する（ナレーションなし）。
 
 #### 最終曲の場合
 
@@ -135,8 +160,17 @@ phase = closing
 audioPlaybackService.stopPlayback()
 musicService.stopPlayback()
 録音停止・ファイル保存（isRecordingEnabled=true の場合）
-状態リセット（isRunning=false, phase=idle）
+状態リセット（isRunning=false, isPaused=false, phase=idle）
 ```
+
+---
+
+## 6. 一時停止・再開
+
+`pauseShow()` / `resumeShow()` で音楽と音声再生を同時に停止・再開できる。
+
+- `waitRespectingPause()` で定期スリープが一時停止を検知してブロック
+- `waitUntilOutroPoint()` のポーリングも一時停止中は待機
 
 ---
 
@@ -152,7 +186,7 @@ opening（オープニングスクリプト生成・TTS）
 intro（1曲目イントロナレーション再生）
  │
  ▼
-playing（曲再生 ＋ トランジション非同期準備）
+playing（曲再生 ＋ 非同期準備）
  │
  ▼
 outro（フェードアウト・トランジション再生）
@@ -172,9 +206,13 @@ intro（次曲）        closing（クロージング再生）
 ```
 曲再生中（playing フェーズ）
 │
-├─ [バックグラウンド] トランジションスクリプト生成
+├─ [バックグラウンド] intro_over: イントロスクリプト生成
 │   └─ TTS 音声合成
-│       └─ アウトロポイントで結果を参照
+│       └─ speakAfterSeconds 経過後に結果を参照
+│
+├─ [バックグラウンド] それ以外: トランジションスクリプト生成
+│   └─ TTS 音声合成
+│       └─ アウトロポイント（waitUntilOutroPoint 検出）で結果を参照
 │
 └─ [バックグラウンド] ※最終曲のみ：クロージングスクリプト生成
     └─ TTS 音声合成
@@ -192,7 +230,7 @@ intro（次曲）        closing（クロージング再生）
 | `fadeDuration` | 5.0s | フェード時間 |
 | `speakAfterSeconds` | 15s | `intro_over` で曲開始後にイントロトークを重ね始める秒数 |
 | `fadeEarlySeconds` | 10s | 曲終了前にアウトロ処理を開始する秒数 |
-| `musicLeadSeconds` | 10.0s | ナレーション終了前に音楽を開始する秒数 |
+| `musicLeadSeconds` | 10.0s | ナレーション終了前に音楽を先行開始する秒数 |
 | `maxPlaybackDurationSeconds` | 0（無制限） | 1曲あたりの最大再生秒数 |
 
 ### 曲再生タイムラインとの関係
@@ -207,7 +245,7 @@ intro（次曲）        closing（クロージング再生）
 |<-------------------- effectivePlaybackDuration ----------------->|
                                                        ^ 曲停止位置
                                                        |<-- fadeDuration -->|
-                                         ^ アウトロ開始位置
+                                         ^ アウトロ開始位置（waitUntilOutroPoint が検出）
                                          |
                                          +-- effectivePlaybackDuration - fadeEarlySeconds
                                          |<------ fadeEarlySeconds ------>|
@@ -270,9 +308,24 @@ intro（次曲）        closing（クロージング再生）
                                    (= fadeEarlySeconds 前)
 ```
 
+#### `outro_over` で現在の曲終了とトランジション再生を重ねる場合
+
+```
+時間 →
+
+|── 現在の曲（アウトロ付近）──|
+                    ^
+                    | アウトロポイント検出→即座に talkVolume へ
+                    |
+                    |── トランジションナレーション ──|   ← 曲の残り時間と並行
+                    |── 曲フェードアウト→停止 ───────|
+```
+
+次の曲は次のループで `startTrackOnly` にて開始（ナレーションなし）。
+
 #### トークと重ねて次曲を先行再生する場合
 
-`intro_over` / `full_radio` のイントロ、トランジション再生時に使用。
+`sequential` のトランジション、`full_radio` のトランジション再生時に使用。
 
 ```
 ナレーション時間 →

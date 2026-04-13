@@ -27,4 +27,21 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.currentSettings.volumeSettings.speakAfterSeconds, 12)
         XCTAssertEqual(reloadedStore.currentSettings.volumeSettings.fadeEarlySeconds, 9)
     }
+
+    func testLoadLegacyMusicBedFallsBackToFullRadio() throws {
+        let suiteName = "AgentBoothTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let keychainStore = KeychainStore(serviceName: suiteName)
+
+        let encodedSettings = try JSONEncoder().encode(AppSettings())
+        let legacyData = try XCTUnwrap(
+            String(data: encodedSettings, encoding: .utf8)?
+                .replacingOccurrences(of: "\"defaultOverlapMode\":\"full_radio\"", with: "\"defaultOverlapMode\":\"music_bed\"")
+                .data(using: .utf8)
+        )
+        defaults.set(legacyData, forKey: "app_settings")
+
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(store.currentSettings.defaultOverlapMode, .fullRadio)
+    }
 }

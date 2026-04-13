@@ -25,7 +25,6 @@ enum OverlapMode: String, CaseIterable, Codable, Identifiable {
     case sequential
     case outroOver = "outro_over"
     case introOver = "intro_over"
-    case musicBed = "music_bed"
     case fullRadio = "full_radio"
 
     var id: String { rawValue }
@@ -33,7 +32,6 @@ enum OverlapMode: String, CaseIterable, Codable, Identifiable {
     static var orderedCases: [OverlapMode] {
         [
             .fullRadio,
-            .musicBed,
             .introOver,
             .outroOver,
             .sequential
@@ -44,15 +42,40 @@ enum OverlapMode: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .fullRadio:
             return "ラジオ風に自然に重ねる"
-        case .musicBed:
-            return "BGM を流しながらトークする"
         case .introOver:
-            return "曲のイントロにトークを重ねる"
+            return "曲の開始後にトークを重ねる"
         case .outroOver:
-            return "曲のアウトロにトークを重ねる"
+            return "曲の終了前にトークを重ねる"
         case .sequential:
             return "曲とトークを完全に分ける"
         }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        switch rawValue {
+        case Self.sequential.rawValue:
+            self = .sequential
+        case Self.outroOver.rawValue:
+            self = .outroOver
+        case Self.introOver.rawValue:
+            self = .introOver
+        case "music_bed":
+            self = .fullRadio
+        case Self.fullRadio.rawValue:
+            self = .fullRadio
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown overlap mode: \(rawValue)"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
 
