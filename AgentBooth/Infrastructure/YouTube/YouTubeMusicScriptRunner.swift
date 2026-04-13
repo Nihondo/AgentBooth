@@ -54,7 +54,7 @@ struct YouTubeMusicScriptRunner {
             webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
                 switch result {
                 case .success(let value):
-                    continuation.resume(returning: value ?? "null")
+                    continuation.resume(returning: value)
                 case .failure(let error):
                     continuation.resume(throwing: YouTubeMusicScriptRunnerError.scriptFailed(error.localizedDescription))
                 }

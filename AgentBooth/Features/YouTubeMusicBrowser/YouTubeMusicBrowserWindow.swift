@@ -11,6 +11,7 @@ final class YouTubeMusicBrowserWindowController {
     static let shared = YouTubeMusicBrowserWindowController()
 
     private var window: NSWindow?
+    private var windowDelegate: WindowDelegate?
 
     private init() {}
 
@@ -26,20 +27,23 @@ final class YouTubeMusicBrowserWindowController {
         let hostingController = NSHostingController(rootView: browserView)
 
         let win = NSWindow(contentViewController: hostingController)
+        let delegate = WindowDelegate(controller: self)
         win.title = "YouTube Music ログイン"
         win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         win.setContentSize(NSSize(width: 960, height: 700))
         win.center()
         win.isReleasedWhenClosed = false
-        win.delegate = WindowDelegate(controller: self)
+        win.delegate = delegate
         win.makeKeyAndOrderFront(nil)
         self.window = win
+        self.windowDelegate = delegate
     }
 
     /// ウィンドウを閉じる
     func close() {
         window?.close()
         window = nil
+        windowDelegate = nil
     }
 
     // MARK: - NSWindowDelegate
@@ -54,6 +58,7 @@ final class YouTubeMusicBrowserWindowController {
         func windowWillClose(_ notification: Notification) {
             Task { @MainActor in
                 controller?.window = nil
+                controller?.windowDelegate = nil
             }
         }
     }
