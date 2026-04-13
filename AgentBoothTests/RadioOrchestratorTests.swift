@@ -242,6 +242,47 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertLessThan(elapsedSeconds, 3.0, "短い曲のフェードは残り再生時間に圧縮されること")
     }
 
+    func testSequentialTransitionSuccessClampsFadeOutToEffectivePlaybackEnd() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 30, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 30, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptService = FakeScriptGenerationService()
+        let ttsService = FakeTTSService()
+        let audioPlaybackService = FakeAudioPlaybackService()
+        var settings = AppSettings()
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.fadeDuration = 5
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.maxPlaybackDurationSeconds = 2
+
+        let orchestrator = RadioOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            scriptService: scriptService,
+            ttsService: ttsService,
+            audioPlaybackService: audioPlaybackService
+        ) { _ in }
+
+        let startedAt = ContinuousClock.now
+        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .sequential)
+
+        for _ in 0..<70 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            if musicService.playedTracks.count >= 2 {
+                break
+            }
+        }
+
+        let elapsed = ContinuousClock.now - startedAt
+        let elapsedSeconds = Double(elapsed.components.seconds)
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
+
+        XCTAssertEqual(musicService.playedTracks.map(\.name), ["Song A", "Song B"])
+        XCTAssertLessThan(elapsedSeconds, 5.5, "成功トランジションでも実効終端を超えてフェード待ちしないこと")
+    }
+
     func testOutroOverDucksCurrentTrackToTalkVolumeBeforeFinalFadeOut() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),

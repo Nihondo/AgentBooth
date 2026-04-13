@@ -521,11 +521,8 @@ actor RadioOrchestrator {
                     )
                     return .startedNextTrackViaTransition
                 default:
-                    await fadeMusicVolume(
-                        targetVolume: 0,
-                        durationSeconds: settings.volumeSettings.fadeDuration
-                    )
-                    await musicService.stopPlayback()
+                    let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
+                    await fadeOutAndStopTrack(durationSeconds: fadeDuration)
                     try await playTransition(wavData: narration.wavData, nextTrack: nextTrack)
                     return .startedNextTrackViaTransition
                 }
