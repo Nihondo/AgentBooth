@@ -616,6 +616,7 @@ actor RadioOrchestrator {
         await musicService.setVolume(level: startVolume)
         updateState { $0.volume = startVolume }
         try await musicService.play(track: track)
+        await musicService.seekToPosition(0)
         trackStartedAt = ContinuousClock.now
         startPositionPolling(track: track)
         if fadeIn {
@@ -676,6 +677,7 @@ actor RadioOrchestrator {
             await musicService.setVolume(level: startVolume)
         }
         try await musicService.play(track: track)
+        await musicService.seekToPosition(0)
         trackStartedAt = ContinuousClock.now
         startPositionPolling(track: track)
     }
