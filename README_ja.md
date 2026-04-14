@@ -4,10 +4,12 @@ Apple Music / YouTube Music / Spotify のプレイリストを素材に、AI が
 
 AI が台本を作り、2 人のパーソナリティが読み上げ、音楽と重ねて再生します。
 
-<div align="center">
-<video src="https://products.desireforwealth.com/products/images/agentbooth_sample.mp4" controls autoplay muted playsinline preload poster="https://products.desireforwealth.com/products/images/agentbooth_main.png"></video>
-</div>
-
+<p align="center">
+  <a href="https://products.desireforwealth.com/products/images/agentbooth_sample.mp4">
+    <img src="https://products.desireforwealth.com/products/images/agentbooth_main.png" alt="Watch the demo" width="720">
+  </a>
+  <p align="center"><em>デモ動画を見るには画像をクリック</em></p>
+</p>
 
 ---
 

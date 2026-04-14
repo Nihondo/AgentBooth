@@ -4,10 +4,12 @@ A macOS app that runs an AI-hosted radio show using your Apple Music, YouTube Mu
 
 AI writes the script, two hosts read it aloud, and it blends with music in real time.
 
-<div align="center">
-<video src="https://products.desireforwealth.com/products/images/agentbooth_sample.mp4" controls autoplay muted playsinline preload poster="https://products.desireforwealth.com/products/images/agentbooth_main.png"></video>
-</div>
-
+<p align="center">
+  <a href="https://products.desireforwealth.com/products/images/agentbooth_sample.mp4">
+    <img src="https://products.desireforwealth.com/products/images/agentbooth_main.png" alt="Watch the demo" width="720">
+  </a>
+  <p align="center"><em>Click the image to watch the demo video</em></p>
+</p>
 
 ---
 
