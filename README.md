@@ -1,238 +1,281 @@
 # AgentBooth
 
-AgentBooth は、Apple Music / YouTube Music / Spotify のプレイリストを素材にして AI ラジオ番組を自動進行する macOS 向けアプリです。  
-現行の実装は `SwiftUI + Xcode project` ベースで、GUI からサービス・プレイリスト・オーバーラップモードを選んで番組を開始できます。
+A macOS app that runs an AI-hosted radio show using your Apple Music, YouTube Music, or Spotify playlists.
 
-Python 実装は参照用コードとして、../AgentBooth_py/ にあり、プロンプト設計や従来フローの比較に使えます。  
-新しい実行系は Swift 側です。
+AI writes the script, two hosts read it aloud, and it blends with music in real time.
 
-## 現在の実装範囲
+---
 
-- macOS 14+ 向け SwiftUI アプリを追加
-- メイン画面に以下の操作を実装
-  - サービス選択
-  - プレイリスト選択
-  - モード選択
-  - `Start / Pause / Resume / Stop`
-- 設定画面を実装
-  - Gemini API Key は Keychain 保存
-  - CLI / モデル / 音声 / パーソナリティ / 音量 / 番組情報は UserDefaults 保存
-- `Apple Music` のプレイリスト取得と曲再生を AppleScript 経由で実装
-- `YouTube Music` を WKWebView 内蔵ブラウザ経由で実装
-  - 設定画面からログイン、Cookie による認証状態検出
-  - 内部 API (`/youtubei/v1/browse`) を `SAPISIDHASH` 認証 + JS インジェクションで呼び出し
-  - オフスクリーン NSWindow に配置した再生専用 WebView で常時オーディオ再生
-- `Spotify` を WKWebView 内蔵ブラウザ経由で実装
-  - 設定画面からログイン、DOM による認証状態検出
-  - サイドバーとプレイヤー DOM をスクレイプしてプレイリスト取得・再生制御
-  - オフスクリーン NSWindow に配置した再生専用 WebView で常時オーディオ再生
-- `full_radio` を含む 5 種類のオーバーラップモードを Swift 側へ移植
-- 台本生成を外部 CLI (`claude` / `gemini` / `codex` / `copilot`) 呼び出しで実装
-- 台本生成結果は `dialogues` と `summaryBullets` を含む JSON を受け取り、後続プロンプトの重複回避に利用
-- Gemini TTS を Swift から REST API で直接呼び出す実装を追加
-- 生成した台本ログを `Application Support/AgentBooth/logs/scripts/` に保存
-- `RadioOrchestrator` と `MainViewModel` の分離、ユニットテストを追加
+## Requirements
 
-## 制約事項
-
-- 外部 CLI はユーザー環境にインストール済みである必要があります
-- Mac App Store 配布前提の sandbox 対応はまだ行っていません
-- Apple Music 制御には macOS の Automation 許可が必要です
-- YouTube Music 利用には設定画面からの手動ログインが必要です
-- Spotify 利用には設定画面からの手動ログインが必要です
-- Spotify は DOM 制御のため、Spotify Web Player の UI 変更で取得や再生が失敗する場合があります
-
-## 動作環境
-
-- macOS 14 以降
-- Xcode 17 系
-- `xcodegen`
-- Apple Music.app
-- いずれかのスクリプト生成 CLI
-  - `claude`
+- macOS 14 (Sonoma) or later
+- One AI CLI for script generation (install at least one):
+  - `claude` (Claude Code)
   - `gemini`
-  - `codex`
+  - `codex` (ChatGPT Codex)
   - `copilot`
-- Gemini API Key
+- Gemini API Key (used for text-to-speech — free at [Google AI Studio](https://aistudio.google.com/))
 
-## セットアップ
+---
 
-### 1. プロジェクト生成
+## Quick Start
 
-```bash
-xcodegen generate
-```
+1. Launch the app (first time: right-click → **Open**)
+2. Open **Settings** → **Text-to-Speech** tab
+3. Enter your Gemini API Key in **API Key** (free at [Google AI Studio](https://aistudio.google.com/))
+4. Choose an AI in **CLI** (e.g. `claude`)
+5. Close Settings, choose a playlist on the main screen, and press **Start**
 
-これで [AgentBooth.xcodeproj](/Users/nihondo/Library/CloudStorage/Dropbox/Projects.localized/AgentBooth/AgentBooth.xcodeproj) が生成されます。
+Apple Music works immediately. YouTube Music and Spotify require signing in first (→ [How to Use](#how-to-use)).
 
-### 2. Xcode で開く
+---
 
-```bash
-open AgentBooth.xcodeproj
-```
+## Settings Guide
 
-### 3. テスト実行
+Open **Settings** from the toolbar and configure each tab.
 
-```bash
-xcodebuild -project AgentBooth.xcodeproj -scheme AgentBooth -destination 'platform=macOS' -derivedDataPath /tmp/AgentBoothDerived test
-```
+### Text-to-Speech (configure this first)
 
-## 使い方
+The app cannot start without the API Key and CLI set.
+
+| Field | Description |
+|---|---|
+| **API Key** | Your Gemini API Key from Google AI Studio |
+| **TTS Model** | Gemini model for speech synthesis (defaults work out of the box) |
+| **Fallback Model** | Backup model used if the primary model fails |
+| **Male Voice** | Voice name for the male host (e.g. `Charon`) |
+| **Female Voice** | Voice name for the female host (e.g. `Kore`) |
+| **CLI** | AI CLI to use for script generation (`claude` / `gemini` / `codex` / `copilot`) |
+| **CLI Model** | Model name for the CLI (leave blank to use the CLI's default) |
+
+### Service
+
+| Field | Description |
+|---|---|
+| **Default Service** | Music service selected by default on launch |
+| **Sign in to YouTube Music** | Open the embedded browser to log in to YouTube Music |
+| **Sign in to Spotify** | Open the embedded browser to log in to Spotify |
+
+### Program Info
+
+| Field | Description |
+|---|---|
+| **Overlap Mode** | How music and talk are blended (see below) |
+| **Show Name** | Name of the radio show, used in script generation |
+| **Frequency / Channel** | e.g. `77.5 FM` — used to set the mood of the script |
+| **Male Host Name** | Display name for the male personality |
+| **Female Host Name** | Display name for the female personality |
+| **Scene / Direction** | Additional direction for script generation (e.g. "late night, quiet tone") |
+
+### Music Playback
+
+Balance between music and talk. Defaults work without changes.
+
+| Field | Description |
+|---|---|
+| **Normal Volume** | Base music volume (0–100) |
+| **Talk Volume** | Music volume while talk is playing (0–100). Lower = quieter music |
+| **Fade Duration** | Seconds to smoothly ramp volume up or down |
+| **Music Lead Seconds** | Seconds before talk ends to start fading in the next track |
+| **Talk Start After Seconds** | Seconds after a track starts before talk begins (for intro overlay) |
+| **Talk Start Before End Seconds** | Seconds before a track ends to start outro talk |
+| **Max Playback Duration** | Maximum seconds per track (0 = unlimited) |
+
+### Recording
+
+Configure if you want to record the show.
+
+| Field | Description |
+|---|---|
+| **Output Directory** | Folder for recording files. Defaults to `~/Music/AgentBooth/` |
+
+> Recording captures system audio. A Screen Recording permission prompt appears on first use.
+
+---
+
+## How to Use
 
 ### Apple Music
 
-1. アプリを起動
-2. `Settings` で Gemini API Key と Script CLI を保存
-3. メイン画面で `サービス: Apple Music` を選択
-4. `プレイリスト` を選択
-5. `モード` を選択
-6. `Start` で番組開始
+1. Set **API Key** and **CLI** in the **Text-to-Speech** tab
+2. Select **Apple Music** as the service on the main screen
+3. Choose a playlist
+4. Choose a playback mode
+5. Press **Start**
+
+> A macOS Automation permission dialog appears on first launch. Click **OK** to allow.
 
 ### YouTube Music
 
-1. `Settings` → `音楽` タブで `YouTube Music でログイン` をタップ
-2. 表示される内蔵ブラウザで YouTube Music にログイン
-3. ログイン成功後、インジケーターが緑に変わる
-4. ウィンドウを閉じ、メイン画面で `サービス: YouTube Music` を選択
-5. プレイリスト・モードを選択して `Start`
+1. Go to **Service** tab → press **Sign in to YouTube Music**
+2. Sign in via the embedded browser
+3. The status indicator turns green when signed in
+4. Close the window, select **YouTube Music** on the main screen
+5. Choose a playlist and press **Start**
 
 ### Spotify
 
-1. `Settings` → `音楽` タブで `Spotify でログイン` をタップ
-2. 表示される内蔵ブラウザで Spotify にログイン
-3. ログイン成功後、インジケーターが緑に変わる
-4. ウィンドウを閉じ、メイン画面で `サービス: Spotify` を選択
-5. プレイリスト・モードを選択して `Start`
+1. Go to **Service** tab → press **Sign in to Spotify**
+2. Sign in via the embedded browser
+3. The status indicator turns green when signed in
+4. Close the window, select **Spotify** on the main screen
+5. Choose a playlist and press **Start**
 
-### 共通
+---
 
-- 再生中は主ボタンが `Pause` に切り替わる
-- 一時停止中は `Resume` に切り替わる
-- `Stop` で停止すると主ボタンは `Start` に戻る
+## Controls
 
-## オーバーラップモード
-
-| モード | 説明 |
+| Button | Action |
 |---|---|
-| `sequential` | 会話と楽曲を完全に直列で再生 |
-| `outro_over` | 曲終盤フェードにトークを重ねる |
-| `intro_over` | 曲開始後 `speakAfterSeconds` 秒でイントロトークを重ねる |
-| `full_radio` | イントロ重ね、アウトロ重ね、ダッキングを組み合わせる |
+| **Start** | Begin the show |
+| **Pause** | Pause (shown during playback) |
+| **Resume** | Resume (shown when paused) |
+| **Stop** | Stop and return to the beginning |
 
-## 設定項目
+The **NowPlayingBar** at the bottom shows the current track (with artwork) and the current show phase.
 
-設定画面で主に次を扱います。
+---
 
-- `Gemini API Key`
-- `TTS Model`
-- `Fallback Model`
-- `Script CLI`
-- `CLI Model`
-- `Male/Female Voice`
-- `Male/Female Host`
-- `Default Service`
-- `Default Mode`
-- `Normal Volume`
-- `Talk Volume`
-- `Fade Duration`
-- `Fade Early Seconds`
-- `Music Lead Seconds`
-- `Show Name`
-- `Frequency`
+## Playback Modes
 
-## ディレクトリ構成
+Select in **Program Info** → **Overlap Mode**.
 
-```text
+| Mode | Behavior |
+|---|---|
+| **Natural FM Radio blend** | Talk overlaps both the beginning and end of tracks — closest to a real FM radio feel |
+| **Talk over track start** | Talk begins a few seconds after the track starts, playing over the intro |
+| **Talk over track end** | Track fades out and outro talk begins before the track ends |
+| **Fully separated** | Talk then music, music then talk — no overlap |
+
+---
+
+## Troubleshooting
+
+### Apple Music playlist not loading
+
+Open System Settings → Privacy & Security → Automation and confirm that **AgentBooth** has permission for **Music**.
+
+### YouTube Music / Spotify showing "Not signed in"
+
+- Complete the full sign-in flow in the embedded browser, then close the window and reopen the Settings tab
+- If sign-in gets stuck, press **Clear Data** to remove site storage and try again
+
+### Spotify playlist missing or playback stopping
+
+Spotify Web Player may have updated its layout, breaking the integration. This is a known limitation.
+
+### Script generation fails or doesn't start
+
+- Confirm the CLI selected in **Text-to-Speech** is installed and runnable
+- If the app cannot find the CLI, try entering the full path (e.g. `/usr/local/bin/claude`) in the CLI Model field, or verify the installation path
+
+### No audio is generated
+
+- Confirm the **API Key** in the **Text-to-Speech** tab is correct
+- Check your remaining quota and key validity at Google AI Studio
+
+---
+
+## Developer Reference
+
+### Architecture Overview
+
+```
+Domain/           Protocols and all value types (Protocols.swift / Models.swift)
+App/              Entry point and DI (AppServiceContainer)
+Features/         UI layer (ContentView / MainViewModel / SettingsView / NowPlayingBar)
+Services/         Business logic (Radio / Script / TTS / Music / Audio)
+Infrastructure/   External wrappers (AppleScript / WebView / Settings)
+AgentBoothTests/  Unit tests + fake implementations (TestDoubles.swift)
+```
+
+### Key Components
+
+**`RadioOrchestrator`** (`Services/Radio/`) — Swift `actor`. Core of the show. Drives phases: opening → intro → playing → transition/outro → closing. Coordinates music, TTS, and fade.
+
+**`MainViewModel`** (`Features/Main/`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges `RadioState` to SwiftUI views.
+
+**`ProcessScriptGenerationService`** (`Services/Script/`) — Spawns an external CLI subprocess to generate JSON scripts.
+
+**`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV. Includes retry and fallback model logic.
+
+**`AppleMusicService`** (`Services/Music/`) — Controls Music.app via `AppleScriptExecutor`.
+
+**`YouTubeMusicService`** (`Services/Music/`) — `@MainActor`. Delegates to `YouTubeMusicAPIFetcher` (internal API) and `YouTubeMusicPlayerController` (playback).
+
+**`SpotifyMusicService`** (`Services/Music/`) — `@MainActor`. Scrapes `open.spotify.com` DOM for playlist data and playback control.
+
+**`YouTubeMusicWebViewStore`** / **`SpotifyWebViewStore`** — Each manages a login UI WebView and an offscreen playback WebView. Both share `WKWebsiteDataStore.default()` so cookies stay in sync.
+
+### Directory Structure
+
+```
 AgentBooth/
-├── AgentBooth/                     # Swift app source
-│   ├── App/                        # エントリポイント・DI
-│   ├── Domain/                     # Protocols.swift, Models.swift
+├── AgentBooth/
+│   ├── App/                        Entry point and DI
+│   ├── Domain/                     Protocols.swift, Models.swift
 │   ├── Features/
-│   │   ├── Main/                   # ContentView, MainViewModel
-│   │   ├── Settings/               # SettingsView
-│   │   ├── SpotifyBrowser/         # Spotify ログインブラウザ UI
-│   │   └── YouTubeMusicBrowser/    # ログインブラウザ UI
+│   │   ├── Main/                   ContentView, MainViewModel, NowPlayingBar
+│   │   ├── Settings/               SettingsView
+│   │   ├── SpotifyBrowser/         Spotify login browser UI
+│   │   └── YouTubeMusicBrowser/    YouTube Music login browser UI
 │   ├── Infrastructure/
-│   │   ├── Settings/               # AppSettingsStore
-│   │   ├── Music/                  # AppleScriptExecutor
-│   │   ├── Spotify/                # DOMScripts, ScriptRunner
-│   │   └── YouTube/                # JSScripts, ScriptRunner
+│   │   ├── Settings/               AppSettingsStore
+│   │   ├── Music/                  AppleScriptExecutor, AppleMusicArtworkFetcher
+│   │   ├── Spotify/                SpotifyDOMScripts, SpotifyScriptRunner
+│   │   └── YouTube/                YouTubeMusicJSScripts, YouTubeMusicScriptRunner
 │   └── Services/
-│       ├── Radio/                  # RadioOrchestrator
-│       ├── Script/                 # ProcessScriptGenerationService
-│       ├── TTS/                    # GeminiTTSService
-│       ├── Audio/                  # SystemAudioPlaybackService
+│       ├── Radio/                  RadioOrchestrator
+│       ├── Script/                 ProcessScriptGenerationService
+│       ├── TTS/                    GeminiTTSService
+│       ├── Audio/                  SystemAudioPlaybackService
 │       ├── Recording/
-│       └── Music/                  # AppleMusicService, YouTubeMusicService, SpotifyMusicService
-├── AgentBoothTests/                # Swift tests + TestDoubles
-├── AgentBooth.xcodeproj/           # xcodegen 生成物
-├── project.yml                     # XcodeGen 定義
-├── main.py                         # 旧 Python CLI エントリ
-├── orchestrator.py                 # 旧 Python フロー実装
-├── music/                          # 旧 Python music 層
-├── script/                         # 旧 Python script 層
-├── tts/                            # 旧 Python tts 層
+│       └── Music/                  AppleMusicService, YouTubeMusicService, SpotifyMusicService
+├── AgentBoothTests/                Unit tests + TestDoubles.swift
+├── project.yml                     XcodeGen definition
 └── handoff.md
 ```
 
-## 実装アーキテクチャ
+### Script JSON Format
 
-- `MainViewModel`
-  - UI 状態と各 picker / ボタンの操作を担当
-- `RadioOrchestrator`
-  - 番組進行、フェーズ遷移、音楽と TTS の協調制御を担当
-- `MusicService` プロトコル
-  - `AppleMusicService` — AppleScript 経由で Music.app を制御
-  - `YouTubeMusicService` — WKWebView 経由で YouTube Music を制御
-  - `SpotifyMusicService` — WKWebView 経由で Spotify Web Player を DOM 制御
-- `YouTubeMusicWebViewStore`
-  - ログイン UI 用 `webView` と再生専用 `playbackWebView` の 2 つを管理
-  - 両者は `WKWebsiteDataStore.default()` を共有し Cookie を自動同期
-  - `playbackWebView` はオフスクリーン `NSWindow` に配置してオーディオ再生を常時有効化
-- `SpotifyWebViewStore`
-  - ログイン UI 用 `webView` と再生専用 `playbackWebView` の 2 つを管理
-  - 両者は `WKWebsiteDataStore.default()` を共有し Spotify セッションを自動同期
-  - `playbackWebView` はオフスクリーン `NSWindow` に配置してオーディオ再生を常時有効化
-- `YouTubeMusicAPIFetcher`
-  - YouTube Music 内部 API (`/youtubei/v1/browse`) を WebView 内 JS で呼び出し
-  - `SAPISIDHASH` 認証ヘッダーを `__Secure-3PAPISID` Cookie から `crypto.subtle.digest("SHA-1")` で計算
-- `YouTubeMusicPlayerController`
-  - `document.querySelector('video')` への JS 操作で再生・停止・音量制御
-- `SpotifyDOMScripts`
-  - Spotify サイドバー、トラックリスト、プレイヤー DOM を抽出・操作
-  - 公式 API は使わず `open.spotify.com` 上の JS 挿入だけでプレイリスト取得と再生制御を行う
-- `ProcessScriptGenerationService`
-  - 外部 CLI による台本生成と `summaryBullets` の後方互換パース
-- `GeminiTTSService`
-  - Gemini REST API 呼び出しと WAV 生成
-- `SystemAudioPlaybackService`
-  - AVAudioPlayer ベースの TTS 再生
-- `AppSettingsStore`
-  - UserDefaults / Keychain の永続化
-
-## 台本生成 JSON 形式
-
-台本生成 CLI には、会話本文に加えて次回プロンプトで使う簡易サマリーも返させます。
+The CLI must write the following JSON to stdout.
 
 ```json
 {
   "dialogues": [
-    { "speaker": "male", "text": "発話内容" },
-    { "speaker": "female", "text": "発話内容" }
+    { "speaker": "male", "text": "..." },
+    { "speaker": "female", "text": "..." }
   ],
   "summaryBullets": [
-    "今回触れた話題の要点",
-    "次回は避けたい観点"
+    "Key point from this segment",
+    "Topic to avoid next time"
   ]
 }
 ```
 
-- `summaryBullets` は 2〜4 件の短い箇条書きが想定です
-- `RadioOrchestrator` は同一アーティスト / 同一アルバム時のみ、この箇条書きを次回プロンプトへ渡します
-- 旧形式の `dialogues` のみ JSON も後方互換で受理し、その場合は会話先頭の抜粋をフォールバック要約として使います
+- `summaryBullets`: 2–4 short bullets
+- Passed back to the next prompt only when the same artist/album repeats
+- Legacy format with `dialogues` only is accepted for backwards compatibility
 
-## 将来予定
+### Build and Test
 
-- エラーメッセージとセッション状態の UI 強化
-- App Sandbox / 配布設定の整備
-- Python 実装との差分整理と不要コードの段階的縮退
+```bash
+# Generate project
+xcodegen generate
+
+# Run all tests
+xcodebuild -project AgentBooth.xcodeproj -scheme AgentBooth \
+  -destination 'platform=macOS' -derivedDataPath /tmp/AgentBoothDerived test
+
+# Run a specific test class
+xcodebuild -project AgentBooth.xcodeproj -scheme AgentBooth \
+  -destination 'platform=macOS' -derivedDataPath /tmp/AgentBoothDerived test \
+  -only-testing:AgentBoothTests/RadioOrchestratorTests
+```
+
+### Constraints
+
+- App Sandbox is disabled (`ENABLE_APP_SANDBOX: NO`) — Mac App Store distribution is not yet supported
+- Edit `project.yml` for build settings, then run `xcodegen generate` — do not edit `.xcodeproj` directly
+- External CLIs are resolved from the app's process environment, which may differ from your shell PATH
+- Spotify integration is DOM-based; selector breakage is expected when Spotify updates the Web Player UI
