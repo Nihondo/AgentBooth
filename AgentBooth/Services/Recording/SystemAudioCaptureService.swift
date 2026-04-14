@@ -11,11 +11,11 @@ enum SystemAudioCaptureError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noDisplayAvailable:
-            return "キャプチャに使用できるディスプレイが見つかりません。"
+            return String(localized: "キャプチャに使用できるディスプレイが見つかりません。")
         case .capturePermissionDenied(let detail):
-            return "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。(\(detail))"
+            return String(format: String(localized: "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。(%@)"), detail)
         case .writerSetupFailed(let detail):
-            return "録音ファイルの準備に失敗しました: \(detail)"
+            return String(format: String(localized: "録音ファイルの準備に失敗しました: %@"), detail)
         }
     }
 }
@@ -153,7 +153,7 @@ actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
         input.expectsMediaDataInRealTime = true
 
         guard writer.canAdd(input) else {
-            throw SystemAudioCaptureError.writerSetupFailed("AVAssetWriterInput の追加に失敗しました。")
+            throw SystemAudioCaptureError.writerSetupFailed(String(localized: "AVAssetWriterInput の追加に失敗しました。"))
         }
         writer.add(input)
         audioWriterInput = input

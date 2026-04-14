@@ -6,7 +6,7 @@ enum AppleMusicServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedService:
-            return "この音楽サービスは未実装です。"
+            return String(localized: "この音楽サービスは未実装です。")
         }
     }
 }

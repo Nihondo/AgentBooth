@@ -8,9 +8,9 @@ enum SystemAudioPlaybackError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .launchFailed(let detail):
-            return "トーク音声の再生を開始できませんでした: \(detail)"
+            return String(format: String(localized: "トーク音声の再生を開始できませんでした: %@"), detail)
         case .playbackFailed(let status):
-            return "トーク音声の再生が失敗しました。(afplay exit=\(status))"
+            return String(format: String(localized: "トーク音声の再生が失敗しました。(afplay exit=%d)"), status)
         }
     }
 }

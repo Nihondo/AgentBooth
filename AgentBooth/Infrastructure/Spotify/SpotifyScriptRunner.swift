@@ -9,9 +9,9 @@ enum SpotifyScriptRunnerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "レスポンスのパースに失敗しました。"
+            return String(localized: "レスポンスのパースに失敗しました。")
         case .scriptFailed(let message):
-            return "スクリプト実行に失敗しました: \(message)"
+            return String(format: String(localized: "スクリプト実行に失敗しました: %@"), message)
         }
     }
 }

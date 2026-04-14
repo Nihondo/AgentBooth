@@ -103,7 +103,94 @@
 "録音中は他のアプリの通知音なども混入します。録音時はおやすみモードの使用を推奨します。" = "Other app notification sounds may be mixed in during recording. Do Not Disturb mode is recommended.";
 "ファイル形式: M4A (AAC 192kbps, 48kHz stereo)" = "File format: M4A (AAC 192kbps, 48kHz stereo)";
 
-/* ViewModel messages */
+/* Domain/Models - OverlapMode.displayName */
+"ラジオ風に自然に重ねる" = "Radio-style natural overlap";
+"曲の開始後にトークを重ねる" = "Overlap talk after track starts";
+"曲の終了前にトークを重ねる" = "Overlap talk before track ends";
+"曲とトークを完全に分ける" = "Separate music and talk";
+
+/* Domain/Models - PrimaryControlState.buttonLabelText */
+"開始" = "Start";
+"一時停止" = "Pause";
+"再開" = "Resume";
+
+/* Error descriptions - GeminiTTS */
+"Gemini API Key が未設定です。" = "Gemini API Key is not set.";
+"Gemini TTS の応答を解釈できませんでした。%@" = "Could not interpret Gemini TTS response. %@";
+"Gemini TTS の日次クォータに達しました。" = "Gemini TTS daily quota has been reached.";
+
+/* Error descriptions - Spotify */
+"Spotify にログインしていません。設定からログインしてください。" = "Not logged in to Spotify. Please log in from Settings.";
+"Spotify Web Player の読み込みが完了していません。" = "Spotify Web Player has not finished loading.";
+"Spotify プレイリストが見つかりません: %@" = "Spotify playlist not found: %@";
+"Spotify Web UI の構造変更で取得失敗: %@" = "Fetch failed due to Spotify Web UI change: %@";
+
+/* Error descriptions - YouTube Music */
+"YouTube Music にログインしていません。設定からログインしてください。" = "Not logged in to YouTube Music. Please log in from Settings.";
+"この操作は YouTube Music では未対応です。" = "This operation is not supported for YouTube Music.";
+"YouTube Music にログインしていません。設定から先にログインしてください。" = "Not logged in to YouTube Music. Please log in from Settings first.";
+"YouTube Music のページが読み込まれていません。" = "YouTube Music page has not finished loading.";
+"取得に失敗しました: %@" = "Fetch failed: %@";
+
+/* Error descriptions - shared (Spotify/YouTube script runners) */
+"レスポンスのパースに失敗しました。" = "Failed to parse response.";
+"スクリプト実行に失敗しました: %@" = "Script execution failed: %@";
+
+/* Error descriptions - Audio */
+"トーク音声の再生を開始できませんでした: %@" = "Could not start talk audio playback: %@";
+"トーク音声の再生が失敗しました。(afplay exit=%d)" = "Talk audio playback failed. (afplay exit=%d)";
+
+/* Error descriptions - Recording */
+"キャプチャに使用できるディスプレイが見つかりません。" = "No display available for audio capture.";
+"画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。(%@)" = "Screen recording permission is not granted. Please allow AgentBooth in System Settings > Privacy & Security > Screen Recording. (%@)";
+"録音ファイルの準備に失敗しました: %@" = "Failed to prepare recording file: %@";
+"AVAssetWriterInput の追加に失敗しました。" = "Failed to add AVAssetWriterInput.";
+
+/* Error descriptions - Apple Music */
+"この音楽サービスは未実装です。" = "This music service is not implemented.";
+
+/* Error descriptions - Script generation */
+"未対応の CLI が指定されました。" = "An unsupported CLI was specified.";
+"スクリプト生成結果を JSON として解釈できませんでした。" = "Could not parse script generation result as JSON.";
+"%@ CLI を起動できませんでした: %@" = "%@ CLI could not be launched: %@";
+"%@ CLI の実行に失敗しました。" = "%@ CLI execution failed.";
+
+/* RadioOrchestrator - status messages */
+"スクリプト作成開始（クロージング）" = "Generating script (closing)";
+"スクリプト作成開始（オープニング）" = "Generating script (opening)";
+"スクリプト作成開始（%@ のイントロ）" = "Generating script (%@ intro)";
+"スクリプト作成開始（%@ → %@）" = "Generating script (%@ → %@)";
+"スクリプト作成終了" = "Script generated";
+"TTS音声作成開始（%@）" = "Generating TTS audio (%@)";
+"TTS音声作成終了" = "TTS audio generated";
+"TTS音声作成終了（副モデル: %@）" = "TTS audio generated (fallback model: %@)";
+"%@ のイントロは再生位置が遅すぎるためスキップしました。" = "%@ intro was skipped: playback position is too late.";
+"%@ のイントロは再生時間に収まらないためスキップしました。" = "%@ intro was skipped: not enough time remaining.";
+"%@ は再生タイミングに間に合わなかったためスキップしました。" = "%@ was skipped: could not prepare in time.";
+"%@ は音声生成に失敗したためスキップしました。" = "%@ was skipped: audio generation failed.";
+"録音の開始に失敗しました: %@" = "Recording failed to start: %@";
+"録音の保存に失敗しました: %@" = "Recording failed to save: %@";
+
+/* RadioOrchestrator - NSLocalizedDescriptionKey */
+"プレイリストに曲がありません。" = "The playlist has no tracks.";
+"%@ の音声生成に失敗しました: %@" = "Audio generation failed for %@: %@";
+
+/* Segment labels (used in status messages) */
+"クロージング" = "Closing";
+"オープニング" = "Opening";
+"%@ のイントロ" = "%@ intro";
+"%@ から %@ へのトランジション" = "Transition from %@ to %@";
+
+/* GeminiTTSService - internal error details */
+" HTTP レスポンスを取得できませんでした。" = " HTTP response could not be obtained.";
+" JSON デコードに失敗しました: %@" = " JSON decode failed: %@";
+" inlineData が見つかりません。応答: %@" = " inlineData not found. Response: %@";
+" 音声データの base64 デコードに失敗しました。" = " Audio data base64 decode failed.";
+
+"Spotify プレイリスト title node が見つかりませんでした。" = "Spotify playlist title node not found.";
+"URL を解釈できません。" = "Could not parse URL.";
+"タイムアウトしました。" = "Timed out.";
+
 "プレイリストを選択してください。" = "Please select a playlist.";
 "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。" = "Screen recording permission is not granted. Please allow AgentBooth in System Settings > Privacy & Security > Screen Recording.";
 "YouTube Music にログインしてください。" = "Please log in to YouTube Music.";

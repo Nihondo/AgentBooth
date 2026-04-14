@@ -15,9 +15,9 @@ enum YouTubeMusicServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notLoggedIn:
-            return "YouTube Music にログインしていません。設定からログインしてください。"
+            return String(localized: "YouTube Music にログインしていません。設定からログインしてください。")
         case .unsupportedOperation:
-            return "この操作は YouTube Music では未対応です。"
+            return String(localized: "この操作は YouTube Music では未対応です。")
         }
     }
 }

@@ -243,7 +243,7 @@ actor RadioOrchestrator {
     private func loadTracks(for playlistName: String) async throws -> [TrackInfo] {
         let tracks = try await musicService.fetchTracks(in: playlistName)
         guard !tracks.isEmpty else {
-            throw CocoaError(.fileReadNoSuchFile, userInfo: [NSLocalizedDescriptionKey: "プレイリストに曲がありません。"])
+            throw CocoaError(.fileReadNoSuchFile, userInfo: [NSLocalizedDescriptionKey: String(localized: "プレイリストに曲がありません。")])
         }
         updateState {
             $0.upcomingTracks = tracks
@@ -266,7 +266,7 @@ actor RadioOrchestrator {
                 $0.recordingOutputURL = nil
             }
         } catch {
-            updateState { $0.errorMessage = "録音の開始に失敗しました: \(error.localizedDescription)" }
+            updateState { $0.errorMessage = String(format: String(localized: "録音の開始に失敗しました: %@"), error.localizedDescription) }
         }
     }
 
@@ -285,7 +285,7 @@ actor RadioOrchestrator {
         do {
             try await recordingService.stopRecording()
         } catch {
-            updateState { $0.errorMessage = "録音の保存に失敗しました: \(error.localizedDescription)" }
+            updateState { $0.errorMessage = String(format: String(localized: "録音の保存に失敗しました: %@"), error.localizedDescription) }
         }
         let outputURL = radioState.recordingOutputURL
         updateState {
@@ -323,23 +323,23 @@ actor RadioOrchestrator {
     }
 
     private func generatePreparedClosingNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
-        updateState { $0.statusMessage = "スクリプト作成開始（クロージング）"; $0.isProcessing = true }
+        updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
         let closingScript = try await scriptService.generateClosing(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
+        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: closingScript.dialogues,
-            segmentLabel: "クロージング"
+            segmentLabel: String(localized: "クロージング")
         )
         return PreparedNarration(script: closingScript, wavData: wavData)
     }
 
     private func prepareOpeningNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
-        updateState { $0.statusMessage = "スクリプト作成開始（オープニング）"; $0.isProcessing = true }
+        updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
         let script = try await scriptService.generateOpening(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
+        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: script.dialogues,
-            segmentLabel: "オープニング"
+            segmentLabel: String(localized: "オープニング")
         )
         return PreparedNarration(script: script, wavData: wavData)
     }
@@ -376,16 +376,16 @@ actor RadioOrchestrator {
         previousTrack: TrackInfo
     ) async throws -> PreparedNarration {
         let continuityNote = buildContinuityNote(for: track, previousTrack: previousTrack)
-        updateState { $0.statusMessage = "スクリプト作成開始（\(track.name) のイントロ）"; $0.isProcessing = true }
+        updateState { $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ のイントロ）"), track.name); $0.isProcessing = true }
         let script = try await scriptService.generateIntro(
             track: track,
             settings: settings,
             continuityNote: continuityNote
         )
-        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
+        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: script.dialogues,
-            segmentLabel: "\(track.name) のイントロ"
+            segmentLabel: String(format: String(localized: "%@ のイントロ"), track.name)
         )
         return PreparedNarration(script: script, wavData: wavData)
     }
@@ -395,17 +395,17 @@ actor RadioOrchestrator {
         nextTrack: TrackInfo
     ) async throws -> PreparedNarration {
         let continuityNote = buildContinuityNote(for: nextTrack, previousTrack: currentTrack)
-        updateState { $0.statusMessage = "スクリプト作成開始（\(currentTrack.name) → \(nextTrack.name)）"; $0.isProcessing = true }
+        updateState { $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name); $0.isProcessing = true }
         let script = try await scriptService.generateTransition(
             currentTrack: currentTrack,
             nextTrack: nextTrack,
             settings: settings,
             continuityNote: continuityNote
         )
-        updateState { $0.statusMessage = "スクリプト作成終了"; $0.isProcessing = false }
+        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
         let wavData = try await synthesizeNarration(
             dialogues: script.dialogues,
-            segmentLabel: "\(currentTrack.name) から \(nextTrack.name) へのトランジション"
+            segmentLabel: String(format: String(localized: "%@ から %@ へのトランジション"), currentTrack.name, nextTrack.name)
         )
         return PreparedNarration(script: script, wavData: wavData)
     }
@@ -533,7 +533,7 @@ actor RadioOrchestrator {
 
         guard introStartSeconds < outroStartSeconds else {
             introPreparation.cancel()
-            updateState { $0.statusMessage = "\(track.name) のイントロは再生位置が遅すぎるためスキップしました。" }
+            updateState { $0.statusMessage = String(format: String(localized: "%@ のイントロは再生位置が遅すぎるためスキップしました。"), track.name) }
             return
         }
 
@@ -541,7 +541,7 @@ actor RadioOrchestrator {
 
         let introResult = await resolvePreparationAtDeadline(
             introPreparation,
-            segmentName: "\(track.name) のイントロ"
+            segmentName: String(format: String(localized: "%@ のイントロ"), track.name)
         )
         guard case .ready(let narration) = introResult else {
             return
@@ -552,7 +552,7 @@ actor RadioOrchestrator {
             + settings.volumeSettings.fadeDuration
         let availableWindow = max(0, outroStartSeconds - introStartSeconds)
         guard requiredWindow <= availableWindow else {
-            updateState { $0.statusMessage = "\(track.name) のイントロは再生時間に収まらないためスキップしました。" }
+            updateState { $0.statusMessage = String(format: String(localized: "%@ のイントロは再生時間に収まらないためスキップしました。"), track.name) }
             return
         }
 
@@ -659,10 +659,10 @@ actor RadioOrchestrator {
             return .ready(value)
         case .pending:
             preparation.cancel()
-            updateState { $0.statusMessage = "\(segmentName) は再生タイミングに間に合わなかったためスキップしました。" }
+            updateState { $0.statusMessage = String(format: String(localized: "%@ は再生タイミングに間に合わなかったためスキップしました。"), segmentName) }
             return .notReadyAtDeadline
         case .failed(let errorMessage):
-            updateState { $0.statusMessage = "\(segmentName) は音声生成に失敗したためスキップしました。" }
+            updateState { $0.statusMessage = String(format: String(localized: "%@ は音声生成に失敗したためスキップしました。"), segmentName) }
             updateState { $0.errorMessage = errorMessage }
             return .failed(errorMessage)
         case .cancelled:
@@ -701,20 +701,20 @@ actor RadioOrchestrator {
     }
 
     private func synthesizeNarration(dialogues: [DialogueLine], segmentLabel: String) async throws -> Data {
-        updateState { $0.statusMessage = "TTS音声作成開始（\(segmentLabel)）"; $0.isProcessing = true }
+        updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成開始（%@）"), segmentLabel); $0.isProcessing = true }
         do {
             let result = try await ttsService.synthesize(dialogues: dialogues, settings: settings)
             let isFallback = result.modelUsed != settings.geminiTTSModel
             if isFallback {
-                updateState { $0.statusMessage = "TTS音声作成終了（副モデル: \(result.modelUsed)）"; $0.isProcessing = false }
+                updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成終了（副モデル: %@）"), result.modelUsed); $0.isProcessing = false }
             } else {
-                updateState { $0.statusMessage = "TTS音声作成終了"; $0.isProcessing = false }
+                updateState { $0.statusMessage = String(localized: "TTS音声作成終了"); $0.isProcessing = false }
             }
             return result.wavData
         } catch {
             throw CocoaError(
                 .coderInvalidValue,
-                userInfo: [NSLocalizedDescriptionKey: "\(segmentLabel) の音声生成に失敗しました: \(error.localizedDescription)"]
+                userInfo: [NSLocalizedDescriptionKey: String(format: String(localized: "%@ の音声生成に失敗しました: %@"), segmentLabel, error.localizedDescription)]
             )
         }
     }

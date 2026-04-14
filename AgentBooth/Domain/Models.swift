@@ -41,13 +41,13 @@ enum OverlapMode: String, CaseIterable, Codable, Identifiable {
     var displayName: String {
         switch self {
         case .fullRadio:
-            return "ラジオ風に自然に重ねる"
+            return String(localized: "ラジオ風に自然に重ねる")
         case .introOver:
-            return "曲の開始後にトークを重ねる"
+            return String(localized: "曲の開始後にトークを重ねる")
         case .outroOver:
-            return "曲の終了前にトークを重ねる"
+            return String(localized: "曲の終了前にトークを重ねる")
         case .sequential:
-            return "曲とトークを完全に分ける"
+            return String(localized: "曲とトークを完全に分ける")
         }
     }
 
@@ -98,11 +98,11 @@ enum PrimaryControlState: Equatable {
     var buttonLabelText: String {
         switch self {
         case .start:
-            return "開始"
+            return String(localized: "開始")
         case .pause:
-            return "一時停止"
+            return String(localized: "一時停止")
         case .resume:
-            return "再開"
+            return String(localized: "再開")
         }
     }
 

@@ -12,13 +12,13 @@ enum SpotifyMusicServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notLoggedIn:
-            return "Spotify にログインしていません。設定からログインしてください。"
+            return String(localized: "Spotify にログインしていません。設定からログインしてください。")
         case .pageNotReady:
-            return "Spotify Web Player の読み込みが完了していません。"
+            return String(localized: "Spotify Web Player の読み込みが完了していません。")
         case .playlistNotFound(let playlistName):
-            return "Spotify プレイリストが見つかりません: \(playlistName)"
+            return String(format: String(localized: "Spotify プレイリストが見つかりません: %@"), playlistName)
         case .domNotMatched(let message):
-            return "Spotify Web UI の構造変更で取得失敗: \(message)"
+            return String(format: String(localized: "Spotify Web UI の構造変更で取得失敗: %@"), message)
         case .unsupportedOperation(let message):
             return message
         }
@@ -230,12 +230,12 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
         if !items.isEmpty {
             return items
         }
-        throw SpotifyMusicServiceError.domNotMatched("Spotify プレイリスト title node が見つかりませんでした。")
+        throw SpotifyMusicServiceError.domNotMatched(String(localized: "Spotify プレイリスト title node が見つかりませんでした。"))
     }
 
     private func navigatePlaybackWebView(to value: String) async throws {
         guard let url = URL(string: value) else {
-            throw SpotifyMusicServiceError.domNotMatched("URL を解釈できません。")
+            throw SpotifyMusicServiceError.domNotMatched(String(localized: "URL を解釈できません。"))
         }
         try await navigatePlaybackWebView(to: url)
     }
@@ -286,7 +286,7 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
             }
             try? await Task.sleep(nanoseconds: intervalNanoseconds)
         }
-        throw SpotifyMusicServiceError.domNotMatched("タイムアウトしました。")
+        throw SpotifyMusicServiceError.domNotMatched(String(localized: "タイムアウトしました。"))
     }
 
     private func fetchPlayerState() async throws -> SpotifyPlayerStateResponse {

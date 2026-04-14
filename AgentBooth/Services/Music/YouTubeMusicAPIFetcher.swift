@@ -17,13 +17,13 @@ enum YouTubeMusicAPIFetcherError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notLoggedIn:
-            return "YouTube Music にログインしていません。設定から先にログインしてください。"
+            return String(localized: "YouTube Music にログインしていません。設定から先にログインしてください。")
         case .pageNotReady:
-            return "YouTube Music のページが読み込まれていません。"
+            return String(localized: "YouTube Music のページが読み込まれていません。")
         case .scriptFailed(let msg):
-            return "取得に失敗しました: \(msg)"
+            return String(format: String(localized: "取得に失敗しました: %@"), msg)
         case .invalidResponse:
-            return "レスポンスのパースに失敗しました。"
+            return String(localized: "レスポンスのパースに失敗しました。")
         }
     }
 }

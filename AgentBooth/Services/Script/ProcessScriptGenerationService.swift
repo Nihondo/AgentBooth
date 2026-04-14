@@ -8,9 +8,9 @@ enum ScriptGenerationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedCLI:
-            return "未対応の CLI が指定されました。"
+            return String(localized: "未対応の CLI が指定されました。")
         case .invalidOutput:
-            return "スクリプト生成結果を JSON として解釈できませんでした。"
+            return String(localized: "スクリプト生成結果を JSON として解釈できませんでした。")
         case .processFailed(let detail):
             return detail
         }
@@ -272,7 +272,7 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         do {
             try process.run()
         } catch {
-            throw ScriptGenerationError.processFailed("\(executableName) CLI を起動できませんでした: \(error.localizedDescription)")
+            throw ScriptGenerationError.processFailed(String(format: String(localized: "%@ CLI を起動できませんでした: %@"), executableName, error.localizedDescription))
         }
 
         process.waitUntilExit()
@@ -281,7 +281,7 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
 
         guard process.terminationStatus == 0 else {
             let detail = errorText.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw ScriptGenerationError.processFailed(detail.isEmpty ? "\(executableName) CLI の実行に失敗しました。" : detail)
+            throw ScriptGenerationError.processFailed(detail.isEmpty ? String(format: String(localized: "%@ CLI の実行に失敗しました。"), executableName) : detail)
         }
 
         return outputText

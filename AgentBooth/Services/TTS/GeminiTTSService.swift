@@ -54,13 +54,13 @@ enum GeminiTTSServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "Gemini API Key が未設定です。"
+            return String(localized: "Gemini API Key が未設定です。")
         case .invalidResponse(let detail):
-            return "Gemini TTS の応答を解釈できませんでした。\(detail)"
+            return String(format: String(localized: "Gemini TTS の応答を解釈できませんでした。%@"), detail)
         case .httpError(let statusCode, let bodyText):
             return "Gemini TTS request failed with status \(statusCode): \(bodyText)"
         case .dailyQuotaExceeded:
-            return "Gemini TTS の日次クォータに達しました。"
+            return String(localized: "Gemini TTS の日次クォータに達しました。")
         }
     }
 }
@@ -228,7 +228,7 @@ actor GeminiTTSService: TTSService {
 
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw GeminiTTSServiceError.invalidResponse(" HTTP レスポンスを取得できませんでした。")
+            throw GeminiTTSServiceError.invalidResponse(String(localized: " HTTP レスポンスを取得できませんでした。"))
         }
 
         guard 200..<300 ~= httpResponse.statusCode else {
@@ -240,17 +240,17 @@ actor GeminiTTSService: TTSService {
         do {
             decodedResponse = try JSONDecoder().decode(GeminiGenerateResponse.self, from: data)
         } catch {
-            throw GeminiTTSServiceError.invalidResponse(" JSON デコードに失敗しました: \(error.localizedDescription)")
+            throw GeminiTTSServiceError.invalidResponse(String(format: String(localized: " JSON デコードに失敗しました: %@"), error.localizedDescription))
         }
 
         guard let inlineData = decodedResponse.candidates.first?.content.parts.compactMap(\.inlineData).first else {
             let bodyText = String(decoding: data, as: UTF8.self)
-            throw GeminiTTSServiceError.invalidResponse(" inlineData が見つかりません。応答: \(bodyText.prefix(400))")
+            throw GeminiTTSServiceError.invalidResponse(String(format: String(localized: " inlineData が見つかりません。応答: %@"), String(bodyText.prefix(400))))
         }
 
         guard let base64PCM = inlineData.data.isEmpty ? nil : inlineData.data,
               let pcmData = Data(base64Encoded: base64PCM) else {
-            throw GeminiTTSServiceError.invalidResponse(" 音声データの base64 デコードに失敗しました。")
+            throw GeminiTTSServiceError.invalidResponse(String(localized: " 音声データの base64 デコードに失敗しました。"))
         }
         return makeWAVData(from: pcmData, sampleRate: 24_000, channels: 1, bitsPerSample: 16)
     }
