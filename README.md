@@ -28,6 +28,8 @@ AI writes the script, two hosts read it aloud, and it blends with music in real 
 
 Apple Music works immediately. YouTube Music and Spotify require signing in first (→ [How to Use](#how-to-use)).
 
+![](images/agentbooth_main.png)
+
 ---
 
 ## Settings Guide
@@ -90,18 +92,21 @@ Configure if you want to record the show.
 | **Output Directory** | Folder for recording files. Defaults to `~/Music/AgentBooth/` |
 
 > Recording captures system audio. A Screen Recording permission prompt appears on first use.
+> System notifications and audio from other apps may also be captured — it is recommended to turn off notifications while recording.
 
 ---
 
 ## How to Use
 
-### Apple Music
+### Common
 
 1. Set **API Key** and **CLI** in the **Text-to-Speech** tab
-2. Select **Apple Music** as the service on the main screen
-3. Choose a playlist
-4. Choose a playback mode
-5. Press **Start**
+
+### Apple Music
+
+1. Select **Apple Music** as the service on the main screen
+2. Choose a playlist
+3. Press **Start**
 
 > A macOS Automation permission dialog appears on first launch. Click **OK** to allow.
 
