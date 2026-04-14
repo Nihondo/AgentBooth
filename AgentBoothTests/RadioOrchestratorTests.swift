@@ -179,6 +179,7 @@ final class RadioOrchestratorTests: XCTestCase {
         var settings = AppSettings()
         settings.volumeSettings.fadeEarlySeconds = 1
         settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.1
 
         let orchestrator = RadioOrchestrator(
             settings: settings,
@@ -212,6 +213,7 @@ final class RadioOrchestratorTests: XCTestCase {
         var settings = AppSettings()
         settings.volumeSettings.fadeEarlySeconds = 5
         settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.1
 
         let orchestrator = RadioOrchestrator(
             settings: settings,
@@ -381,6 +383,7 @@ final class RadioOrchestratorTests: XCTestCase {
         var settings = AppSettings()
         settings.volumeSettings.fadeEarlySeconds = 0
         settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.1
 
         let orchestrator = RadioOrchestrator(
             settings: settings,
@@ -452,6 +455,7 @@ final class RadioOrchestratorTests: XCTestCase {
         var settings = AppSettings()
         settings.volumeSettings.fadeEarlySeconds = 0
         settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.1
 
         let orchestrator = RadioOrchestrator(
             settings: settings,

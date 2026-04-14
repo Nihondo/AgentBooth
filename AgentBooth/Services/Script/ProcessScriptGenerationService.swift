@@ -317,11 +317,22 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
             }
         }
 
-        if let objectStart = rawOutput.firstIndex(of: "{"), let objectEnd = rawOutput.lastIndex(of: "}") {
+        let objectStart = rawOutput.firstIndex(of: "{")
+        let arrayStart = rawOutput.firstIndex(of: "[")
+        let objectEnd = rawOutput.lastIndex(of: "}")
+        let arrayEnd = rawOutput.lastIndex(of: "]")
+
+        // 先に出現する方（オブジェクト or 配列）を正しいルートとして採用する。
+        if let arrayStart, let arrayEnd,
+           objectStart == nil || arrayStart < objectStart! {
+            return String(rawOutput[arrayStart...arrayEnd])
+        }
+
+        if let objectStart, let objectEnd {
             return String(rawOutput[objectStart...objectEnd])
         }
 
-        if let arrayStart = rawOutput.firstIndex(of: "["), let arrayEnd = rawOutput.lastIndex(of: "]") {
+        if let arrayStart, let arrayEnd {
             return String(rawOutput[arrayStart...arrayEnd])
         }
 

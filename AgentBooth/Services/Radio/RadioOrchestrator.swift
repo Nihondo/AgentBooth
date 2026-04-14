@@ -81,6 +81,12 @@ actor RadioOrchestrator {
         func cancel() {
             task.cancel()
         }
+
+        /// タスクの完了を待ち、最終スナップショットを返す。
+        func awaitCompletion() async -> PreparationSnapshot<Value> {
+            _ = await task.value
+            return await store.load()
+        }
     }
 
     private let settings: AppSettings
@@ -659,9 +665,19 @@ actor RadioOrchestrator {
         case .ready(let value):
             return .ready(value)
         case .pending:
-            preparation.cancel()
-            updateState { $0.statusMessage = String(format: String(localized: "%@ は再生タイミングに間に合わなかったためスキップしました。"), segmentName) }
-            return .notReadyAtDeadline
+            // アウトロポイント到達時にタスクが起動直後の場合、完了まで待機してリトライする。
+            let completedSnapshot = await preparation.awaitCompletion()
+            switch completedSnapshot {
+            case .ready(let value):
+                return .ready(value)
+            case .failed(let errorMessage):
+                updateState { $0.statusMessage = String(format: String(localized: "%@ は音声生成に失敗したためスキップしました。"), segmentName) }
+                updateState { $0.errorMessage = errorMessage }
+                return .failed(errorMessage)
+            case .pending, .cancelled:
+                updateState { $0.statusMessage = String(format: String(localized: "%@ は再生タイミングに間に合わなかったためスキップしました。"), segmentName) }
+                return .notReadyAtDeadline
+            }
         case .failed(let errorMessage):
             updateState { $0.statusMessage = String(format: String(localized: "%@ は音声生成に失敗したためスキップしました。"), segmentName) }
             updateState { $0.errorMessage = errorMessage }
@@ -866,15 +882,22 @@ actor RadioOrchestrator {
         }
 
         var lines: [String] = []
+        var shownEntries: Set<String> = []
 
         if previousTrack.artist == track.artist, let entries = artistTopicHistory[normalizeKey(track.artist)], !entries.isEmpty {
             lines.append("同一アーティストとして直前に触れた内容:")
-            lines.append(contentsOf: entries.map { "- \($0)" })
+            for entry in entries {
+                lines.append("- \(entry)")
+                shownEntries.insert(entry)
+            }
         }
 
         if previousTrack.album == track.album, let entries = albumTopicHistory[normalizeKey(track.album)], !entries.isEmpty {
-            lines.append("同一アルバムとして直前に触れた内容:")
-            lines.append(contentsOf: entries.map { "- \($0)" })
+            let newEntries = entries.filter { !shownEntries.contains($0) }
+            if !newEntries.isEmpty {
+                lines.append("同一アルバムとして直前に触れた内容:")
+                newEntries.forEach { lines.append("- \($0)") }
+            }
         }
 
         guard !lines.isEmpty else {

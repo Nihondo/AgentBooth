@@ -30,6 +30,8 @@ Apple Music works immediately. YouTube Music and Spotify require signing in firs
 
 ![](images/agentbooth_main.png)
 
+> Tracks fetched from playlists are limited to a maximum of 30.
+
 ---
 
 ## Settings Guide
@@ -155,6 +157,9 @@ Select in **Program Info** → **Overlap Mode**.
 ---
 
 ## Troubleshooting
+
+### Playlist is cut off after a certain number of tracks
+The number of tracks fetched from playlists is limited to 30. If you select a playlist with more than 30 tracks, only the first 30 will be used.
 
 ### Apple Music playlist not loading
 
