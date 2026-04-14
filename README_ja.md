@@ -4,6 +4,7 @@ Apple Music / YouTube Music / Spotify のプレイリストを素材に、AI が
 
 AI が台本を作り、2 人のパーソナリティが読み上げ、音楽と重ねて再生します。
 
+[![クリックして再生](images/agentbooth_main.png)](images/agentbooth_sample.mp4)
 ---
 
 ## 動作環境
