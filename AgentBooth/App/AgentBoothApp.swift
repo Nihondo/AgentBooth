@@ -31,6 +31,14 @@ private struct AgentBoothCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button {
+                presentAboutPanel()
+            } label: {
+                Label("AgentBooth について", systemImage: "info.circle")
+            }
+        }
+
         CommandGroup(replacing: .appSettings) {
             Button {
                 openWindow(id: WindowIdentifier.settings)
@@ -39,6 +47,16 @@ private struct AgentBoothCommands: Commands {
                 Label("AgentBooth 設定…", systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: [.command])
+        }
+
+        CommandGroup(replacing: .help) {
+            Button {
+                if let url = URL(string: "https://products.desireforwealth.com/products/agentbooth-manual") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Label("AgentBooth ヘルプ", systemImage: "questionmark.circle")
+            }
         }
 
         CommandGroup(after: .newItem) {
@@ -75,6 +93,34 @@ private struct AgentBoothCommands: Commands {
             .disabled(!viewModel.canStart)
             Divider()
         }
+    }
+
+    // MARK: - About Panel
+
+    private func presentAboutPanel() {
+        let options: [NSApplication.AboutPanelOptionKey: Any] = [
+            .credits: makeAboutCredits()
+        ]
+        NSApp.orderFrontStandardAboutPanel(options: options)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func makeAboutCredits() -> NSAttributedString {
+        let copyright = resolveAboutCopyright()
+        let websiteURLString = "https://products.desireforwealth.com/products/agentbooth"
+        let creditsText = "\(copyright)\nWebsite: \(websiteURLString)"
+        let attributed = NSMutableAttributedString(string: creditsText)
+        let linkRange = (creditsText as NSString).range(of: websiteURLString)
+        attributed.addAttribute(.link, value: websiteURLString, range: linkRange)
+        return attributed
+    }
+
+    private func resolveAboutCopyright() -> String {
+        if let value = Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String,
+           !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return value
+        }
+        return "Copyright © 2025-2026 Nihondo"
     }
 }
 
