@@ -33,6 +33,8 @@ targets:
         PRODUCT_NAME: AgentBooth
         ASSETCATALOG_COMPILER_APPICON_NAME: agentbooth
         GENERATE_INFOPLIST_FILE: YES
+        MARKETING_VERSION: "0.9.0"
+        CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.music"
         INFOPLIST_KEY_NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.

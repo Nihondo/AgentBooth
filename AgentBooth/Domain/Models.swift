@@ -1,5 +1,11 @@
 import Foundation
 
+/// ラジオ番組全体に共通する定数。
+enum RadioConstants {
+    /// プレイリストから使用する最大トラック数。
+    static let maxTrackCount = 30
+}
+
 /// The supported music backends.
 enum MusicServiceKind: String, CaseIterable, Codable, Identifiable {
     case appleMusic = "apple_music"

@@ -96,7 +96,7 @@ final class SpotifyWebViewStore: ObservableObject {
         playbackConfig.websiteDataStore = dataStore
         playbackConfig.mediaTypesRequiringUserActionForPlayback = []
         let playback = WKWebView(
-            frame: NSRect(x: 0, y: 0, width: 1280, height: 720),
+            frame: NSRect(x: 0, y: 0, width: 1280, height: 1440),
             configuration: playbackConfig
         )
         playback.customUserAgent = defaultSpotifyUserAgent
@@ -132,7 +132,7 @@ final class SpotifyWebViewStore: ObservableObject {
     /// playbackWebView をオフスクリーンウィンドウに保持する。
     private func setupOffscreenWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: -10000, y: -10000, width: 1280, height: 720),
+            contentRect: NSRect(x: -10000, y: -10000, width: 1280, height: 1440),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false

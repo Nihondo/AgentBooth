@@ -241,7 +241,8 @@ actor RadioOrchestrator {
     }
 
     private func loadTracks(for playlistName: String) async throws -> [TrackInfo] {
-        let tracks = try await musicService.fetchTracks(in: playlistName)
+        let allTracks = try await musicService.fetchTracks(in: playlistName)
+        let tracks = Array(allTracks.prefix(RadioConstants.maxTrackCount))
         guard !tracks.isEmpty else {
             throw CocoaError(.fileReadNoSuchFile, userInfo: [NSLocalizedDescriptionKey: String(localized: "プレイリストに曲がありません。")])
         }

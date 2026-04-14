@@ -125,7 +125,8 @@ final class MainViewModel: ObservableObject {
     private func loadPreviewTracks(for playlistName: String) async {
         do {
             let musicService = serviceFactory.makeMusicService(for: selectedService)
-            let tracks = try await musicService.fetchTracks(in: playlistName)
+            let allTracks = try await musicService.fetchTracks(in: playlistName)
+            let tracks = Array(allTracks.prefix(RadioConstants.maxTrackCount))
             guard selectedPlaylistName == playlistName else { return }
             previewTrackListState = .loaded(tracks)
         } catch {
