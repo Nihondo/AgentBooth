@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class SpotifyLoginViewModel: ObservableObject {
     @Published var isLoggedIn = false
-    @Published var statusMessage = "Spotify にログインしてください。"
+    @Published var statusMessage = String(localized: "Spotify にログインしてください。")
 
     private let store: SpotifyWebViewStore
     private var cancellables = Set<AnyCancellable>()
@@ -30,7 +30,7 @@ final class SpotifyLoginViewModel: ObservableObject {
 
         store.$isLoggedIn
             .receive(on: RunLoop.main)
-            .map { $0 ? "ログイン済みです。ウィンドウを閉じてください。" : "Spotify にログインしてください。" }
+            .map { $0 ? String(localized: "ログイン済みです。ウィンドウを閉じてください。") : String(localized: "Spotify にログインしてください。") }
             .assign(to: &$statusMessage)
     }
 }

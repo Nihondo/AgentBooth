@@ -2,6 +2,9 @@ name: AgentBooth
 options:
   deploymentTarget:
     macOS: "14.0"
+  knownRegions:
+    - en
+    - ja
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -33,7 +36,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.music"
         INFOPLIST_KEY_NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
-        INFOPLIST_KEY_NSScreenCaptureUsageDescription: AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。
+        INFOPLIST_KEY_NSScreenCaptureUsageDescription: AgentBooth needs System Audio Capture permission to record radio programs.
         CODE_SIGN_STYLE: Automatic
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: YES

@@ -77,7 +77,7 @@ final class MainViewModel: ObservableObject {
     func startShowWithRecording() {
         guard CGPreflightScreenCaptureAccess() else {
             CGRequestScreenCaptureAccess()
-            radioState.errorMessage = "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。"
+            radioState.errorMessage = String(localized: "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。")
             return
         }
         isRecordingEnabled = true
@@ -164,7 +164,7 @@ final class MainViewModel: ObservableObject {
 
     private func startShow(testMode: Bool = false) async {
         guard !selectedPlaylistName.isEmpty else {
-            radioState.errorMessage = "プレイリストを選択してください。"
+            radioState.errorMessage = String(localized: "プレイリストを選択してください。")
             return
         }
 

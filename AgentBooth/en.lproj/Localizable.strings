@@ -1,0 +1,111 @@
+/* ContentView */
+"設定" = "Settings";
+"サービス" = "Service";
+"プレイリスト" = "Playlist";
+"プレイリストなし" = "No Playlists";
+"再生" = "Play";
+"停止" = "Stop";
+"録音して再生" = "Record and Play";
+"番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。" = "Start the program while recording via system audio capture. Other app audio may be mixed in during recording. Do Not Disturb mode is recommended.";
+"録音保存先: " = "Recording saved to: ";
+
+/* TrackListView */
+"プレイリストを選択してください" = "Please select a playlist";
+"トラックがありません" = "No tracks";
+"曲名" = "Title";
+"アーティスト" = "Artist";
+"アルバム" = "Album";
+"時間" = "Duration";
+"トラック一覧を取得中..." = "Loading tracks...";
+
+/* SettingsView - Category titles */
+"楽曲の再生" = "Music Playback";
+"番組情報" = "Program Info";
+"テキスト読み上げ" = "Text-to-Speech";
+"録音" = "Recording";
+
+/* SettingsView - Category descriptions */
+"音楽サービスの設定を行います。" = "Configure music service settings.";
+"楽曲の再生バランスを設定します。" = "Configure music playback balance.";
+"番組名やパーソナリティ名を設定します。" = "Set program name and personality names.";
+"Gemini TTS と台本生成 CLI の設定を行います。" = "Configure Gemini TTS and script generation CLI.";
+"番組のシステム音声キャプチャ録音の設定を行います。" = "Configure program recording via system audio capture.";
+
+/* SettingsView - Navigation */
+"AgentBooth 設定" = "AgentBooth Settings";
+
+/* SettingsView - Group titles */
+"既定値" = "Defaults";
+"再生バランス" = "Playback Balance";
+"再生モード" = "Playback Mode";
+"パーソナリティ" = "Personality";
+"ディレクション" = "Direction";
+"音声" = "Voice";
+"台本生成 CLI" = "Script Generation CLI";
+"録音設定" = "Recording Settings";
+"注意事項" = "Notes";
+
+/* SettingsView - Row labels */
+"既定のサービス" = "Default Service";
+"ログイン状態" = "Login Status";
+"ログイン済み" = "Logged In";
+"未ログイン" = "Not Logged In";
+"通常音量" = "Normal Volume";
+"トーク時音量" = "Talk Volume";
+"フェード秒数" = "Fade Duration";
+"楽曲先行開始秒数" = "Music Lead Seconds";
+"曲開始後のトーク開始秒数" = "Talk Start Delay";
+"曲終了前のトーク再開秒数" = "Talk Resume Before End";
+"楽曲最大再生秒数" = "Max Playback Duration";
+"オーバーラップモード" = "Overlap Mode";
+"番組名" = "Show Name";
+"周波数・チャンネル名" = "Frequency / Channel";
+"男性ホスト名" = "Male Host Name";
+"女性ホスト名" = "Female Host Name";
+"シーン・セリフの指示" = "Scene / Dialogue Direction";
+"フォールバックモデル" = "Fallback Model";
+"TTS モデル" = "TTS Model";
+"男性ボイス" = "Male Voice";
+"女性ボイス" = "Female Voice";
+"CLI モデル" = "CLI Model";
+"録音出力先" = "Recording Output Directory";
+"注意" = "Note";
+
+/* SettingsView - Login buttons */
+"YouTube Music でログイン" = "Log in to YouTube Music";
+"Spotify でログイン" = "Log in to Spotify";
+"ログアウト" = "Log Out";
+
+/* SettingsView - Descriptions */
+"空欄にすると WKWebView デフォルト UA を使用。" = "Leave blank to use the WKWebView default user agent.";
+"Spotify Web Player の DOM 構造変更で取得や再生が失敗する場合があります。" = "Track retrieval or playback may fail if Spotify Web Player's DOM structure changes.";
+"通常再生時の基準音量" = "Base volume for normal playback";
+"トーク重なり中の楽曲音量" = "Music volume during talk overlap";
+"音量を滑らかに変える時間" = "Time to smoothly change volume";
+"トーク終了前に次曲を重ねる秒数" = "Seconds to overlap next track before talk ends";
+"曲開始後にトークを重ねる秒数" = "Seconds to start talk after track begins";
+"曲終了前にトークを重ねる秒数" = "Seconds to resume talk before track ends";
+"1曲あたりの再生上限。0で無制限" = "Playback limit per track. 0 for unlimited.";
+"空欄の場合は ~/Music/AgentBooth/ に保存されます。" = "If blank, saved to ~/Music/AgentBooth/.";
+
+/* SettingsView - Placeholders */
+"0（制限なし）" = "0 (unlimited)";
+"例: 77.5 FM" = "e.g. 77.5 FM";
+"田中" = "Tanaka";
+"佐藤" = "Sato";
+"例: 深夜帯、静かに話す" = "e.g. Late night, speak quietly";
+"未指定なら CLI の既定値" = "Default: CLI's default";
+"未入力なら ~/Music/AgentBooth/" = "Default: ~/Music/AgentBooth/";
+
+/* SettingsView - Recording notes */
+"録音はシステム音声キャプチャ（ScreenCaptureKit）を使用します。" = "Recording uses system audio capture (ScreenCaptureKit).";
+"初回使用時に「画面収録」の権限確認ダイアログが表示されます。" = "A Screen Recording permission dialog will appear on first use.";
+"録音中は他のアプリの通知音なども混入します。録音時はおやすみモードの使用を推奨します。" = "Other app notification sounds may be mixed in during recording. Do Not Disturb mode is recommended.";
+"ファイル形式: M4A (AAC 192kbps, 48kHz stereo)" = "File format: M4A (AAC 192kbps, 48kHz stereo)";
+
+/* ViewModel messages */
+"プレイリストを選択してください。" = "Please select a playlist.";
+"画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。" = "Screen recording permission is not granted. Please allow AgentBooth in System Settings > Privacy & Security > Screen Recording.";
+"YouTube Music にログインしてください。" = "Please log in to YouTube Music.";
+"ログイン済みです。ウィンドウを閉じてください。" = "You are logged in. You can close this window.";
+"Spotify にログインしてください。" = "Please log in to Spotify.";

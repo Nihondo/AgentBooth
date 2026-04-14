@@ -12,15 +12,15 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general:
-            return "サービス"
+            return String(localized: "サービス")
         case .music:
-            return "楽曲の再生"
+            return String(localized: "楽曲の再生")
         case .program:
-            return "番組情報"
+            return String(localized: "番組情報")
         case .tts:
-            return "テキスト読み上げ"
+            return String(localized: "テキスト読み上げ")
         case .recording:
-            return "録音"
+            return String(localized: "録音")
         }
     }
 
@@ -42,15 +42,15 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var descriptionText: String {
         switch self {
         case .general:
-            return "音楽サービスの設定を行います。"
+            return String(localized: "音楽サービスの設定を行います。")
         case .music:
-            return "楽曲の再生バランスを設定します。"
+            return String(localized: "楽曲の再生バランスを設定します。")
         case .program:
-            return "番組名やパーソナリティ名を設定します。"
+            return String(localized: "番組名やパーソナリティ名を設定します。")
         case .tts:
-            return "Gemini TTS と台本生成 CLI の設定を行います。"
+            return String(localized: "Gemini TTS と台本生成 CLI の設定を行います。")
         case .recording:
-            return "番組のシステム音声キャプチャ録音の設定を行います。"
+            return String(localized: "番組のシステム音声キャプチャ録音の設定を行います。")
         }
     }
 }

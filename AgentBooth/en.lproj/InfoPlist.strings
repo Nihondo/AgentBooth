@@ -1,0 +1,2 @@
+NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
+NSScreenCaptureUsageDescription = "AgentBooth needs System Audio Capture permission to record radio programs.";

@@ -9,7 +9,7 @@ import WebKit
 @MainActor
 final class YouTubeMusicLoginViewModel: ObservableObject {
     @Published var isLoggedIn = false
-    @Published var statusMessage = "YouTube Music にログインしてください。"
+    @Published var statusMessage = String(localized: "YouTube Music にログインしてください。")
 
     private let store: YouTubeMusicWebViewStore
     private var cancellables = Set<AnyCancellable>()
@@ -49,7 +49,7 @@ final class YouTubeMusicLoginViewModel: ObservableObject {
 
         store.$isLoggedIn
             .receive(on: RunLoop.main)
-            .map { $0 ? "ログイン済みです。ウィンドウを閉じてください。" : "YouTube Music にログインしてください。" }
+            .map { $0 ? String(localized: "ログイン済みです。ウィンドウを閉じてください。") : String(localized: "YouTube Music にログインしてください。") }
             .assign(to: &$statusMessage)
     }
 }

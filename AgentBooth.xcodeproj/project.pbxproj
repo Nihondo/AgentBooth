@@ -12,6 +12,7 @@
 		102693207E1C7DB7E10F3A3C /* SpotifyScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C4A6657B19A76099CE0808 /* SpotifyScriptRunner.swift */; };
 		10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */; };
 		1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */; };
+		159EE53DC9F4EEB114081297 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 923FC1F620B94EA9A239D1F8 /* InfoPlist.strings */; };
 		1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */; };
 		1BEA39718509A107655F29FE /* YouTubeMusicPlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */; };
 		1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */; };
@@ -40,6 +41,7 @@
 		93C17D9F6CBADB0C5048B313 /* SpotifyMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3F43408FD0E46636FFFE94 /* SpotifyMusicService.swift */; };
 		9792D589885A62488DC945DC /* GeminiTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */; };
 		A00C081B0916E172E5067D44 /* YouTubeMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A703B9C53D2B555D308819FF /* YouTubeMusicService.swift */; };
+		A4813849F1A19B657F6A4FD2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CCE6F6D9D1ABD6A1F577A60C /* Localizable.strings */; };
 		A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */; };
 		ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58975426E0097C0CFE155B8E /* CoreMedia.framework */; };
 		AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */; };
@@ -79,10 +81,12 @@
 		0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioPlaybackService.swift; sourceTree = "<group>"; };
 		2139F826E9784613C9F829D7 /* SpotifyDOMModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyDOMModelsTests.swift; sourceTree = "<group>"; };
+		217B8B55154291EFF70A5181 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestratorTests.swift; sourceTree = "<group>"; };
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
 		3695314D2707876818736936 /* agentbooth.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = agentbooth.icon; sourceTree = "<group>"; };
+		39F21B8232267DD95ED4A06E /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3C3F43408FD0E46636FFFE94 /* SpotifyMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyMusicService.swift; sourceTree = "<group>"; };
 		3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		3EF3A71B2437BB5FED77AE05 /* AppleMusicArtworkFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicArtworkFetcher.swift; sourceTree = "<group>"; };
@@ -102,6 +106,7 @@
 		6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationServiceTests.swift; sourceTree = "<group>"; };
 		6E3C230852B2B4EF5DC77156 /* SpotifyWebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyWebViewStore.swift; sourceTree = "<group>"; };
 		6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptCommandBuilderTests.swift; sourceTree = "<group>"; };
+		850ED65A096909F8BB2135BB /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		8EDB07082B0F31540781BF85 /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
 		943AD41DD032953E321C5B2E /* TestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDoubles.swift; sourceTree = "<group>"; };
 		9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServiceContainer.swift; sourceTree = "<group>"; };
@@ -122,6 +127,7 @@
 		D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestModeScriptGenerationService.swift; sourceTree = "<group>"; };
 		E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserWindow.swift; sourceTree = "<group>"; };
 		E3BD548FFD67212BA64CAF3B /* AgentBoothTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentBoothTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E631FA254CDC04930FA07299 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestrator.swift; sourceTree = "<group>"; };
 		E8950BBEDA233AFFA12AC842 /* AgentBooth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentBooth.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserView.swift; sourceTree = "<group>"; };
@@ -337,7 +343,9 @@
 				052903E6DE3A402F94B8DB42 /* App */,
 				0DADC5CB437B016001D87605 /* Domain */,
 				BC6D1C4441F580B0159341B4 /* Features */,
+				923FC1F620B94EA9A239D1F8 /* InfoPlist.strings */,
 				E006355DBFD1D123F19BC4A7 /* Infrastructure */,
+				CCE6F6D9D1ABD6A1F577A60C /* Localizable.strings */,
 				B7D1BBF4E1FD7CFC5B38FE61 /* Services */,
 			);
 			path = AgentBooth;
@@ -461,6 +469,7 @@
 			knownRegions = (
 				Base,
 				en,
+				ja,
 			);
 			mainGroup = B3F2187D0DB3C3839F080282;
 			minimizedProjectReferenceProxies = 1;
@@ -480,6 +489,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				159EE53DC9F4EEB114081297 /* InfoPlist.strings in Resources */,
+				A4813849F1A19B657F6A4FD2 /* Localizable.strings in Resources */,
 				2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -560,6 +571,27 @@
 		};
 /* End PBXTargetDependency section */
 
+/* Begin PBXVariantGroup section */
+		923FC1F620B94EA9A239D1F8 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				217B8B55154291EFF70A5181 /* en */,
+				E631FA254CDC04930FA07299 /* ja */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		CCE6F6D9D1ABD6A1F577A60C /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				850ED65A096909F8BB2135BB /* en */,
+				39F21B8232267DD95ED4A06E /* ja */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		13C33725CC4525E1AD5EB7FA /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -613,7 +645,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
-				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth needs System Audio Capture permission to record radio programs.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -758,7 +790,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
-				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth needs System Audio Capture permission to record radio programs.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

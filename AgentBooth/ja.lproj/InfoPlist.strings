@@ -1,0 +1,2 @@
+NSAppleEventsUsageDescription = "AgentBooth が Music.app を自動操作してプレイリストを再生するために、自動化アクセスが必要です。";
+NSScreenCaptureUsageDescription = "AgentBooth が番組の音声を録音するためにシステム音声のキャプチャを使用します。";
