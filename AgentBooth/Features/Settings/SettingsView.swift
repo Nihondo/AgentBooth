@@ -61,6 +61,9 @@ struct SettingsView: View {
     @State private var draftSettings = AppSettings()
     @State private var selectedCategory: SettingsCategory? = .general
     @State private var errorMessage: String?
+    /// カスタム CLI 引数の編集バッファ（1 行 1 引数）。draftSettings とは非同期に管理し、空行は保存時に除外。
+    @State private var customArgsText: String = ""
+    @State private var customModelArgsText: String = ""
     @ObservedObject private var ytStore = LiveAppServiceFactory.sharedYouTubeMusicStore
     @ObservedObject private var spotifyStore = LiveAppServiceFactory.sharedSpotifyStore
 
@@ -78,6 +81,8 @@ struct SettingsView: View {
         .navigationTitle("AgentBooth 設定")
         .onAppear {
             draftSettings = settingsStore.currentSettings
+            customArgsText = draftSettings.customCLIArguments.joined(separator: "\n")
+            customModelArgsText = draftSettings.customCLIModelArguments.joined(separator: "\n")
             ytStore.setUserAgent(settingsStore.currentSettings.youtubeMusicUserAgent)
             Task { @MainActor in
                 await spotifyStore.refreshLoginStatus()
@@ -85,6 +90,16 @@ struct SettingsView: View {
         }
         .onChange(of: draftSettings) {
             saveSettings()
+        }
+        .onChange(of: customArgsText) {
+            draftSettings.customCLIArguments = customArgsText
+                .components(separatedBy: "\n")
+                .filter { !$0.isEmpty }
+        }
+        .onChange(of: customModelArgsText) {
+            draftSettings.customCLIModelArguments = customModelArgsText
+                .components(separatedBy: "\n")
+                .filter { !$0.isEmpty }
         }
     }
 
@@ -367,7 +382,7 @@ struct SettingsView: View {
                 settingsRow("CLI") {
                     Picker("CLI", selection: $draftSettings.scriptCLIKind) {
                         ForEach(ScriptCLIKind.allCases) { cliKind in
-                            Text(cliKind.rawValue).tag(cliKind)
+                            Text(cliKind.displayName).tag(cliKind)
                         }
                     }
                     .labelsHidden()
@@ -377,6 +392,42 @@ struct SettingsView: View {
                 settingsRow("CLI モデル") {
                     TextField("未指定なら CLI の既定値", text: $draftSettings.scriptCLIModel)
                         .textFieldStyle(.roundedBorder)
+                }
+
+                if draftSettings.scriptCLIKind == .custom {
+                    settingsRow("実行ファイル") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextField("mycli または /opt/bin/mycli", text: $draftSettings.customCLIExecutable)
+                                .textFieldStyle(.roundedBorder)
+                            Text("コマンド名またはフルパス。空の場合は台本生成に失敗します。")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    settingsRow("引数") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextEditor(text: $customArgsText)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(height: 90)
+                                .border(Color(nsColor: .separatorColor))
+                            Text("1 行 1 引数。{prompt} をプロンプトに置換します。\n例: -p\n{prompt}")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    settingsRow("モデル引数") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextEditor(text: $customModelArgsText)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(height: 60)
+                                .border(Color(nsColor: .separatorColor))
+                            Text("「CLI モデル」指定時のみ末尾に追加。{model} をモデル名に置換。\n例: --model\n{model}")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }

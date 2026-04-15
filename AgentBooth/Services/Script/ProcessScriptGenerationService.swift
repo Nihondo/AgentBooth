@@ -45,6 +45,23 @@ struct ScriptCommandBuilder {
                 settings: settings,
                 optionName: "--model"
             )
+        case .custom:
+            guard !settings.customCLIExecutable.isEmpty else {
+                throw ScriptGenerationError.unsupportedCLI
+            }
+            var command = [settings.customCLIExecutable]
+            command += substitutePlaceholders(settings.customCLIArguments, prompt: prompt, model: settings.scriptCLIModel)
+            if !settings.scriptCLIModel.isEmpty {
+                command += substitutePlaceholders(settings.customCLIModelArguments, prompt: prompt, model: settings.scriptCLIModel)
+            }
+            return command
+        }
+    }
+
+    private func substitutePlaceholders(_ args: [String], prompt: String, model: String) -> [String] {
+        args.map { $0
+            .replacingOccurrences(of: "{prompt}", with: prompt)
+            .replacingOccurrences(of: "{model}", with: model)
         }
     }
 

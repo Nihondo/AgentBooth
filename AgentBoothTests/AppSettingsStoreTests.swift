@@ -28,6 +28,48 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.currentSettings.volumeSettings.fadeEarlySeconds, 9)
     }
 
+    func testCustomCLISettingsRoundTrip() throws {
+        let suiteName = "AgentBoothTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let keychainStore = KeychainStore(serviceName: suiteName)
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+
+        var settings = AppSettings()
+        settings.scriptCLIKind = .custom
+        settings.customCLIExecutable = "/opt/bin/mycli"
+        settings.customCLIArguments = ["-p", "{prompt}"]
+        settings.customCLIModelArguments = ["--model", "{model}"]
+
+        try store.saveSettings(settings)
+
+        let reloadedStore = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(reloadedStore.currentSettings.scriptCLIKind, .custom)
+        XCTAssertEqual(reloadedStore.currentSettings.customCLIExecutable, "/opt/bin/mycli")
+        XCTAssertEqual(reloadedStore.currentSettings.customCLIArguments, ["-p", "{prompt}"])
+        XCTAssertEqual(reloadedStore.currentSettings.customCLIModelArguments, ["--model", "{model}"])
+    }
+
+    func testMissingCustomCLIFieldsFallBackToDefaults() throws {
+        let suiteName = "AgentBoothTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let keychainStore = KeychainStore(serviceName: suiteName)
+
+        // 旧バージョンの JSON (customCLI フィールドなし) を模倣
+        let legacySettings = AppSettings()
+        var encoded = try JSONEncoder().encode(legacySettings)
+        var json = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        json.removeValue(forKey: "customCLIExecutable")
+        json.removeValue(forKey: "customCLIArguments")
+        json.removeValue(forKey: "customCLIModelArguments")
+        encoded = try JSONSerialization.data(withJSONObject: json)
+        defaults.set(encoded, forKey: "app_settings")
+
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(store.currentSettings.customCLIExecutable, "")
+        XCTAssertEqual(store.currentSettings.customCLIArguments, [])
+        XCTAssertEqual(store.currentSettings.customCLIModelArguments, [])
+    }
+
     func testLoadLegacyMusicBedFallsBackToFullRadio() throws {
         let suiteName = "AgentBoothTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

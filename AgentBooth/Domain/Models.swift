@@ -130,8 +130,20 @@ enum ScriptCLIKind: String, CaseIterable, Codable, Identifiable {
     case gemini
     case codex
     case copilot
+    case custom
 
     var id: String { rawValue }
+
+    /// UI 表示用の名前。
+    var displayName: String {
+        switch self {
+        case .claude: "Claude"
+        case .gemini: "Gemini"
+        case .codex: "Codex"
+        case .copilot: "Copilot"
+        case .custom: "カスタム"
+        }
+    }
 }
 
 /// One music track from the selected service.
@@ -277,6 +289,46 @@ struct AppSettings: Codable, Equatable, Sendable {
     var isRecordingEnabled: Bool = false
     var recordingOutputDirectory: String = ""
     var youtubeMusicUserAgent: String = defaultYouTubeMusicUserAgent
+    /// カスタム CLI の実行ファイル名またはフルパス。scriptCLIKind == .custom のときに使用。
+    var customCLIExecutable: String = ""
+    /// カスタム CLI に常時渡す引数配列。`{prompt}` をプロンプト文字列に置換。
+    var customCLIArguments: [String] = []
+    /// scriptCLIModel が非空の場合のみ末尾に追加される引数配列。`{model}` をモデル名に置換。
+    var customCLIModelArguments: [String] = []
+
+    enum CodingKeys: String, CodingKey {
+        case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel
+        case scriptCLIKind, scriptCLIModel
+        case defaultMusicService, defaultOverlapMode
+        case voiceSettings, personalitySettings, directionSettings, volumeSettings, radioShowSettings
+        case isRecordingEnabled, recordingOutputDirectory, youtubeMusicUserAgent
+        case customCLIExecutable, customCLIArguments, customCLIModelArguments
+    }
+}
+
+extension AppSettings {
+    /// フィールドを `decodeIfPresent` で読むことで、旧バージョンの JSON から安全にデコードできる。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        geminiAPIKey = try c.decodeIfPresent(String.self, forKey: .geminiAPIKey) ?? ""
+        geminiTTSModel = try c.decodeIfPresent(String.self, forKey: .geminiTTSModel) ?? "gemini-2.5-flash-preview-tts"
+        geminiTTSFallbackModel = try c.decodeIfPresent(String.self, forKey: .geminiTTSFallbackModel) ?? "gemini-2.5-pro-preview-tts"
+        scriptCLIKind = try c.decodeIfPresent(ScriptCLIKind.self, forKey: .scriptCLIKind) ?? .claude
+        scriptCLIModel = try c.decodeIfPresent(String.self, forKey: .scriptCLIModel) ?? ""
+        defaultMusicService = try c.decodeIfPresent(MusicServiceKind.self, forKey: .defaultMusicService) ?? .appleMusic
+        defaultOverlapMode = try c.decodeIfPresent(OverlapMode.self, forKey: .defaultOverlapMode) ?? .fullRadio
+        voiceSettings = try c.decodeIfPresent(VoiceSettings.self, forKey: .voiceSettings) ?? .init()
+        personalitySettings = try c.decodeIfPresent(PersonalitySettings.self, forKey: .personalitySettings) ?? .init()
+        directionSettings = try c.decodeIfPresent(DirectionSettings.self, forKey: .directionSettings) ?? .init()
+        volumeSettings = try c.decodeIfPresent(VolumeSettings.self, forKey: .volumeSettings) ?? .init()
+        radioShowSettings = try c.decodeIfPresent(RadioShowSettings.self, forKey: .radioShowSettings) ?? .init()
+        isRecordingEnabled = try c.decodeIfPresent(Bool.self, forKey: .isRecordingEnabled) ?? false
+        recordingOutputDirectory = try c.decodeIfPresent(String.self, forKey: .recordingOutputDirectory) ?? ""
+        youtubeMusicUserAgent = try c.decodeIfPresent(String.self, forKey: .youtubeMusicUserAgent) ?? defaultYouTubeMusicUserAgent
+        customCLIExecutable = try c.decodeIfPresent(String.self, forKey: .customCLIExecutable) ?? ""
+        customCLIArguments = try c.decodeIfPresent([String].self, forKey: .customCLIArguments) ?? []
+        customCLIModelArguments = try c.decodeIfPresent([String].self, forKey: .customCLIModelArguments) ?? []
+    }
 }
 
 /// プレイリストのトラック一覧取得状態
