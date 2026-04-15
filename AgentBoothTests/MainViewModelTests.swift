@@ -74,4 +74,37 @@ final class MainViewModelTests: XCTestCase {
 
         XCTFail("TTS エラーが UI 状態に反映されませんでした。")
     }
+
+    func testRegularStartIgnoresPersistedLegacyRecordingFlag() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let recordingService = FakeRecordingService()
+        let factory = FakeServiceFactory(musicService: musicService, recordingService: recordingService)
+        let suiteName = "AgentBoothTests.\(UUID().uuidString)"
+        let settingsStore = AppSettingsStore(
+            userDefaults: UserDefaults(suiteName: suiteName)!,
+            keychainStore: KeychainStore(serviceName: suiteName)
+        )
+        var settings = settingsStore.currentSettings
+        settings.isRecordingEnabled = true
+        try settingsStore.saveSettings(settings)
+        let viewModel = MainViewModel(settingsStore: settingsStore, serviceFactory: factory)
+
+        await viewModel.loadPlaylists()
+        viewModel.handlePrimaryControl()
+
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            let startCount = await recordingService.startCallCount
+            if startCount > 0 {
+                break
+            }
+        }
+
+        let startCount = await recordingService.startCallCount
+        XCTAssertEqual(startCount, 0, "通常 Start は古い録音フラグを無視すること")
+        XCTAssertFalse(viewModel.radioState.isRecording)
+    }
 }

@@ -52,6 +52,7 @@
 		CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A10060D47AD1B4B46BF389 /* AVFoundation.framework */; };
 		CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */; };
 		CF0D5E1367928F78F888ACE7 /* TrackListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */; };
+		D1DC639BE636543B5F2105E7 /* GeminiTTSServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */; };
 		D4C1220AB0348360F51FD183 /* YouTubeMusicJSScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */; };
 		DA88A4F31020487B98A74E50 /* SpotifyLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5757CF1C6A91CB9099967AB3 /* SpotifyLoginViewModel.swift */; };
 		DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943AD41DD032953E321C5B2E /* TestDoubles.swift */; };
@@ -106,6 +107,7 @@
 		6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationServiceTests.swift; sourceTree = "<group>"; };
 		6E3C230852B2B4EF5DC77156 /* SpotifyWebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyWebViewStore.swift; sourceTree = "<group>"; };
 		6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptCommandBuilderTests.swift; sourceTree = "<group>"; };
+		79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSServiceTests.swift; sourceTree = "<group>"; };
 		850ED65A096909F8BB2135BB /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		8EDB07082B0F31540781BF85 /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
 		943AD41DD032953E321C5B2E /* TestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDoubles.swift; sourceTree = "<group>"; };
@@ -236,6 +238,7 @@
 			children = (
 				338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */,
 				F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */,
+				79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */,
 				04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */,
 				9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */,
 				6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */,
@@ -504,6 +507,7 @@
 			files = (
 				E01A194D757B60EF31AEA51A /* AppSettingsStoreTests.swift in Sources */,
 				AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */,
+				D1DC639BE636543B5F2105E7 /* GeminiTTSServiceTests.swift in Sources */,
 				1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */,
 				294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */,
 				8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */,

@@ -191,7 +191,7 @@ actor GeminiTTSService: TTSService {
 
         let requestBody = GeminiGenerateRequest(
             contents: [
-                GeminiContent(parts: [GeminiTextPart(text: makeTranscript(dialogues: dialogues))]),
+                GeminiContent(parts: [GeminiTextPart(text: makeTTSInput(dialogues: dialogues, settings: settings))]),
             ],
             generationConfig: GeminiGenerationConfig(
                 responseModalities: ["AUDIO"],
@@ -253,6 +253,25 @@ actor GeminiTTSService: TTSService {
             throw GeminiTTSServiceError.invalidResponse(String(localized: " 音声データの base64 デコードに失敗しました。"))
         }
         return makeWAVData(from: pcmData, sampleRate: 24_000, channels: 1, bitsPerSample: 16)
+    }
+
+    private func makeTTSInput(dialogues: [DialogueLine], settings: AppSettings) -> String {
+        let directionBlock = makeDirectionBlock(settings: settings)
+        let transcript = makeTranscript(dialogues: dialogues)
+
+        guard !directionBlock.isEmpty else {
+            return transcript
+        }
+        return "\(directionBlock)\n\n\(transcript)"
+    }
+
+    private func makeDirectionBlock(settings: AppSettings) -> String {
+        let direction = settings.directionSettings.sceneDirection.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !direction.isEmpty else { return "" }
+        return """
+        Direction:
+        \(direction)
+        """
     }
 
     private func makeTranscript(dialogues: [DialogueLine]) -> String {

@@ -16,6 +16,7 @@ final class MainViewModel: ObservableObject {
     private let serviceFactory: AppServiceFactory
     private var settingsCancellable: AnyCancellable?
     private var radioOrchestrator: RadioOrchestrator?
+    private var shouldRecordOnNextStart = false
 
     init(settingsStore: AppSettingsStore, serviceFactory: AppServiceFactory) {
         self.settingsStore = settingsStore
@@ -64,15 +65,6 @@ final class MainViewModel: ObservableObject {
         radioState.isRunning ? radioState.currentTrack?.id : nil
     }
 
-    var isRecordingEnabled: Bool {
-        get { settingsStore.currentSettings.isRecordingEnabled }
-        set {
-            var updated = settingsStore.currentSettings
-            updated.isRecordingEnabled = newValue
-            try? settingsStore.saveSettings(updated)
-        }
-    }
-
     /// 録音を有効にしたうえで番組を開始する
     func startShowWithRecording() {
         guard CGPreflightScreenCaptureAccess() else {
@@ -80,10 +72,10 @@ final class MainViewModel: ObservableObject {
             radioState.errorMessage = String(localized: "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。")
             return
         }
-        isRecordingEnabled = true
+        shouldRecordOnNextStart = true
         isRecordingSession = true
         Task {
-            await startShow()
+            await startShow(recordingRequested: true)
         }
     }
 
@@ -163,8 +155,10 @@ final class MainViewModel: ObservableObject {
         }
     }
 
-    private func startShow(testMode: Bool = false) async {
+    private func startShow(testMode: Bool = false, recordingRequested: Bool = false) async {
         guard !selectedPlaylistName.isEmpty else {
+            shouldRecordOnNextStart = false
+            isRecordingSession = false
             radioState.errorMessage = String(localized: "プレイリストを選択してください。")
             return
         }
@@ -180,7 +174,9 @@ final class MainViewModel: ObservableObject {
         let audioPlaybackService: any AudioPlaybackServiceProtocol = testMode
             ? TestModeAudioPlaybackService()
             : serviceFactory.makeAudioPlaybackService()
-        let recordingService = currentSettings.isRecordingEnabled ? serviceFactory.makeRecordingService() : nil
+        let shouldRecord = recordingRequested || shouldRecordOnNextStart
+        shouldRecordOnNextStart = false
+        let recordingService = shouldRecord ? serviceFactory.makeRecordingService() : nil
 
         let orchestrator = RadioOrchestrator(
             settings: currentSettings,

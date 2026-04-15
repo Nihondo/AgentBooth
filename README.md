@@ -76,7 +76,7 @@ The app cannot start without the API Key and CLI set.
 | **Frequency / Channel** | e.g. `77.5 FM` — used to set the mood of the script |
 | **Male Host Name** | Display name for the male personality |
 | **Female Host Name** | Display name for the female personality |
-| **Scene / Direction** | Additional direction for script generation (e.g. "late night, quiet tone") |
+| **Scene / Direction** | Additional direction for script generation and TTS delivery (e.g. "late night, quiet tone") |
 
 ### Music Playback
 
