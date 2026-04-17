@@ -721,8 +721,7 @@ actor RadioOrchestrator {
         updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成開始（%@）"), segmentLabel); $0.isProcessing = true }
         do {
             let result = try await ttsService.synthesize(dialogues: dialogues, settings: settings)
-            let isFallback = result.modelUsed != settings.geminiTTSModel
-            if isFallback {
+            if result.didUseFallback {
                 updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成終了（副モデル: %@）"), result.modelUsed); $0.isProcessing = false }
             } else {
                 updateState { $0.statusMessage = String(localized: "TTS音声作成終了"); $0.isProcessing = false }

@@ -350,20 +350,7 @@ struct SettingsView: View {
     private var ttsSettingsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             settingsGroup("Gemini TTS") {
-                settingsRow("API Key") {
-                    SecureField("Gemini API Key", text: $draftSettings.geminiAPIKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                settingsRow("TTS モデル") {
-                    TextField("gemini-2.5-flash-preview-tts", text: $draftSettings.geminiTTSModel)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                settingsRow("フォールバックモデル") {
-                    TextField("gemini-2.5-pro-preview-tts", text: $draftSettings.geminiTTSFallbackModel)
-                        .textFieldStyle(.roundedBorder)
-                }
+                TTSCredentialSetsEditor(credentialSets: $draftSettings.ttsCredentialSets)
             }
 
             settingsGroup("音声") {

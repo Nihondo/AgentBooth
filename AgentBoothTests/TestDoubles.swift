@@ -181,7 +181,8 @@ actor FakeTTSService: TTSService {
     func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
         var wavData = Data(repeating: 0, count: 44)
         wavData.append(Data(repeating: 1, count: 4_800))
-        return TTSResult(wavData: wavData, modelUsed: settings.geminiTTSModel)
+        let modelName = settings.activeTTSCredentialSets.first?.modelName ?? settings.geminiTTSModel
+        return TTSResult(wavData: wavData, modelUsed: modelName, didUseFallback: false)
     }
 }
 
@@ -212,7 +213,8 @@ actor ConditionalDelayTTSService: TTSService {
 
         var wavData = Data(repeating: 0, count: 44)
         wavData.append(Data(repeating: 1, count: 4_800))
-        return TTSResult(wavData: wavData, modelUsed: settings.geminiTTSModel)
+        let modelName = settings.activeTTSCredentialSets.first?.modelName ?? settings.geminiTTSModel
+        return TTSResult(wavData: wavData, modelUsed: modelName, didUseFallback: false)
     }
 }
 

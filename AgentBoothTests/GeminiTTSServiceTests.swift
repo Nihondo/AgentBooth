@@ -15,12 +15,18 @@ final class GeminiTTSServiceTests: XCTestCase {
     func testSynthesizePrependsSceneDirectionToTTSInput() async throws {
         let session = makeSession()
         let service = GeminiTTSService(session: session)
-        let settings = makeSettings(sceneDirection: "深夜帯。静かに、息を多めに。")
+        let credentialSet = TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")
+        let settings = makeSettings(
+            sceneDirection: "深夜帯。静かに、息を多めに。",
+            credentialSets: [credentialSet]
+        )
         let dialogues = [
             DialogueLine(speaker: "male", text: "こんばんは"),
             DialogueLine(speaker: "female", text: "今夜も始めていきます"),
         ]
-        let expectedURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(settings.geminiTTSModel):generateContent?key=\(settings.geminiAPIKey)")!
+        let expectedURL = try XCTUnwrap(
+            URL(string: "https://generativelanguage.googleapis.com/v1beta/models/test-model:generateContent?key=test-key")
+        )
 
         MockURLProtocol.requestHandler = { request in
             XCTAssertEqual(request.url, expectedURL)
@@ -43,22 +49,22 @@ final class GeminiTTSServiceTests: XCTestCase {
                 """
             )
 
-            let response = HTTPURLResponse(url: expectedURL, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let body = """
-            {"candidates":[{"content":{"parts":[{"inlineData":{"data":"AAAA","mimeType":"audio/pcm"}}]}}]}
-            """.data(using: .utf8)!
-            return (response, body)
+            return try Self.makeSuccessResponse(for: request)
         }
 
         let result = try await service.synthesize(dialogues: dialogues, settings: settings)
-        XCTAssertEqual(result.modelUsed, settings.geminiTTSModel)
+        XCTAssertEqual(result.modelUsed, "test-model")
+        XCTAssertFalse(result.didUseFallback)
         XCTAssertGreaterThan(result.wavData.count, 44)
     }
 
     func testSynthesizeOmitsDirectionBlockWhenSceneDirectionIsEmpty() async throws {
         let session = makeSession()
         let service = GeminiTTSService(session: session)
-        let settings = makeSettings(sceneDirection: "  \n ")
+        let settings = makeSettings(
+            sceneDirection: "  \n ",
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")]
+        )
         let dialogues = [DialogueLine(speaker: "male", text: "テストです")]
 
         MockURLProtocol.requestHandler = { request in
@@ -71,15 +77,253 @@ final class GeminiTTSServiceTests: XCTestCase {
             let text = try XCTUnwrap(firstPart["text"] as? String)
 
             XCTAssertEqual(text, "Male: テストです")
-
-            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let body = """
-            {"candidates":[{"content":{"parts":[{"inlineData":{"data":"AAAA","mimeType":"audio/pcm"}}]}}]}
-            """.data(using: .utf8)!
-            return (response, body)
+            return try Self.makeSuccessResponse(for: request)
         }
 
         _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
+    func testSynthesizeFallsThroughToSecondCredentialSetOnRateLimit() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "backup", apiKey: "key-2", modelName: "model-2"),
+        ])
+
+        MockURLProtocol.requestHandler = { request in
+            switch try Self.apiKey(from: request) {
+            case "key-1":
+                return try Self.makeErrorResponse(
+                    for: request,
+                    statusCode: 429,
+                    body: #"{"error":{"status":"RESOURCE_EXHAUSTED"},"retryDelay":"60s"}"#
+                )
+            case "key-2":
+                return try Self.makeSuccessResponse(for: request)
+            default:
+                XCTFail("unexpected key")
+                return try Self.makeSuccessResponse(for: request)
+            }
+        }
+
+        let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        XCTAssertEqual(result.modelUsed, "model-2")
+        XCTAssertTrue(result.didUseFallback)
+    }
+
+    func testSynthesizeFallsThroughOnAuthError() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "backup", apiKey: "key-2", modelName: "model-2"),
+        ])
+
+        MockURLProtocol.requestHandler = { request in
+            switch try Self.apiKey(from: request) {
+            case "key-1":
+                return try Self.makeErrorResponse(
+                    for: request,
+                    statusCode: 401,
+                    body: #"{"error":{"message":"invalid key"}}"#
+                )
+            case "key-2":
+                return try Self.makeSuccessResponse(for: request)
+            default:
+                XCTFail("unexpected key")
+                return try Self.makeSuccessResponse(for: request)
+            }
+        }
+
+        let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        XCTAssertEqual(result.modelUsed, "model-2")
+        XCTAssertTrue(result.didUseFallback)
+    }
+
+    func testSynthesizeReturnsDailyQuotaExceededWhenAllSetsExhausted() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "backup", apiKey: "key-2", modelName: "model-2"),
+        ])
+
+        MockURLProtocol.requestHandler = { request in
+            try Self.makeErrorResponse(
+                for: request,
+                statusCode: 429,
+                body: #"{"error":{"status":"RESOURCE_EXHAUSTED"},"retryDelay":"7200s"}"#
+            )
+        }
+
+        await XCTAssertThrowsErrorAsync({
+            try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        }) { error in
+            XCTAssertEqual(error as? GeminiTTSServiceError, .dailyQuotaExceeded)
+        }
+    }
+
+    func testSynthesizeThrowsLastHttpErrorWhenAllSetsFailWithinDailyThreshold() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "backup", apiKey: "key-2", modelName: "model-2"),
+        ])
+
+        MockURLProtocol.requestHandler = { request in
+            switch try Self.apiKey(from: request) {
+            case "key-1":
+                return try Self.makeErrorResponse(for: request, statusCode: 500, body: #"{"error":"server"}"#)
+            case "key-2":
+                return try Self.makeErrorResponse(for: request, statusCode: 429, body: #"{"retryDelay":"60s"}"#)
+            default:
+                XCTFail("unexpected key")
+                return try Self.makeSuccessResponse(for: request)
+            }
+        }
+
+        await XCTAssertThrowsErrorAsync({
+            try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        }) { error in
+            guard case .httpError(let statusCode, let bodyText) = error as? GeminiTTSServiceError else {
+                return XCTFail("unexpected error \(error)")
+            }
+            XCTAssertEqual(statusCode, 429)
+            XCTAssertTrue(bodyText.contains("60s"))
+        }
+    }
+
+    func testSynthesizeSkipsEmptyCredentialSets() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "empty-key", apiKey: "", modelName: "model-1"),
+            TTSCredentialSet(label: "empty-model", apiKey: "key-ignored", modelName: ""),
+            TTSCredentialSet(label: "active", apiKey: "key-2", modelName: "model-2"),
+        ])
+        let recorder = RequestRecorder()
+
+        MockURLProtocol.requestHandler = { request in
+            recorder.appendKey(try Self.apiKey(from: request))
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        XCTAssertEqual(result.modelUsed, "model-2")
+        XCTAssertEqual(recorder.requestedKeys, ["key-2"])
+    }
+
+    func testSynthesizeThrowsMissingAPIKeyWhenNoActiveSets() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "empty-key", apiKey: "", modelName: "model-1"),
+            TTSCredentialSet(label: "empty-model", apiKey: "key", modelName: ""),
+        ])
+
+        await XCTAssertThrowsErrorAsync({
+            try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        }) { error in
+            XCTAssertEqual(error as? GeminiTTSServiceError, .missingAPIKey)
+        }
+    }
+
+    func testSynthesizeSkipsFailedSetInSecondCall() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session, successfulCallThrottleInterval: 0)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "bad", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "good", apiKey: "key-2", modelName: "model-2"),
+        ])
+        let recorder = RequestRecorder()
+
+        MockURLProtocol.requestHandler = { request in
+            let apiKey = try Self.apiKey(from: request)
+            recorder.appendKey(apiKey)
+            if apiKey == "key-1" {
+                return try Self.makeErrorResponse(for: request, statusCode: 401, body: #"{"error":"invalid key"}"#)
+            }
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+
+        XCTAssertEqual(recorder.count(for: "key-1"), 1)
+        XCTAssertEqual(recorder.count(for: "key-2"), 2)
+    }
+
+    func testSynthesizeSkipsInvalidResponseSetInSecondCall() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session, successfulCallThrottleInterval: 0)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "bad", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "good", apiKey: "key-2", modelName: "model-2"),
+        ])
+        let recorder = RequestRecorder()
+
+        MockURLProtocol.requestHandler = { request in
+            let apiKey = try Self.apiKey(from: request)
+            recorder.appendKey(apiKey)
+            if apiKey == "key-1" {
+                let response = try XCTUnwrap(HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil))
+                let body = #"{"candidates":[{"content":{"parts":[]}}]}"#.data(using: .utf8)!
+                return (response, body)
+            }
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+
+        XCTAssertEqual(recorder.count(for: "key-1"), 1)
+        XCTAssertEqual(recorder.count(for: "key-2"), 2)
+    }
+
+    func testSynthesizeWaitsBeforeFirstAttemptWhenPreviousCallSucceededRecently() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session, successfulCallThrottleInterval: 0.05)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+        ])
+
+        MockURLProtocol.requestHandler = { request in
+            try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+
+        let startedAt = Date()
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        let elapsed = Date().timeIntervalSince(startedAt)
+
+        XCTAssertGreaterThanOrEqual(elapsed, 0.04)
+    }
+
+    func testSynthesizeDoesNotWaitBetweenFallbackAttempts() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session, successfulCallThrottleInterval: 0.05)
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "bad", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "good", apiKey: "key-2", modelName: "model-2"),
+        ])
+        let recorder = RequestRecorder()
+
+        MockURLProtocol.requestHandler = { request in
+            recorder.appendTime(Date())
+            if try Self.apiKey(from: request) == "key-1" {
+                return try Self.makeErrorResponse(for: request, statusCode: 401, body: #"{"error":"invalid key"}"#)
+            }
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+
+        XCTAssertEqual(recorder.requestTimes.count, 2)
+        let delta = recorder.requestTimes[1].timeIntervalSince(recorder.requestTimes[0])
+        XCTAssertLessThan(delta, 0.04)
     }
 
     private func makeSession() -> URLSession {
@@ -88,12 +332,45 @@ final class GeminiTTSServiceTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
-    private func makeSettings(sceneDirection: String) -> AppSettings {
+    private func makeSettings(
+        sceneDirection: String = "",
+        credentialSets: [TTSCredentialSet]
+    ) -> AppSettings {
         var settings = AppSettings()
-        settings.geminiAPIKey = "test-key"
-        settings.geminiTTSModel = "gemini-2.5-flash-preview-tts"
         settings.directionSettings.sceneDirection = sceneDirection
+        settings.ttsCredentialSets = credentialSets
         return settings
+    }
+
+    private func sampleDialogues() -> [DialogueLine] {
+        [
+            DialogueLine(speaker: "male", text: "こんばんは"),
+            DialogueLine(speaker: "female", text: "テストです"),
+        ]
+    }
+
+    private static func makeSuccessResponse(for request: URLRequest) throws -> (HTTPURLResponse, Data) {
+        let response = try XCTUnwrap(HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil))
+        let body = """
+        {"candidates":[{"content":{"parts":[{"inlineData":{"data":"AAAA","mimeType":"audio/pcm"}}]}}]}
+        """.data(using: .utf8)!
+        return (response, body)
+    }
+
+    private static func makeErrorResponse(
+        for request: URLRequest,
+        statusCode: Int,
+        body: String
+    ) throws -> (HTTPURLResponse, Data) {
+        let response = try XCTUnwrap(HTTPURLResponse(url: request.url!, statusCode: statusCode, httpVersion: nil, headerFields: nil))
+        return (response, body.data(using: .utf8)!)
+    }
+
+    private static func apiKey(from request: URLRequest) throws -> String {
+        let url = try XCTUnwrap(request.url)
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let apiKey = components.queryItems?.first(where: { $0.name == "key" })?.value
+        return try XCTUnwrap(apiKey)
     }
 
     private static func extractBody(from request: URLRequest) -> Data? {
@@ -149,4 +426,56 @@ private final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+}
+
+private func XCTAssertThrowsErrorAsync<T>(
+    _ expression: () async throws -> T,
+    _ errorHandler: (Error) -> Void
+) async {
+    do {
+        _ = try await expression()
+        XCTFail("expected error")
+    } catch {
+        errorHandler(error)
+    }
+}
+
+private final class RequestRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var keys: [String] = []
+    private var times: [Date] = []
+
+    var requestedKeys: [String] {
+        lock.withLock { keys }
+    }
+
+    var requestTimes: [Date] {
+        lock.withLock { times }
+    }
+
+    func appendKey(_ key: String) {
+        lock.withLock {
+            keys.append(key)
+        }
+    }
+
+    func appendTime(_ time: Date) {
+        lock.withLock {
+            times.append(time)
+        }
+    }
+
+    func count(for key: String) -> Int {
+        lock.withLock {
+            keys.filter { $0 == key }.count
+        }
+    }
+}
+
+private extension NSLock {
+    func withLock<T>(_ body: () -> T) -> T {
+        lock()
+        defer { unlock() }
+        return body()
+    }
 }

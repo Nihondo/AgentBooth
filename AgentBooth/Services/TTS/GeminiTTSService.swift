@@ -45,7 +45,7 @@ struct GeminiRetryPolicy {
     }
 }
 
-enum GeminiTTSServiceError: LocalizedError {
+enum GeminiTTSServiceError: LocalizedError, Equatable {
     case missingAPIKey
     case invalidResponse(String)
     case httpError(Int, String)
@@ -135,63 +135,86 @@ actor GeminiTTSService: TTSService {
     private let session: URLSession
     private let retryPolicy = GeminiRetryPolicy()
     private let encoder = JSONEncoder()
+    private let successfulCallThrottleInterval: TimeInterval
     private var nextCallDate = Date.distantPast
+    private var exhaustedSetIDs: Set<UUID> = []
+    private var sessionLastError: GeminiTTSServiceError?
 
-    init(session: URLSession = .shared) {
+    init(
+        session: URLSession = .shared,
+        successfulCallThrottleInterval: TimeInterval = 60
+    ) {
         self.session = session
+        self.successfulCallThrottleInterval = successfulCallThrottleInterval
     }
 
     func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
-        guard !settings.geminiAPIKey.isEmpty else {
+        let allCredentialSets = settings.activeTTSCredentialSets
+        guard !allCredentialSets.isEmpty else {
             throw GeminiTTSServiceError.missingAPIKey
         }
 
-        do {
-            let wavData = try await requestWAV(
-                dialogues: dialogues,
-                settings: settings,
-                modelName: settings.geminiTTSModel,
-                skipWait: false
-            )
-            return TTSResult(wavData: wavData, modelUsed: settings.geminiTTSModel)
-        } catch GeminiTTSServiceError.httpError(let statusCode, let bodyText)
-            where retryPolicy.isRateLimited(statusCode: statusCode, bodyText: bodyText)
-            && !settings.geminiTTSFallbackModel.isEmpty
-            && settings.geminiTTSFallbackModel != settings.geminiTTSModel {
-            // 主モデルがレート制限（日次制限含む）→ 即座に副モデルで再試行
+        let availableCredentialSets = allCredentialSets.filter { !exhaustedSetIDs.contains($0.id) }
+        guard !availableCredentialSets.isEmpty else {
+            if let sessionLastError,
+               case .httpError(_, let bodyText) = sessionLastError,
+               retryPolicy.isDailyQuotaExhausted(bodyText: bodyText) {
+                throw GeminiTTSServiceError.dailyQuotaExceeded
+            }
+            throw sessionLastError ?? GeminiTTSServiceError.missingAPIKey
+        }
+
+        try await waitForNextSuccessfulCallWindow()
+
+        var attemptLastError: GeminiTTSServiceError?
+
+        for (index, credentialSet) in availableCredentialSets.enumerated() {
             do {
                 let wavData = try await requestWAV(
                     dialogues: dialogues,
-                    settings: settings,
-                    modelName: settings.geminiTTSFallbackModel,
-                    skipWait: true
+                    apiKey: credentialSet.apiKey,
+                    modelName: credentialSet.modelName,
+                    voiceSettings: settings.voiceSettings,
+                    directionSettings: settings.directionSettings
                 )
-                return TTSResult(wavData: wavData, modelUsed: settings.geminiTTSFallbackModel)
-            } catch GeminiTTSServiceError.httpError(_, let fbBody)
-                where retryPolicy.isDailyQuotaExhausted(bodyText: fbBody) {
-                // 副モデルも日次クォータ超過 → 両モデルとも限界
-                throw GeminiTTSServiceError.dailyQuotaExceeded
+                nextCallDate = Date().addingTimeInterval(successfulCallThrottleInterval)
+                return TTSResult(
+                    wavData: wavData,
+                    modelUsed: credentialSet.modelName,
+                    didUseFallback: index > 0
+                )
+            } catch let error as GeminiTTSServiceError {
+                exhaustedSetIDs.insert(credentialSet.id)
+                sessionLastError = error
+                attemptLastError = error
             }
+        }
+
+        if let attemptLastError,
+           case .httpError(_, let bodyText) = attemptLastError,
+           retryPolicy.isDailyQuotaExhausted(bodyText: bodyText) {
+            throw GeminiTTSServiceError.dailyQuotaExceeded
+        }
+        throw attemptLastError ?? GeminiTTSServiceError.missingAPIKey
+    }
+
+    private func waitForNextSuccessfulCallWindow() async throws {
+        let waitInterval = nextCallDate.timeIntervalSinceNow
+        if waitInterval > 0 {
+            try await Task.sleep(nanoseconds: UInt64(waitInterval * 1_000_000_000))
         }
     }
 
     private func requestWAV(
         dialogues: [DialogueLine],
-        settings: AppSettings,
+        apiKey: String,
         modelName: String,
-        skipWait: Bool
+        voiceSettings: VoiceSettings,
+        directionSettings: DirectionSettings
     ) async throws -> Data {
-        if !skipWait {
-            let waitInterval = nextCallDate.timeIntervalSinceNow
-            if waitInterval > 0 {
-                try await Task.sleep(nanoseconds: UInt64(waitInterval * 1_000_000_000))
-            }
-        }
-        nextCallDate = Date().addingTimeInterval(60)
-
         let requestBody = GeminiGenerateRequest(
             contents: [
-                GeminiContent(parts: [GeminiTextPart(text: makeTTSInput(dialogues: dialogues, settings: settings))]),
+                GeminiContent(parts: [GeminiTextPart(text: makeTTSInput(dialogues: dialogues, directionSettings: directionSettings))]),
             ],
             generationConfig: GeminiGenerationConfig(
                 responseModalities: ["AUDIO"],
@@ -202,7 +225,7 @@ actor GeminiTTSService: TTSService {
                                 speaker: "Male",
                                 voiceConfig: GeminiVoiceConfig(
                                     prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
-                                        voiceName: settings.voiceSettings.maleVoiceName
+                                        voiceName: voiceSettings.maleVoiceName
                                     )
                                 )
                             ),
@@ -210,7 +233,7 @@ actor GeminiTTSService: TTSService {
                                 speaker: "Female",
                                 voiceConfig: GeminiVoiceConfig(
                                     prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
-                                        voiceName: settings.voiceSettings.femaleVoiceName
+                                        voiceName: voiceSettings.femaleVoiceName
                                     )
                                 )
                             ),
@@ -220,7 +243,7 @@ actor GeminiTTSService: TTSService {
             )
         )
 
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelName):generateContent?key=\(settings.geminiAPIKey)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelName):generateContent?key=\(apiKey)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -255,8 +278,8 @@ actor GeminiTTSService: TTSService {
         return makeWAVData(from: pcmData, sampleRate: 24_000, channels: 1, bitsPerSample: 16)
     }
 
-    private func makeTTSInput(dialogues: [DialogueLine], settings: AppSettings) -> String {
-        let directionBlock = makeDirectionBlock(settings: settings)
+    private func makeTTSInput(dialogues: [DialogueLine], directionSettings: DirectionSettings) -> String {
+        let directionBlock = makeDirectionBlock(directionSettings: directionSettings)
         let transcript = makeTranscript(dialogues: dialogues)
 
         guard !directionBlock.isEmpty else {
@@ -265,8 +288,8 @@ actor GeminiTTSService: TTSService {
         return "\(directionBlock)\n\n\(transcript)"
     }
 
-    private func makeDirectionBlock(settings: AppSettings) -> String {
-        let direction = settings.directionSettings.sceneDirection.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func makeDirectionBlock(directionSettings: DirectionSettings) -> String {
+        let direction = directionSettings.sceneDirection.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !direction.isEmpty else { return "" }
         return """
         Direction:

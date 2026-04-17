@@ -1,6 +1,10 @@
 import Foundation
 import Combine
 
+private struct TTSKeychainBundle: Codable {
+    var keysByID: [String: String]
+}
+
 /// Stores persisted settings in UserDefaults and Keychain.
 @MainActor
 final class AppSettingsStore: ObservableObject {
@@ -29,8 +33,14 @@ final class AppSettingsStore: ObservableObject {
             loadedSettings = decodedSettings
         }
 
-        if let storedAPIKey = try? keychainStore.readSecret(accountName: apiKeyAccountName) {
-            loadedSettings.geminiAPIKey = storedAPIKey
+        if let storedSecret = try? keychainStore.readSecret(accountName: apiKeyAccountName),
+           let bundleData = storedSecret.data(using: .utf8),
+           let keychainBundle = try? JSONDecoder().decode(TTSKeychainBundle.self, from: bundleData) {
+            loadedSettings.ttsCredentialSets = loadedSettings.ttsCredentialSets.map { credentialSet in
+                var updatedSet = credentialSet
+                updatedSet.apiKey = keychainBundle.keysByID[credentialSet.id.uuidString] ?? ""
+                return updatedSet
+            }
         }
 
         currentSettings = loadedSettings
@@ -38,12 +48,26 @@ final class AppSettingsStore: ObservableObject {
 
     func saveSettings(_ settings: AppSettings) throws {
         var persistedSettings = settings
-        let apiKey = settings.geminiAPIKey
+        let keychainBundle = TTSKeychainBundle(
+            keysByID: Dictionary(
+                uniqueKeysWithValues: settings.ttsCredentialSets.map { credentialSet in
+                    (credentialSet.id.uuidString, credentialSet.apiKey)
+                }
+            )
+        )
+
         persistedSettings.geminiAPIKey = ""
+        persistedSettings.ttsCredentialSets = settings.ttsCredentialSets.map { credentialSet in
+            var persistedSet = credentialSet
+            persistedSet.apiKey = ""
+            return persistedSet
+        }
 
         let data = try JSONEncoder().encode(persistedSettings)
         userDefaults.set(data, forKey: settingsKey)
-        try keychainStore.writeSecret(apiKey, accountName: apiKeyAccountName)
+        let bundleData = try JSONEncoder().encode(keychainBundle)
+        let bundleText = String(decoding: bundleData, as: UTF8.self)
+        try keychainStore.writeSecret(bundleText, accountName: apiKeyAccountName)
         currentSettings = settings
     }
 

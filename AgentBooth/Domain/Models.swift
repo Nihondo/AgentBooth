@@ -187,6 +187,7 @@ struct TrackInfo: Codable, Equatable, Identifiable, Sendable {
 struct TTSResult: Sendable {
     let wavData: Data
     let modelUsed: String
+    let didUseFallback: Bool
 }
 
 /// One line in a generated conversation.
@@ -272,11 +273,20 @@ struct RadioShowSettings: Codable, Equatable, Sendable {
     var frequency: String = ""
 }
 
+/// Gemini TTS の「API キー + モデル」1組。
+struct TTSCredentialSet: Identifiable, Codable, Equatable, Sendable {
+    var id: UUID = UUID()
+    var label: String = ""
+    var apiKey: String = ""
+    var modelName: String = "gemini-2.5-flash-preview-tts"
+}
+
 /// Application-wide persisted settings snapshot.
 struct AppSettings: Codable, Equatable, Sendable {
     var geminiAPIKey: String = ""
     var geminiTTSModel: String = "gemini-2.5-flash-preview-tts"
     var geminiTTSFallbackModel: String = "gemini-2.5-pro-preview-tts"
+    var ttsCredentialSets: [TTSCredentialSet] = []
     var scriptCLIKind: ScriptCLIKind = .claude
     var scriptCLIModel: String = ""
     var defaultMusicService: MusicServiceKind = .appleMusic
@@ -297,12 +307,17 @@ struct AppSettings: Codable, Equatable, Sendable {
     var customCLIModelArguments: [String] = []
 
     enum CodingKeys: String, CodingKey {
-        case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel
+        case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel, ttsCredentialSets
         case scriptCLIKind, scriptCLIModel
         case defaultMusicService, defaultOverlapMode
         case voiceSettings, personalitySettings, directionSettings, volumeSettings, radioShowSettings
         case isRecordingEnabled, recordingOutputDirectory, youtubeMusicUserAgent
         case customCLIExecutable, customCLIArguments, customCLIModelArguments
+    }
+
+    /// 実際に TTS 呼び出し対象となる有効セットのみ返す。
+    var activeTTSCredentialSets: [TTSCredentialSet] {
+        ttsCredentialSets.filter { !$0.apiKey.isEmpty && !$0.modelName.isEmpty }
     }
 }
 
@@ -313,6 +328,7 @@ extension AppSettings {
         geminiAPIKey = try c.decodeIfPresent(String.self, forKey: .geminiAPIKey) ?? ""
         geminiTTSModel = try c.decodeIfPresent(String.self, forKey: .geminiTTSModel) ?? "gemini-2.5-flash-preview-tts"
         geminiTTSFallbackModel = try c.decodeIfPresent(String.self, forKey: .geminiTTSFallbackModel) ?? "gemini-2.5-pro-preview-tts"
+        ttsCredentialSets = try c.decodeIfPresent([TTSCredentialSet].self, forKey: .ttsCredentialSets) ?? []
         scriptCLIKind = try c.decodeIfPresent(ScriptCLIKind.self, forKey: .scriptCLIKind) ?? .claude
         scriptCLIModel = try c.decodeIfPresent(String.self, forKey: .scriptCLIModel) ?? ""
         defaultMusicService = try c.decodeIfPresent(MusicServiceKind.self, forKey: .defaultMusicService) ?? .appleMusic

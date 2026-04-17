@@ -16,7 +16,7 @@ actor TestModeTTSService: TTSService {
         // PCM 24kHz 16bit 換算のバイト数を持つダミー WAV データを生成する。
         let pcmBytes = max(0, Int(durationSeconds * 24_000 * 2))
         let wavData = Data(count: 44 + pcmBytes)
-        return TTSResult(wavData: wavData, modelUsed: "test_mode")
+        return TTSResult(wavData: wavData, modelUsed: "test_mode", didUseFallback: false)
     }
 
     static var sampleFileURL: URL {
