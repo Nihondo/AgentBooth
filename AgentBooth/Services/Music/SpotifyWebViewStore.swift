@@ -116,7 +116,7 @@ final class SpotifyWebViewStore: ObservableObject {
         login.load(URLRequest(url: Self.musicURL))
         playback.load(URLRequest(url: Self.libraryURL))
 
-        DispatchQueue.main.async { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.setupOffscreenWindow()
         }
     }

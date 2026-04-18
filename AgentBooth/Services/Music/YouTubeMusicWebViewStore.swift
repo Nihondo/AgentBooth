@@ -79,8 +79,9 @@ final class YouTubeMusicWebViewStore: ObservableObject {
         play.load(URLRequest(url: Self.musicURL))
 
         // メインウィンドウ表示後にオフスクリーンウィンドウを設定する
-        // init 時に即実行すると SwiftUI のウィンドウ管理と競合してメインウィンドウが消える
-        DispatchQueue.main.async { [weak self] in
+        // 1ループ遅延だけでは SwiftUI がメインウィンドウを orderFront する前に実行される場合があるため
+        // 短い遅延を設けて確実にメインウィンドウが前面に表示されてから設定する
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.setupOffscreenWindow()
         }
     }

@@ -1,4 +1,3 @@
-import Combine
 import CoreGraphics
 import Foundation
 
@@ -14,7 +13,6 @@ final class MainViewModel: ObservableObject {
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: AppServiceFactory
-    private var settingsCancellable: AnyCancellable?
     private var radioOrchestrator: RadioOrchestrator?
     private var shouldRecordOnNextStart = false
 
@@ -27,17 +25,6 @@ final class MainViewModel: ObservableObject {
 
         if !availableServices.contains(selectedService), let firstService = availableServices.first {
             self.selectedService = firstService
-        }
-
-        settingsCancellable = settingsStore.$currentSettings.sink { [weak self] currentSettings in
-            guard let self else {
-                return
-            }
-            if !self.radioState.isRunning {
-                if self.availableServices.contains(currentSettings.defaultMusicService) {
-                    self.selectedService = currentSettings.defaultMusicService
-                }
-            }
         }
     }
 

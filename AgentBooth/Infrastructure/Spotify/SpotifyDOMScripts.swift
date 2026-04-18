@@ -782,16 +782,24 @@ enum SpotifyDOMScripts {
     })();
     """
 
-    /// 現在の再生位置を秒単位で返す。
+    /// 現在の再生位置を秒単位で返す。sharedSpotifyDOMHelperJS 全体を評価するとWKWebViewのオーバーヘッドが大きいため、必要最小限の関数のみ含む軽量スクリプト。
     static let fetchPlaybackPosition = """
     return (async () => {
       try {
-        \(sharedSpotifyDOMHelperJS)
-        const rawMs = readSeekPositionMs();
-        if (rawMs == null) {
-          return JSON.stringify({ "__error": "シークバーが見つかりませんでした。" });
+        function textOf(el) {
+          return (el?.textContent || "").replace(/\\s+/g, " ").trim();
         }
-        return JSON.stringify({ positionSeconds: msOrSecondsToSeconds(rawMs) });
+        function parseDuration(text) {
+          const parts = (text || "").trim().split(":").map(Number).filter(n => !Number.isNaN(n));
+          if (parts.length === 2) return parts[0] * 60 + parts[1];
+          if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+          return 0;
+        }
+        const el = document.querySelector('[data-testid="playback-position"]');
+        if (!el) return JSON.stringify({ "__error": "シークバーが見つかりませんでした。" });
+        const text = textOf(el);
+        if (!/^\\d+:\\d{2}(:\\d{2})?$/.test(text)) return JSON.stringify({ "__error": "シークバーが見つかりませんでした。" });
+        return JSON.stringify({ positionSeconds: parseDuration(text) });
       } catch (error) {
         return JSON.stringify({ "__error": error.message || String(error) });
       }
