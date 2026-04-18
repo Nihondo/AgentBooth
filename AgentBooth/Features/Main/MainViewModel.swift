@@ -196,6 +196,6 @@ final class MainViewModel: ObservableObject {
         }
 
         radioOrchestrator = orchestrator
-        await orchestrator.startShow(playlistName: selectedPlaylistName, overlapMode: currentSettings.defaultOverlapMode)
+        await orchestrator.startShow(playlistName: selectedPlaylistName)
     }
 }

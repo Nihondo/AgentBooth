@@ -190,16 +190,6 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         )
     }
 
-    func generateIntro(track: TrackInfo, settings: AppSettings, continuityNote: String?) async throws -> RadioScript {
-        try await generateSegment(
-            segmentType: "intro",
-            label: track.name,
-            prompt: PromptBuilder.buildIntroPrompt(track: track, settings: settings, continuityNote: continuityNote),
-            track: track,
-            settings: settings
-        )
-    }
-
     func generateTransition(
         currentTrack: TrackInfo,
         nextTrack: TrackInfo,

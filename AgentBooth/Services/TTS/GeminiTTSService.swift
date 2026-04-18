@@ -180,6 +180,7 @@ actor GeminiTTSService: TTSService {
                 nextCallDate = Date().addingTimeInterval(successfulCallThrottleInterval)
                 return TTSResult(
                     wavData: wavData,
+                    credentialSetLabelUsed: credentialSet.label,
                     modelUsed: credentialSet.modelName,
                     didUseFallback: index > 0
                 )

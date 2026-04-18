@@ -6,6 +6,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     var playlists: [String]
     var tracksByPlaylist: [String: [TrackInfo]]
     var playedTracks: [TrackInfo] = []
+    var playedTrackDates: [Date] = []
     var currentVolume: Int = 100
     var volumeHistory: [Int] = []
     var isPlaying = false
@@ -29,6 +30,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
 
     func play(track: TrackInfo) async throws {
         playedTracks.append(track)
+        playedTrackDates.append(Date())
         isPlaying = true
     }
 
@@ -70,12 +72,6 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
         summaryBullets: ["オープニングで触れた話題"],
         track: nil
     )
-    var introScript = RadioScript(
-        segmentType: "intro",
-        dialogues: FakeScriptGenerationService.sampleDialogues(),
-        summaryBullets: ["イントロで触れた話題"],
-        track: nil
-    )
     var transitionScript = RadioScript(
         segmentType: "transition",
         dialogues: FakeScriptGenerationService.sampleDialogues(),
@@ -96,17 +92,6 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
             dialogues: openingScript.dialogues,
             summaryBullets: openingScript.summaryBullets,
             track: tracks.first
-        )
-    }
-
-    func generateIntro(track: TrackInfo, settings: AppSettings, continuityNote: String?) async throws -> RadioScript {
-        await continuityRecorder.recordIntro(continuityNote)
-        await generationStepRecorder.record("intro:\(track.name)")
-        return RadioScript(
-            segmentType: introScript.segmentType,
-            dialogues: introScript.dialogues,
-            summaryBullets: introScript.summaryBullets,
-            track: track
         )
     }
 
@@ -143,11 +128,6 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
     func recordedGenerationSteps() async -> [String] {
         await generationStepRecorder.steps
     }
-
-    func recordedIntroContinuityNotes() async -> [String?] {
-        await continuityRecorder.introNotes
-    }
-
     static func sampleDialogues() -> [DialogueLine] {
         [
             DialogueLine(speaker: "male", text: "こんにちは"),
@@ -157,12 +137,7 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
 }
 
 private actor ContinuityNoteRecorder {
-    private(set) var introNotes: [String?] = []
     private(set) var transitionNotes: [String?] = []
-
-    func recordIntro(_ note: String?) {
-        introNotes.append(note)
-    }
 
     func recordTransition(_ note: String?) {
         transitionNotes.append(note)
@@ -181,8 +156,14 @@ actor FakeTTSService: TTSService {
     func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
         var wavData = Data(repeating: 0, count: 44)
         wavData.append(Data(repeating: 1, count: 4_800))
+        let credentialLabel = settings.activeTTSCredentialSets.first?.label ?? ""
         let modelName = settings.activeTTSCredentialSets.first?.modelName ?? settings.geminiTTSModel
-        return TTSResult(wavData: wavData, modelUsed: modelName, didUseFallback: false)
+        return TTSResult(
+            wavData: wavData,
+            credentialSetLabelUsed: credentialLabel,
+            modelUsed: modelName,
+            didUseFallback: false
+        )
     }
 }
 
@@ -213,8 +194,36 @@ actor ConditionalDelayTTSService: TTSService {
 
         var wavData = Data(repeating: 0, count: 44)
         wavData.append(Data(repeating: 1, count: 4_800))
+        let credentialLabel = settings.activeTTSCredentialSets.first?.label ?? ""
         let modelName = settings.activeTTSCredentialSets.first?.modelName ?? settings.geminiTTSModel
-        return TTSResult(wavData: wavData, modelUsed: modelName, didUseFallback: false)
+        return TTSResult(
+            wavData: wavData,
+            credentialSetLabelUsed: credentialLabel,
+            modelUsed: modelName,
+            didUseFallback: false
+        )
+    }
+}
+
+actor SizedTTSService: TTSService {
+    private let audioDurationSeconds: Double
+
+    init(audioDurationSeconds: Double) {
+        self.audioDurationSeconds = audioDurationSeconds
+    }
+
+    func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
+        let audioByteCount = max(480, Int(audioDurationSeconds * Double(24_000 * 2)))
+        var wavData = Data(repeating: 0, count: 44)
+        wavData.append(Data(repeating: 1, count: audioByteCount))
+        let credentialLabel = settings.activeTTSCredentialSets.first?.label ?? ""
+        let modelName = settings.activeTTSCredentialSets.first?.modelName ?? settings.geminiTTSModel
+        return TTSResult(
+            wavData: wavData,
+            credentialSetLabelUsed: credentialLabel,
+            modelUsed: modelName,
+            didUseFallback: false
+        )
     }
 }
 
@@ -225,7 +234,8 @@ actor FakeAudioPlaybackService: AudioPlaybackServiceProtocol {
     func play(wavData: Data) async throws {
         playCount += 1
         isPlaying = true
-        try await Task.sleep(nanoseconds: 10_000_000)
+        let wavDurationSeconds = max(0.01, Double(max(0, wavData.count - 44)) / Double(24_000 * 2))
+        try await Task.sleep(nanoseconds: UInt64(wavDurationSeconds * 1_000_000_000))
         isPlaying = false
     }
 

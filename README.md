@@ -71,7 +71,7 @@ The app cannot start without the API Key and CLI set.
 
 | Field | Description |
 |---|---|
-| **Overlap Mode** | How music and talk are blended (see below) |
+| **Overlap Mode** | Whether music and talk overlap or stay separated (see below) |
 | **Show Name** | Name of the radio show, used in script generation |
 | **Frequency / Channel** | e.g. `77.5 FM` — used to set the mood of the script |
 | **Male Host Name** | Display name for the male personality |
@@ -88,7 +88,6 @@ Balance between music and talk. Defaults work without changes.
 | **Talk Volume** | Music volume while talk is playing (0–100). Lower = quieter music |
 | **Fade Duration** | Seconds to smoothly ramp volume up or down |
 | **Music Lead Seconds** | Seconds before talk ends to start fading in the next track |
-| **Talk Start After Seconds** | Seconds after a track starts before talk begins (for intro overlay) |
 | **Talk Start Before End Seconds** | Seconds before a track ends to start outro talk |
 | **Max Playback Duration** | Maximum seconds per track (0 = unlimited) |
 
@@ -156,10 +155,8 @@ Select in **Program Info** → **Overlap Mode**.
 
 | Mode | Behavior |
 |---|---|
-| **Natural FM Radio blend** | Talk overlaps both the beginning and end of tracks — closest to a real FM radio feel |
-| **Talk over track start** | Talk begins a few seconds after the track starts, playing over the intro |
-| **Talk over track end** | Track fades out and outro talk begins before the track ends |
-| **Fully separated** | Talk then music, music then talk — no overlap |
+| **Overlap talk and music** | Talk can overlap the tail of the current track and the lead-in of the next track |
+| **Separate talk and music** | Talk plays after the track stops, and the next track starts after talk ends |
 
 ---
 

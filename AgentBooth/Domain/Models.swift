@@ -28,32 +28,24 @@ enum MusicServiceKind: String, CaseIterable, Codable, Identifiable {
 
 /// The overlap strategy between music playback and generated narration.
 enum OverlapMode: String, CaseIterable, Codable, Identifiable {
-    case sequential
-    case outroOver = "outro_over"
-    case introOver = "intro_over"
-    case fullRadio = "full_radio"
+    case enabled
+    case disabled
 
     var id: String { rawValue }
 
     static var orderedCases: [OverlapMode] {
         [
-            .fullRadio,
-            .introOver,
-            .outroOver,
-            .sequential
+            .enabled,
+            .disabled,
         ]
     }
 
     var displayName: String {
         switch self {
-        case .fullRadio:
-            return String(localized: "ラジオ風に自然に重ねる")
-        case .introOver:
-            return String(localized: "曲の開始後にトークを重ねる")
-        case .outroOver:
-            return String(localized: "曲の終了前にトークを重ねる")
-        case .sequential:
-            return String(localized: "曲とトークを完全に分ける")
+        case .enabled:
+            return String(localized: "トークと曲を重ねる")
+        case .disabled:
+            return String(localized: "トークと曲を分ける")
         }
     }
 
@@ -61,16 +53,10 @@ enum OverlapMode: String, CaseIterable, Codable, Identifiable {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
         switch rawValue {
-        case Self.sequential.rawValue:
-            self = .sequential
-        case Self.outroOver.rawValue:
-            self = .outroOver
-        case Self.introOver.rawValue:
-            self = .introOver
-        case "music_bed":
-            self = .fullRadio
-        case Self.fullRadio.rawValue:
-            self = .fullRadio
+        case Self.enabled.rawValue, "outro_over", "intro_over", "music_bed", "full_radio":
+            self = .enabled
+        case Self.disabled.rawValue, "sequential":
+            self = .disabled
         default:
             throw DecodingError.dataCorruptedError(
                 in: container,
@@ -186,6 +172,7 @@ struct TrackInfo: Codable, Equatable, Identifiable, Sendable {
 /// The result of a TTS synthesis call, including which model was actually used.
 struct TTSResult: Sendable {
     let wavData: Data
+    let credentialSetLabelUsed: String
     let modelUsed: String
     let didUseFallback: Bool
 }
@@ -226,22 +213,19 @@ struct VolumeSettings: Codable, Equatable, Sendable {
     var normalVolume: Int = 100
     var talkVolume: Int = 25
     var fadeDuration: Double = 1.5
-    /// `intro_over` で曲開始後、この秒数が経過したらイントロトークを重ね始める。
-    var speakAfterSeconds: Int = 15
     var fadeEarlySeconds: Int = 15
     var musicLeadSeconds: Double = 10.0
     /// 最大再生秒数。0 の場合は制限なし（曲をフルで再生）。
     var maxPlaybackDurationSeconds: Int = 0
 
     enum CodingKeys: String, CodingKey {
-        case normalVolume, talkVolume, fadeDuration, speakAfterSeconds, fadeEarlySeconds, musicLeadSeconds, maxPlaybackDurationSeconds
+        case normalVolume, talkVolume, fadeDuration, fadeEarlySeconds, musicLeadSeconds, maxPlaybackDurationSeconds
     }
 
     init(
         normalVolume: Int = 100,
         talkVolume: Int = 25,
         fadeDuration: Double = 5.0,
-        speakAfterSeconds: Int = 15,
         fadeEarlySeconds: Int = 10,
         musicLeadSeconds: Double = 10.0,
         maxPlaybackDurationSeconds: Int = 0
@@ -249,7 +233,6 @@ struct VolumeSettings: Codable, Equatable, Sendable {
         self.normalVolume = normalVolume
         self.talkVolume = talkVolume
         self.fadeDuration = fadeDuration
-        self.speakAfterSeconds = speakAfterSeconds
         self.fadeEarlySeconds = fadeEarlySeconds
         self.musicLeadSeconds = musicLeadSeconds
         self.maxPlaybackDurationSeconds = maxPlaybackDurationSeconds
@@ -260,7 +243,6 @@ struct VolumeSettings: Codable, Equatable, Sendable {
         normalVolume = try container.decodeIfPresent(Int.self, forKey: .normalVolume) ?? 100
         talkVolume = try container.decodeIfPresent(Int.self, forKey: .talkVolume) ?? 25
         fadeDuration = try container.decodeIfPresent(Double.self, forKey: .fadeDuration) ?? 5.0
-        speakAfterSeconds = try container.decodeIfPresent(Int.self, forKey: .speakAfterSeconds) ?? 15
         fadeEarlySeconds = try container.decodeIfPresent(Int.self, forKey: .fadeEarlySeconds) ?? 10
         musicLeadSeconds = try container.decodeIfPresent(Double.self, forKey: .musicLeadSeconds) ?? 10.0
         maxPlaybackDurationSeconds = try container.decodeIfPresent(Int.self, forKey: .maxPlaybackDurationSeconds) ?? 0
@@ -290,7 +272,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var scriptCLIKind: ScriptCLIKind = .claude
     var scriptCLIModel: String = ""
     var defaultMusicService: MusicServiceKind = .appleMusic
-    var defaultOverlapMode: OverlapMode = .fullRadio
+    var defaultOverlapMode: OverlapMode = .enabled
     var voiceSettings: VoiceSettings = .init()
     var personalitySettings: PersonalitySettings = .init()
     var directionSettings: DirectionSettings = .init()
@@ -332,7 +314,7 @@ extension AppSettings {
         scriptCLIKind = try c.decodeIfPresent(ScriptCLIKind.self, forKey: .scriptCLIKind) ?? .claude
         scriptCLIModel = try c.decodeIfPresent(String.self, forKey: .scriptCLIModel) ?? ""
         defaultMusicService = try c.decodeIfPresent(MusicServiceKind.self, forKey: .defaultMusicService) ?? .appleMusic
-        defaultOverlapMode = try c.decodeIfPresent(OverlapMode.self, forKey: .defaultOverlapMode) ?? .fullRadio
+        defaultOverlapMode = try c.decodeIfPresent(OverlapMode.self, forKey: .defaultOverlapMode) ?? .enabled
         voiceSettings = try c.decodeIfPresent(VoiceSettings.self, forKey: .voiceSettings) ?? .init()
         personalitySettings = try c.decodeIfPresent(PersonalitySettings.self, forKey: .personalitySettings) ?? .init()
         directionSettings = try c.decodeIfPresent(DirectionSettings.self, forKey: .directionSettings) ?? .init()
@@ -364,7 +346,7 @@ struct RadioState: Equatable, Sendable {
     var playlistName: String = ""
     var upcomingTracks: [TrackInfo] = []
     var volume: Int = 100
-    var overlapMode: OverlapMode = .fullRadio
+    var overlapMode: OverlapMode = .enabled
     var errorMessage: String?
     var statusMessage: String = ""
     var isProcessing: Bool = false

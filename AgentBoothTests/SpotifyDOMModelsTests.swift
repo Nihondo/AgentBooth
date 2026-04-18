@@ -118,6 +118,15 @@ final class SpotifyDOMModelsTests: XCTestCase {
         XCTAssertTrue(SpotifyDOMScripts.fetchVolume.contains("readProgressBarLevel"))
     }
 
+    func testYouTubeWaitForPlaybackTargetScriptChecksVideoIDAndReadyState() {
+        let script = YouTubeMusicJSScripts.waitForPlaybackTarget(videoId: "abc123")
+        XCTAssertTrue(script.contains(#"searchParams.get('v')"#))
+        XCTAssertTrue(script.contains("abc123"))
+        XCTAssertTrue(script.contains("readyState"))
+        XCTAssertTrue(script.contains("currentSrc"))
+        XCTAssertTrue(script.contains("matchedVideoID"))
+    }
+
     func testFakeMusicServiceSupportsSpotifyKind() async throws {
         let service = FakeMusicService(serviceKind: .spotify)
         XCTAssertEqual(service.serviceKind, .spotify)

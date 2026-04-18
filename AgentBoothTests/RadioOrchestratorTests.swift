@@ -9,6 +9,14 @@ private actor PhaseRecorder {
     }
 }
 
+private actor StatusRecorder {
+    private(set) var messages: [String] = []
+
+    func append(_ message: String) {
+        messages.append(message)
+    }
+}
+
 final class RadioOrchestratorTests: XCTestCase {
     func testOrchestratorPublishesExpectedPhases() async throws {
         let trackList = [
@@ -17,38 +25,32 @@ final class RadioOrchestratorTests: XCTestCase {
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
-        var settings = AppSettings()
-        settings.volumeSettings.fadeEarlySeconds = 0
-        settings.volumeSettings.musicLeadSeconds = 0
         let phaseRecorder = PhaseRecorder()
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0.05
 
-        let orchestrator = RadioOrchestrator(
+        let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
+            scriptService: scriptService
         ) { state in
-            Task {
-                await phaseRecorder.append(state.phase)
-            }
+            Task { await phaseRecorder.append(state.phase) }
         }
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .fullRadio)
-        var recordedPhases: [RadioPhase] = []
-        for _ in 0..<80 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            recordedPhases = await phaseRecorder.phases
-            if recordedPhases.contains(.closing) {
-                break
-            }
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let phases = await phaseRecorder.phases
+            return phases.contains(.closing)
         }
 
-        XCTAssertTrue(recordedPhases.contains(.opening))
-        XCTAssertTrue(recordedPhases.contains(.intro))
-        XCTAssertTrue(recordedPhases.contains(.playing))
+        let phases = await phaseRecorder.phases
+        XCTAssertTrue(phases.contains(.opening))
+        XCTAssertTrue(phases.contains(.intro))
+        XCTAssertTrue(phases.contains(.playing))
+        XCTAssertTrue(phases.contains(.outro))
+        XCTAssertTrue(phases.contains(.closing))
     }
 
     func testTransitionContinuityUsesSummaryBulletsInsteadOfDialogueText() async throws {
@@ -67,10 +69,7 @@ final class RadioOrchestratorTests: XCTestCase {
             track: nil
         )
 
-        try await runShow(
-            tracks: trackList,
-            scriptService: scriptService
-        )
+        try await runShow(tracks: trackList, scriptService: scriptService)
 
         let transitionNotes = await scriptService.recordedTransitionContinuityNotes()
         let continuityNote = try XCTUnwrap(transitionNotes.first ?? nil)
@@ -94,10 +93,7 @@ final class RadioOrchestratorTests: XCTestCase {
             track: nil
         )
 
-        try await runShow(
-            tracks: trackList,
-            scriptService: scriptService
-        )
+        try await runShow(tracks: trackList, scriptService: scriptService)
 
         let transitionNotes = await scriptService.recordedTransitionContinuityNotes()
         let continuityNote = try XCTUnwrap(transitionNotes.first ?? nil)
@@ -113,10 +109,7 @@ final class RadioOrchestratorTests: XCTestCase {
         ]
         let scriptService = FakeScriptGenerationService()
 
-        try await runShow(
-            tracks: trackList,
-            scriptService: scriptService
-        )
+        try await runShow(tracks: trackList, scriptService: scriptService)
 
         let transitionNotes = await scriptService.recordedTransitionContinuityNotes().compactMap { $0 }
         let continuityNote = try XCTUnwrap(transitionNotes.last)
@@ -128,247 +121,188 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertTrue(continuityNote.contains("別の観点に切り替えること。"))
     }
 
-    func testLastTrackSkipsDuplicateIntroAndPreparesClosing() async throws {
+    func testEnabledOverlapStartsTrackAtTalkVolumeThenFadesToNormalVolume() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.musicLeadSeconds = 0.05
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.fadeDuration = 0.05
+
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.volumeHistory.contains(80)
+        }
+
+        let history = musicService.volumeHistory
+        XCTAssertEqual(history.first, 20)
+        XCTAssertTrue(history.contains(80))
+    }
+
+    func testDisabledOverlapStartsTrackAtNormalVolume() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.fadeDuration = 0.05
+
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.playedTracks.count >= 1
+        }
+
+        XCTAssertEqual(musicService.volumeHistory.first, 80)
+    }
+
+    func testSpotifyOverlapStartsTrackBeforeNarrationEndsToCompensateStartupDelay() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(
+            serviceKind: .spotify,
+            playlists: ["Favorites"],
+            tracksByPlaylist: ["Favorites": trackList]
+        )
+        let ttsService = SizedTTSService(audioDurationSeconds: 1.0)
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.musicLeadSeconds = 0.05
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.fadeDuration = 0.05
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            ttsService: ttsService
+        )
+
+        let startedAt = Date()
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.playedTracks.count >= 1
+        }
+
+        let firstTrackStart = try XCTUnwrap(musicService.playedTrackDates.first)
+        XCTAssertLessThan(
+            firstTrackStart.timeIntervalSince(startedAt),
+            0.9,
+            "Spotify は再生開始レイテンシ分だけ少し早めに開始すること"
+        )
+    }
+
+    func testNextTrackStartsOnlyOnceAndClosingIsGenerated() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
             TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
-        let phaseRecorder = PhaseRecorder()
         var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
         settings.volumeSettings.fadeEarlySeconds = 0
         settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.05
 
-        let orchestrator = RadioOrchestrator(
+        let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { state in
-            Task { await phaseRecorder.append(state.phase) }
-        }
+            scriptService: scriptService
+        )
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .fullRadio)
-
-        for _ in 0..<100 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            let phases = await phaseRecorder.phases
-            if musicService.playedTracks.count >= 2 || phases.contains(.closing) {
-                break
-            }
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let steps = await scriptService.recordedGenerationSteps()
+            return steps.contains("closing")
         }
 
         let generationSteps = await scriptService.recordedGenerationSteps()
-        let playedTrackNames = musicService.playedTracks.map(\.name)
         XCTAssertTrue(generationSteps.contains("transition:Song A->Song B"))
-        XCTAssertEqual(playedTrackNames, ["Song A", "Song B"], "次の曲が二重に開始されないこと")
+        XCTAssertTrue(generationSteps.contains("closing"))
+        XCTAssertEqual(musicService.playedTracks.map(\.name), ["Song A", "Song B"])
     }
 
-    func testLastTrackFadesOutBeforeClosing() async throws {
+    func testDelayedTTSWaitsInsteadOfSkippingAndExtendsPastEffectiveEnd() async throws {
         let trackList = [
-            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 3, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 3, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
+        scriptService.transitionScript = RadioScript(
+            segmentType: "transition",
+            dialogues: [DialogueLine(speaker: "male", text: "slow transition")],
+            summaryBullets: ["遅いトランジション"],
+            track: trackList[1]
+        )
+        let ttsService = ConditionalDelayTTSService(delaysByToken: ["slow transition": 1_500_000_000])
         var settings = AppSettings()
-        settings.volumeSettings.fadeEarlySeconds = 1
-        settings.volumeSettings.musicLeadSeconds = 0
-        settings.volumeSettings.fadeDuration = 0.1
-
-        let orchestrator = RadioOrchestrator(
-            settings: settings,
-            musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { _ in }
-
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .sequential)
-
-        for _ in 0..<50 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            if !musicService.isPlaying {
-                break
-            }
-        }
-
-        XCTAssertTrue(musicService.volumeHistory.contains(0), "最後の曲は停止前に 0 までフェードアウトすること")
-    }
-
-    func testShortTrackCompressesFadeOutToRemainingPlaybackTime() async throws {
-        let trackList = [
-            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
-        ]
-        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
-        let phaseRecorder = PhaseRecorder()
-        var settings = AppSettings()
-        settings.volumeSettings.fadeEarlySeconds = 5
-        settings.volumeSettings.musicLeadSeconds = 0
-        settings.volumeSettings.fadeDuration = 0.1
-
-        let orchestrator = RadioOrchestrator(
-            settings: settings,
-            musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { state in
-            Task { await phaseRecorder.append(state.phase) }
-        }
-
-        let startedAt = ContinuousClock.now
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .sequential)
-
-        for _ in 0..<30 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            let phases = await phaseRecorder.phases
-            if phases.contains(.closing), phases.last == .idle {
-                break
-            }
-        }
-
-        let elapsed = ContinuousClock.now - startedAt
-        let elapsedSeconds = Double(elapsed.components.seconds)
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
-
-        XCTAssertTrue(musicService.volumeHistory.contains(0), "短い曲でも停止前に 0 までフェードアウトすること")
-        XCTAssertLessThan(elapsedSeconds, 3.0, "短い曲のフェードは残り再生時間に圧縮されること")
-    }
-
-    func testSequentialTransitionSuccessClampsFadeOutToEffectivePlaybackEnd() async throws {
-        let trackList = [
-            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 30, playlistName: "Favorites"),
-            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 30, playlistName: "Favorites"),
-        ]
-        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
-        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
         settings.volumeSettings.fadeEarlySeconds = 0
-        settings.volumeSettings.fadeDuration = 5
         settings.volumeSettings.musicLeadSeconds = 0
-        settings.volumeSettings.maxPlaybackDurationSeconds = 2
+        settings.volumeSettings.fadeDuration = 0.05
+        settings.volumeSettings.maxPlaybackDurationSeconds = 1
 
-        let orchestrator = RadioOrchestrator(
+        let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
             scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { _ in }
+            ttsService: ttsService
+        )
 
-        let startedAt = ContinuousClock.now
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .sequential)
-
-        for _ in 0..<70 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            if musicService.playedTracks.count >= 2 {
-                break
-            }
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.playedTracks.count >= 2
         }
-
-        let elapsed = ContinuousClock.now - startedAt
-        let elapsedSeconds = Double(elapsed.components.seconds)
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
 
         XCTAssertEqual(musicService.playedTracks.map(\.name), ["Song A", "Song B"])
-        XCTAssertLessThan(elapsedSeconds, 5.5, "成功トランジションでも実効終端を超えてフェード待ちしないこと")
+        let firstStart = try XCTUnwrap(musicService.playedTrackDates.first)
+        let secondStart = try XCTUnwrap(musicService.playedTrackDates.dropFirst().first)
+        XCTAssertGreaterThan(secondStart.timeIntervalSince(firstStart), 1.3, "実効終端を越えて TTS 完了まで待つこと")
     }
 
-    func testOutroOverDucksCurrentTrackToTalkVolumeBeforeFinalFadeOut() async throws {
+    func testOverlapEnabledDucksCurrentTrackBeforeFadeOut() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
             TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
         var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
         settings.volumeSettings.normalVolume = 80
         settings.volumeSettings.talkVolume = 20
         settings.volumeSettings.fadeEarlySeconds = 1
-        settings.volumeSettings.fadeDuration = 0.5
         settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.05
 
-        let orchestrator = RadioOrchestrator(
-            settings: settings,
-            musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { _ in }
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .outroOver)
-
-        for _ in 0..<50 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            if musicService.playedTracks.count >= 2 {
-                break
-            }
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.playedTracks.count >= 2
         }
 
         let history = musicService.volumeHistory
         let normalIndex = try XCTUnwrap(history.firstIndex(of: 80))
         let duckIndex = try XCTUnwrap(history[(normalIndex + 1)...].firstIndex(of: 20))
         let fadeOutIndex = try XCTUnwrap(history.firstIndex(of: 0))
-
-        XCTAssertLessThan(duckIndex, fadeOutIndex, "outro_over は停止前に talkVolume へダックしてから 0 へフェードすること")
-    }
-
-    func testIntroOverGeneratesMidTrackIntroWithoutTransitionNarration() async throws {
-        let trackList = [
-            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
-            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
-        ]
-        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
-        var settings = AppSettings()
-        settings.volumeSettings.normalVolume = 80
-        settings.volumeSettings.talkVolume = 20
-        settings.volumeSettings.fadeDuration = 0.1
-        settings.volumeSettings.speakAfterSeconds = 0
-        settings.volumeSettings.fadeEarlySeconds = 0
-        settings.volumeSettings.musicLeadSeconds = 0
-
-        let orchestrator = RadioOrchestrator(
-            settings: settings,
-            musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { _ in }
-
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .introOver)
-
-        for _ in 0..<60 {
-            try await Task.sleep(nanoseconds: 100_000_000)
-            if musicService.playedTracks.count >= 2, !musicService.isPlaying {
-                break
-            }
-        }
-
-        let generationSteps = await scriptService.recordedGenerationSteps()
-        let history = musicService.volumeHistory
-        let duckIndex = try XCTUnwrap(history.firstIndex(of: 20))
-        let recoveryIndex = try XCTUnwrap(history[(duckIndex + 1)...].firstIndex(of: 80))
-
-        XCTAssertTrue(generationSteps.contains("intro:Song B"))
-        XCTAssertFalse(generationSteps.contains("transition:Song A->Song B"))
-        XCTAssertEqual(musicService.playedTracks.map(\.name), ["Song A", "Song B"])
-        XCTAssertLessThan(duckIndex, recoveryIndex, "intro_over は曲再生中に talkVolume へ下げてから通常音量へ戻すこと")
+        XCTAssertLessThan(duckIndex, fadeOutIndex)
     }
 
     func testRecordingServiceIsStartedAndStoppedDuringShow() async throws {
@@ -376,36 +310,65 @@ final class RadioOrchestratorTests: XCTestCase {
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
         let recordingService = FakeRecordingService()
         var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
         settings.volumeSettings.fadeEarlySeconds = 0
         settings.volumeSettings.musicLeadSeconds = 0
-        settings.volumeSettings.fadeDuration = 0.1
+        settings.volumeSettings.fadeDuration = 0.05
 
-        let orchestrator = RadioOrchestrator(
+        let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService,
             recordingService: recordingService
-        ) { _ in }
+        )
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .sequential)
-
-        for _ in 0..<30 {
-            try await Task.sleep(nanoseconds: 100_000_000)
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
             let stopCount = await recordingService.stopCallCount
-            if stopCount >= 1 { break }
+            return stopCount >= 1
         }
 
         let startCount = await recordingService.startCallCount
         let stopCount = await recordingService.stopCallCount
-        XCTAssertEqual(startCount, 1, "startRecording が1回呼ばれること")
-        XCTAssertEqual(stopCount, 1, "stopRecording が1回呼ばれること")
+        XCTAssertEqual(startCount, 1)
+        XCTAssertEqual(stopCount, 1)
+    }
+
+    func testStatusShowsCredentialSetAndModelAfterTTSSynthesis() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let statusRecorder = StatusRecorder()
+        let ttsService = FakeTTSService()
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.ttsCredentialSets = [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+        ]
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            ttsService: ttsService
+        ) { state in
+            let statusMessage = state.statusMessage
+            if !statusMessage.isEmpty {
+                Task { await statusRecorder.append(statusMessage) }
+            }
+        }
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let messages = await statusRecorder.messages
+            return messages.contains("TTS音声作成終了（セット: main / モデル: model-1）")
+        }
+
+        let messages = await statusRecorder.messages
+        XCTAssertTrue(messages.contains("TTS音声作成終了（セット: main / モデル: model-1）"))
     }
 
     func testShowRunsNormallyWithoutRecordingService() async throws {
@@ -413,66 +376,88 @@ final class RadioOrchestratorTests: XCTestCase {
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
-        let scriptService = FakeScriptGenerationService()
-        let ttsService = FakeTTSService()
-        let audioPlaybackService = FakeAudioPlaybackService()
+        let phaseRecorder = PhaseRecorder()
         var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
         settings.volumeSettings.fadeEarlySeconds = 0
         settings.volumeSettings.musicLeadSeconds = 0
-        let phaseRecorder = PhaseRecorder()
 
-        // recordingService = nil（既定値）
-        let orchestrator = RadioOrchestrator(
+        let orchestrator = makeOrchestrator(
             settings: settings,
-            musicService: musicService,
-            scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
+            musicService: musicService
         ) { state in
             Task { await phaseRecorder.append(state.phase) }
         }
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: .sequential)
-
-        for _ in 0..<30 {
-            try await Task.sleep(nanoseconds: 100_000_000)
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
             let phases = await phaseRecorder.phases
-            if phases.contains(.idle) && phases.count > 1 { break }
+            return phases.contains(.idle) && phases.count > 1
         }
 
         let phases = await phaseRecorder.phases
-        XCTAssertTrue(phases.contains(.opening), "録音サービスなしでも番組が正常に動作すること")
+        XCTAssertTrue(phases.contains(.opening))
+    }
+
+    private func makeOrchestrator(
+        settings: AppSettings = AppSettings(),
+        musicService: FakeMusicService,
+        scriptService: FakeScriptGenerationService = FakeScriptGenerationService(),
+        ttsService: any TTSService = FakeTTSService(),
+        audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
+        recordingService: (any ShowRecordingServiceProtocol)? = nil,
+        stateDidChange: @escaping @Sendable (RadioState) -> Void = { _ in }
+    ) -> RadioOrchestrator {
+        RadioOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            scriptService: scriptService,
+            ttsService: ttsService,
+            audioPlaybackService: audioPlaybackService,
+            recordingService: recordingService,
+            stateDidChange: stateDidChange
+        )
     }
 
     private func runShow(
         tracks: [TrackInfo],
         scriptService: FakeScriptGenerationService,
         ttsService: any TTSService = FakeTTSService(),
-        overlapMode: OverlapMode = .fullRadio
+        overlapMode: OverlapMode = .enabled
     ) async throws {
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": tracks])
-        let audioPlaybackService = FakeAudioPlaybackService()
         var settings = AppSettings()
+        settings.defaultOverlapMode = overlapMode
         settings.volumeSettings.fadeEarlySeconds = 0
         settings.volumeSettings.musicLeadSeconds = 0
-        settings.volumeSettings.fadeDuration = 0.1
+        settings.volumeSettings.fadeDuration = 0.05
 
-        let orchestrator = RadioOrchestrator(
+        let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
             scriptService: scriptService,
-            ttsService: ttsService,
-            audioPlaybackService: audioPlaybackService
-        ) { _ in }
+            ttsService: ttsService
+        )
 
-        await orchestrator.startShow(playlistName: "Favorites", overlapMode: overlapMode)
-
-        for _ in 0..<30 {
-            try await Task.sleep(nanoseconds: 100_000_000)
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
             let transitionNotes = await scriptService.recordedTransitionContinuityNotes()
-            if transitionNotes.count >= max(0, tracks.count - 1) {
-                break
-            }
+            return transitionNotes.count >= max(0, tracks.count - 1)
         }
+    }
+
+    private func waitUntil(
+        timeoutNanoseconds: UInt64 = 5_000_000_000,
+        intervalNanoseconds: UInt64 = 50_000_000,
+        condition: @escaping () async -> Bool
+    ) async throws {
+        let deadline = ContinuousClock.now + .nanoseconds(Int64(timeoutNanoseconds))
+        while ContinuousClock.now < deadline {
+            if await condition() {
+                return
+            }
+            try await Task.sleep(nanoseconds: intervalNanoseconds)
+        }
+        XCTFail("Timed out waiting for condition")
     }
 }

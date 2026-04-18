@@ -8,7 +8,7 @@ final class AppSettingsStoreTests: XCTestCase {
 
         var settings = AppSettings()
         settings.scriptCLIKind = .codex
-        settings.defaultOverlapMode = .introOver
+        settings.defaultOverlapMode = .enabled
         settings.radioShowSettings.showName = "Night Radio"
         settings.ttsCredentialSets = [
             TTSCredentialSet(label: "main", apiKey: "secret-key-1", modelName: "model-1"),
@@ -20,7 +20,7 @@ final class AppSettingsStoreTests: XCTestCase {
 
         let reloadedStore = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
         XCTAssertEqual(reloadedStore.currentSettings.scriptCLIKind, .codex)
-        XCTAssertEqual(reloadedStore.currentSettings.defaultOverlapMode, .introOver)
+        XCTAssertEqual(reloadedStore.currentSettings.defaultOverlapMode, .enabled)
         XCTAssertEqual(reloadedStore.currentSettings.radioShowSettings.showName, "Night Radio")
         XCTAssertEqual(
             reloadedStore.currentSettings.ttsCredentialSets.map(\.label),
@@ -137,19 +137,34 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.currentSettings.customCLIModelArguments, [])
     }
 
-    func testLoadLegacyMusicBedFallsBackToFullRadio() throws {
+    func testLoadLegacyMusicBedFallsBackToEnabled() throws {
         let (defaults, keychainStore, _) = makeStore()
 
         let encodedSettings = try JSONEncoder().encode(AppSettings())
         let legacyData = try XCTUnwrap(
             String(data: encodedSettings, encoding: .utf8)?
-                .replacingOccurrences(of: "\"defaultOverlapMode\":\"full_radio\"", with: "\"defaultOverlapMode\":\"music_bed\"")
+                .replacingOccurrences(of: "\"defaultOverlapMode\":\"enabled\"", with: "\"defaultOverlapMode\":\"music_bed\"")
                 .data(using: .utf8)
         )
         defaults.set(legacyData, forKey: "app_settings")
 
         let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
-        XCTAssertEqual(store.currentSettings.defaultOverlapMode, .fullRadio)
+        XCTAssertEqual(store.currentSettings.defaultOverlapMode, .enabled)
+    }
+
+    func testLoadLegacySequentialFallsBackToDisabled() throws {
+        let (defaults, keychainStore, _) = makeStore()
+
+        let encodedSettings = try JSONEncoder().encode(AppSettings())
+        let legacyData = try XCTUnwrap(
+            String(data: encodedSettings, encoding: .utf8)?
+                .replacingOccurrences(of: "\"defaultOverlapMode\":\"enabled\"", with: "\"defaultOverlapMode\":\"sequential\"")
+                .data(using: .utf8)
+        )
+        defaults.set(legacyData, forKey: "app_settings")
+
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(store.currentSettings.defaultOverlapMode, .disabled)
     }
 
     private func makeStore() -> (UserDefaults, KeychainStore, AppSettingsStore) {

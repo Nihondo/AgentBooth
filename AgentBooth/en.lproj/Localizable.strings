@@ -104,10 +104,8 @@
 "ファイル形式: M4A (AAC 192kbps, 48kHz stereo)" = "File format: M4A (AAC 192kbps, 48kHz stereo)";
 
 /* Domain/Models - OverlapMode.displayName */
-"ラジオ風に自然に重ねる" = "Radio-style natural overlap";
-"曲の開始後にトークを重ねる" = "Overlap talk after track starts";
-"曲の終了前にトークを重ねる" = "Overlap talk before track ends";
-"曲とトークを完全に分ける" = "Separate music and talk";
+"トークと曲を重ねる" = "Overlap talk and music";
+"トークと曲を分ける" = "Separate talk and music";
 
 /* Domain/Models - PrimaryControlState.buttonLabelText */
 "開始" = "Start";
@@ -163,7 +161,7 @@
 "スクリプト作成終了" = "Script generated";
 "TTS音声作成開始（%@）" = "Generating TTS audio (%@)";
 "TTS音声作成終了" = "TTS audio generated";
-"TTS音声作成終了（副モデル: %@）" = "TTS audio generated (fallback model: %@)";
+"TTS音声作成終了（セット: %@ / モデル: %@）" = "TTS audio generated (set: %@ / model: %@)";
 "%@ のイントロは再生位置が遅すぎるためスキップしました。" = "%@ intro was skipped: playback position is too late.";
 "%@ のイントロは再生時間に収まらないためスキップしました。" = "%@ intro was skipped: not enough time remaining.";
 "%@ は再生タイミングに間に合わなかったためスキップしました。" = "%@ was skipped: could not prepare in time.";
@@ -190,6 +188,7 @@
 "Spotify プレイリスト title node が見つかりませんでした。" = "Spotify playlist title node not found.";
 "URL を解釈できません。" = "Could not parse URL.";
 "タイムアウトしました。" = "Timed out.";
+"名称未設定" = "Unnamed";
 
 "プレイリストを選択してください。" = "Please select a playlist.";
 "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。" = "Screen recording permission is not granted. Please allow AgentBooth in System Settings > Privacy & Security > Screen Recording.";

@@ -268,15 +268,6 @@ struct SettingsView: View {
                     )
                 }
 
-                settingsRow("曲開始後のトーク開始秒数") {
-                    playbackBalanceField(
-                        placeholder: "15",
-                        value: $draftSettings.volumeSettings.speakAfterSeconds,
-                        formatter: numberFormatter,
-                        description: "曲開始後にトークを重ねる秒数"
-                    )
-                }
-
                 settingsRow("曲終了前のトーク再開秒数") {
                     playbackBalanceField(
                         placeholder: "10",

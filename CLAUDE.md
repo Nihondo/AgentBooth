@@ -41,7 +41,7 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 ### Key components
 
-**`RadioOrchestrator`** (`Services/Radio/RadioOrchestrator.swift`) — Swift `actor`. The core of the app. Drives the full radio show lifecycle: opening → intro → playing → transition/outro → closing. Handles overlap modes (sequential, outro_over, intro_over, full_radio), music/TTS timing, and fade control. Uses `TimedPreparation` internally to pipeline script generation while music plays.
+**`RadioOrchestrator`** (`Services/Radio/RadioOrchestrator.swift`) — Swift `actor`. The core of the app. Drives the full radio show lifecycle: opening → intro → playing → transition/outro → closing. It keeps one active narration playback handle, prepares the next narration while music plays, waits instead of skipping delayed TTS, and extends the current track up to its natural end when early cutoff would otherwise interrupt the flow.
 
 **`MainViewModel`** (`Features/Main/MainViewModel.swift`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges UI state (`RadioState`) to SwiftUI views. Does not contain radio logic.
 
@@ -102,10 +102,8 @@ The CLI must return:
 
 | Mode | Behavior |
 |---|---|
-| `sequential` | Talk then music, fully separated |
-| `outro_over` | Talk overlaps the end of the track |
-| `intro_over` | Start the track first, then overlay intro talk after `speakAfterSeconds` |
-| `full_radio` | Combines intro_over + outro_over + ducking |
+| `enabled` | Talk may overlap the tail of the current track and the lead-in of the next track |
+| `disabled` | Talk and music stay separated |
 
 ## Concurrency model
 

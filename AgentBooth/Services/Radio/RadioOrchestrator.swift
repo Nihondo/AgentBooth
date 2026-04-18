@@ -2,91 +2,27 @@ import Foundation
 
 /// Drives the radio playback lifecycle.
 actor RadioOrchestrator {
-    private enum TrackPlaybackOutcome {
-        case startedNextTrackViaTransition
-        case finishedCurrentTrackOnly
-        case finishedFinalTrack
-        case stopped
-
-        var didStartNextTrack: Bool {
-            switch self {
-            case .startedNextTrackViaTransition:
-                return true
-            case .finishedCurrentTrackOnly, .finishedFinalTrack, .stopped:
-                return false
-            }
-        }
-    }
-
-    private enum TrackStartInstruction {
-        case playOpeningNarration(PreparedNarration)
-        case startTrackOnly
-        case trackAlreadyStarted
-    }
+    private let spotifyLeadCompensationSeconds = 0.35
 
     private struct PreparedNarration: Sendable {
         let script: RadioScript
         let wavData: Data
     }
 
-    private enum PreparationSnapshot<Value: Sendable> {
-        case pending
-        case ready(Value)
-        case failed(String)
-        case cancelled
+    private struct ActiveNarration: Sendable {
+        let prepared: PreparedNarration
+        let playbackTask: Task<Void, Error>
+        let durationSeconds: Double
     }
 
-    private enum TimedNarrationPreparation<Value: Sendable> {
-        case ready(Value)
-        case notReadyAtDeadline
-        case failed(String)
-        case cancelled
+    private struct ResolvedNarration: Sendable {
+        let prepared: PreparedNarration
+        let didTrackReachNaturalEnd: Bool
     }
 
-    private actor PreparationStore<Value: Sendable> {
-        private var snapshot: PreparationSnapshot<Value> = .pending
-
-        func save(_ value: PreparationSnapshot<Value>) {
-            snapshot = value
-        }
-
-        func load() -> PreparationSnapshot<Value> {
-            snapshot
-        }
-    }
-
-    private final class TimedPreparation<Value: Sendable>: @unchecked Sendable {
-        private let store: PreparationStore<Value>
-        private let task: Task<Void, Never>
-
-        init(operation: @escaping @Sendable () async throws -> Value) {
-            let store = PreparationStore<Value>()
-            self.store = store
-            self.task = Task {
-                do {
-                    let value = try await operation()
-                    await store.save(.ready(value))
-                } catch is CancellationError {
-                    await store.save(.cancelled)
-                } catch {
-                    await store.save(.failed(error.localizedDescription))
-                }
-            }
-        }
-
-        func snapshot() async -> PreparationSnapshot<Value> {
-            await store.load()
-        }
-
-        func cancel() {
-            task.cancel()
-        }
-
-        /// タスクの完了を待ち、最終スナップショットを返す。
-        func awaitCompletion() async -> PreparationSnapshot<Value> {
-            _ = await task.value
-            return await store.load()
-        }
+    private enum NarrationWaitOutcome {
+        case narrationReady
+        case naturalTrackEnd
     }
 
     private let settings: AppSettings
@@ -103,7 +39,7 @@ actor RadioOrchestrator {
     private var artistTopicHistory: [String: [String]] = [:]
     private var albumTopicHistory: [String: [String]] = [:]
     private var positionPollingTask: Task<Void, Never>?
-    /// 曲の実再生開始時刻（アウトロポイント計算のフォールバック用）
+    /// 曲の実再生開始時刻（再生位置が取れない場合のフォールバック用）
     private var trackStartedAt: ContinuousClock.Instant?
 
     init(
@@ -124,7 +60,7 @@ actor RadioOrchestrator {
         self.stateDidChange = stateDidChange
     }
 
-    func startShow(playlistName: String, overlapMode: OverlapMode) {
+    func startShow(playlistName: String) {
         guard playbackTask == nil else {
             return
         }
@@ -134,14 +70,14 @@ actor RadioOrchestrator {
             $0.isPaused = false
             $0.phase = .idle
             $0.playlistName = playlistName
-            $0.overlapMode = overlapMode
+            $0.overlapMode = settings.defaultOverlapMode
             $0.errorMessage = nil
             $0.currentTrack = nil
             $0.upcomingTracks = []
         }
 
         playbackTask = Task { [weak self] in
-            await self?.runShow(playlistName: playlistName, overlapMode: overlapMode)
+            await self?.runShow(playlistName: playlistName)
         }
     }
 
@@ -167,22 +103,20 @@ actor RadioOrchestrator {
         isStopRequested = true
         playbackTask?.cancel()
         playbackTask = nil
-        trackStartedAt = nil
         stopPositionPolling()
+        trackStartedAt = nil
         await audioPlaybackService.stopPlayback()
         await musicService.stopPlayback()
         resetState()
     }
 
-    private func runShow(playlistName: String, overlapMode: OverlapMode) async {
-        var closingTask: Task<PreparedNarration, Error>?
+    private func runShow(playlistName: String) async {
         defer {
-            closingTask?.cancel()
             playbackTask = nil
         }
 
         do {
-            try await performShow(playlistName: playlistName, overlapMode: overlapMode, closingTask: &closingTask)
+            try await performShow(playlistName: playlistName)
             await finishRunShow(errorMessage: nil)
         } catch is CancellationError {
             await finishRunShow(errorMessage: nil)
@@ -191,21 +125,14 @@ actor RadioOrchestrator {
         }
     }
 
-    private func performShow(
-        playlistName: String,
-        overlapMode: OverlapMode,
-        closingTask: inout Task<PreparedNarration, Error>?
-    ) async throws {
+    private func performShow(playlistName: String) async throws {
         let tracks = try await loadTracks(for: playlistName)
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
         rememberTopics(for: tracks[0], script: openingNarration.script)
 
-        // オープニング音声の準備が完了した直後に録音を開始する。
-        // これにより、録音冒頭の無音時間（CLI/TTS の処理待ち）を排除する。
         await startRecordingIfNeeded(playlistName: playlistName)
 
-        var playedTracks: [TrackInfo] = []
-        var previousOutcome: TrackPlaybackOutcome?
+        var activeNarration = startNarration(openingNarration)
 
         for (indexValue, track) in tracks.enumerated() {
             try Task.checkCancellation()
@@ -213,44 +140,50 @@ actor RadioOrchestrator {
                 return
             }
 
-            let previousTrack = indexValue > 0 ? tracks[indexValue - 1] : nil
-            let nextTrack = indexValue + 1 < tracks.count ? tracks[indexValue + 1] : nil
-            if nextTrack == nil && closingTask == nil {
-                let closingTracks = playedTracks + [track]
-                closingTask = prepareClosingNarration(tracks: closingTracks)
+            updateTrackState(track, trackIndex: indexValue)
+            try await startTrackForActiveNarration(track: track, activeNarration: activeNarration)
+
+            if isStopRequested {
+                return
             }
 
-            let startInstruction = await determineTrackStartInstruction(
-                indexValue: indexValue,
-                openingNarration: openingNarration,
-                previousOutcome: previousOutcome
-            )
-            let introPreparation = makeIntroPreparationIfNeeded(
-                track: track,
-                previousTrack: previousTrack,
-                overlapMode: overlapMode
-            )
-            let outcome = try await playTrack(
-                track: track,
+            let nextTrack = indexValue + 1 < tracks.count ? tracks[indexValue + 1] : nil
+            let completedTracks = Array(tracks.prefix(indexValue + 1))
+            let nextNarrationTask = makeNextNarrationTask(
+                currentTrack: track,
                 nextTrack: nextTrack,
-                overlapMode: overlapMode,
-                startInstruction: startInstruction,
-                trackIndex: indexValue,
-                introPreparation: introPreparation
+                completedTracks: completedTracks
             )
+            defer { nextNarrationTask.cancel() }
 
-            playedTracks.append(track)
-            previousOutcome = outcome
+            updateState { $0.phase = .playing }
+            try await waitUntilOutroPoint(track: track)
+            updateState { $0.phase = .outro }
+
+            let resolvedNarration = try await resolveNextNarration(nextNarrationTask, for: track)
+            if let nextTrack {
+                rememberTopics(for: nextTrack, script: resolvedNarration.prepared.script)
+            }
+            let isClosingNarration = nextTrack == nil
+            activeNarration = try await startResolvedNarration(
+                resolvedNarration,
+                after: track,
+                isClosingNarration: isClosingNarration
+            )
         }
 
-        try await playClosingIfNeeded(tracks: playedTracks, closingTask: closingTask)
+        updateState { $0.phase = .closing }
+        try await activeNarration.playbackTask.value
     }
 
     private func loadTracks(for playlistName: String) async throws -> [TrackInfo] {
         let allTracks = try await musicService.fetchTracks(in: playlistName)
         let tracks = Array(allTracks.prefix(RadioConstants.maxTrackCount))
         guard !tracks.isEmpty else {
-            throw CocoaError(.fileReadNoSuchFile, userInfo: [NSLocalizedDescriptionKey: String(localized: "プレイリストに曲がありません。")])
+            throw CocoaError(
+                .fileReadNoSuchFile,
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "プレイリストに曲がありません。")]
+            )
         }
         updateState {
             $0.upcomingTracks = tracks
@@ -323,23 +256,6 @@ actor RadioOrchestrator {
         return outputURL
     }
 
-    private func prepareClosingNarration(tracks: [TrackInfo]) -> Task<PreparedNarration, Error> {
-        Task {
-            try await generatePreparedClosingNarration(tracks: tracks)
-        }
-    }
-
-    private func generatePreparedClosingNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
-        updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
-        let closingScript = try await scriptService.generateClosing(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-        let wavData = try await synthesizeNarration(
-            dialogues: closingScript.dialogues,
-            segmentLabel: String(localized: "クロージング")
-        )
-        return PreparedNarration(script: closingScript, wavData: wavData)
-    }
-
     private func prepareOpeningNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
         updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
         let script = try await scriptService.generateOpening(tracks: tracks, settings: settings)
@@ -351,50 +267,20 @@ actor RadioOrchestrator {
         return PreparedNarration(script: script, wavData: wavData)
     }
 
-    private func prepareTransitionNarration(
+    private func makeNextNarrationTask(
         currentTrack: TrackInfo,
-        nextTrack: TrackInfo
-    ) -> TimedPreparation<PreparedNarration> {
-        TimedPreparation { [weak self] in
-            guard let self else {
-                throw CancellationError()
+        nextTrack: TrackInfo?,
+        completedTracks: [TrackInfo]
+    ) -> Task<PreparedNarration, Error> {
+        Task {
+            if let nextTrack {
+                return try await generatePreparedTransitionNarration(
+                    currentTrack: currentTrack,
+                    nextTrack: nextTrack
+                )
             }
-            return try await self.generatePreparedTransitionNarration(
-                currentTrack: currentTrack,
-                nextTrack: nextTrack
-            )
+            return try await generatePreparedClosingNarration(tracks: completedTracks)
         }
-    }
-
-    private func prepareIntroNarration(
-        track: TrackInfo,
-        previousTrack: TrackInfo
-    ) -> TimedPreparation<PreparedNarration> {
-        TimedPreparation { [weak self] in
-            guard let self else {
-                throw CancellationError()
-            }
-            return try await self.generatePreparedIntroNarration(track: track, previousTrack: previousTrack)
-        }
-    }
-
-    private func generatePreparedIntroNarration(
-        track: TrackInfo,
-        previousTrack: TrackInfo
-    ) async throws -> PreparedNarration {
-        let continuityNote = buildContinuityNote(for: track, previousTrack: previousTrack)
-        updateState { $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ のイントロ）"), track.name); $0.isProcessing = true }
-        let script = try await scriptService.generateIntro(
-            track: track,
-            settings: settings,
-            continuityNote: continuityNote
-        )
-        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-        let wavData = try await synthesizeNarration(
-            dialogues: script.dialogues,
-            segmentLabel: String(format: String(localized: "%@ のイントロ"), track.name)
-        )
-        return PreparedNarration(script: script, wavData: wavData)
     }
 
     private func generatePreparedTransitionNarration(
@@ -402,7 +288,10 @@ actor RadioOrchestrator {
         nextTrack: TrackInfo
     ) async throws -> PreparedNarration {
         let continuityNote = buildContinuityNote(for: nextTrack, previousTrack: currentTrack)
-        updateState { $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name); $0.isProcessing = true }
+        updateState {
+            $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name)
+            $0.isProcessing = true
+        }
         let script = try await scriptService.generateTransition(
             currentTrack: currentTrack,
             nextTrack: nextTrack,
@@ -417,282 +306,144 @@ actor RadioOrchestrator {
         return PreparedNarration(script: script, wavData: wavData)
     }
 
-    private func determineTrackStartInstruction(
-        indexValue: Int,
-        openingNarration: PreparedNarration,
-        previousOutcome: TrackPlaybackOutcome?
-    ) async -> TrackStartInstruction {
-        if indexValue == 0 {
-            return .playOpeningNarration(openingNarration)
-        }
-
-        if previousOutcome?.didStartNextTrack == true {
-            return .trackAlreadyStarted
-        }
-
-        return .startTrackOnly
-    }
-
-    private func playClosingIfNeeded(
-        tracks: [TrackInfo],
-        closingTask: Task<PreparedNarration, Error>?
-    ) async throws {
-        guard !isStopRequested else {
-            return
-        }
-        updateState { $0.phase = .closing }
-        let narration: PreparedNarration
-        if let closingTask {
-            narration = try await closingTask.value
-        } else {
-            narration = try await generatePreparedClosingNarration(tracks: tracks)
-        }
-        try await playStandaloneNarration(wavData: narration.wavData)
-    }
-
-    private func playTrack(
-        track: TrackInfo,
-        nextTrack: TrackInfo?,
-        overlapMode: OverlapMode,
-        startInstruction: TrackStartInstruction,
-        trackIndex: Int,
-        introPreparation: TimedPreparation<PreparedNarration>?
-    ) async throws -> TrackPlaybackOutcome {
-        try await playIntroIfNeeded(
-            track: track,
-            overlapMode: overlapMode,
-            startInstruction: startInstruction,
-            trackIndex: trackIndex,
-            fadeIn: trackIndex == 0
+    private func generatePreparedClosingNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
+        updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
+        let script = try await scriptService.generateClosing(tracks: tracks, settings: settings)
+        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+        let wavData = try await synthesizeNarration(
+            dialogues: script.dialogues,
+            segmentLabel: String(localized: "クロージング")
         )
-
-        if isStopRequested {
-            return .stopped
-        }
-
-        updateState { $0.phase = .playing }
-        if overlapMode == .introOver, let introPreparation {
-            try await playMidTrackIntroIfNeeded(track: track, introPreparation: introPreparation)
-        }
-        let transitionPreparation: TimedPreparation<PreparedNarration>? = if overlapMode == .introOver {
-            nil
-        } else {
-            nextTrack.map { prepareTransitionNarration(currentTrack: track, nextTrack: $0) }
-        }
-        try await waitUntilOutroPoint(track: track)
-        return try await handleTrackEnding(
-            track: track,
-            nextTrack: nextTrack,
-            transitionPreparation: transitionPreparation,
-            overlapMode: overlapMode
-        )
+        return PreparedNarration(script: script, wavData: wavData)
     }
 
-    private func playIntroIfNeeded(
-        track: TrackInfo,
-        overlapMode: OverlapMode,
-        startInstruction: TrackStartInstruction,
-        trackIndex: Int,
-        fadeIn: Bool = false
-    ) async throws {
+    private func updateTrackState(_ track: TrackInfo, trackIndex: Int) {
         updateState {
             $0.currentTrack = track
             $0.trackIndex = trackIndex
             $0.currentPlaybackPosition = 0
-        }
-
-        switch startInstruction {
-        case .trackAlreadyStarted:
-            return
-        case .startTrackOnly:
-            updateState { $0.phase = .intro }
-            try await startTrack(track, fadeIn: fadeIn)
-        case .playOpeningNarration(let narration):
-            updateState { $0.phase = .intro }
-            rememberTopics(for: track, script: narration.script)
-            switch overlapMode {
-            case .introOver, .fullRadio:
-                try await playNarrationWithMusicLead(wavData: narration.wavData, track: track, fadeIn: fadeIn)
-            default:
-                try await playStandaloneNarration(wavData: narration.wavData)
-                try await startTrack(track, fadeIn: fadeIn)
-            }
+            $0.phase = .intro
         }
     }
 
-    private func makeIntroPreparationIfNeeded(
+    private func startTrackForActiveNarration(
         track: TrackInfo,
-        previousTrack: TrackInfo?,
-        overlapMode: OverlapMode
-    ) -> TimedPreparation<PreparedNarration>? {
-        guard overlapMode == .introOver, let previousTrack else {
-            return nil
-        }
-        return prepareIntroNarration(track: track, previousTrack: previousTrack)
-    }
-
-    private func playMidTrackIntroIfNeeded(
-        track: TrackInfo,
-        introPreparation: TimedPreparation<PreparedNarration>
+        activeNarration: ActiveNarration
     ) async throws {
-        let introStartSeconds = Double(settings.volumeSettings.speakAfterSeconds)
-        let outroStartSeconds = max(0, effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds) - Double(settings.volumeSettings.fadeEarlySeconds))
-
-        guard introStartSeconds < outroStartSeconds else {
-            introPreparation.cancel()
-            updateState { $0.statusMessage = String(format: String(localized: "%@ のイントロは再生位置が遅すぎるためスキップしました。"), track.name) }
-            return
-        }
-
-        try await waitRespectingPause(seconds: introStartSeconds)
-
-        let introResult = await resolvePreparationAtDeadline(
-            introPreparation,
-            segmentName: String(format: String(localized: "%@ のイントロ"), track.name)
-        )
-        guard case .ready(let narration) = introResult else {
-            return
-        }
-
-        let narrationDuration = wavDurationSeconds(narration.wavData)
-        let requiredWindow = max(narrationDuration, settings.volumeSettings.fadeDuration)
-            + settings.volumeSettings.fadeDuration
-        let availableWindow = max(0, outroStartSeconds - introStartSeconds)
-        guard requiredWindow <= availableWindow else {
-            updateState { $0.statusMessage = String(format: String(localized: "%@ のイントロは再生時間に収まらないためスキップしました。"), track.name) }
-            return
-        }
-
-        updateState { $0.phase = .intro }
-        rememberTopics(for: track, script: narration.script)
-        try await playNarrationOverCurrentTrack(wavData: narration.wavData)
-        updateState { $0.phase = .playing }
-    }
-
-    private func playNarrationOverCurrentTrack(wavData: Data) async throws {
-        async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        async let duckTask: Void = fadeMusicVolume(
-            targetVolume: settings.volumeSettings.talkVolume,
-            durationSeconds: settings.volumeSettings.fadeDuration
-        )
-
-        _ = try await (narrationTask, duckTask)
-        await fadeMusicVolume(
-            targetVolume: settings.volumeSettings.normalVolume,
-            durationSeconds: settings.volumeSettings.fadeDuration
-        )
-    }
-
-    /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機
-    /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機
-    private func waitUntilOutroPoint(track: TrackInfo) async throws {
-        let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds)
-        let targetPosition = max(0, effectiveDuration - Double(settings.volumeSettings.fadeEarlySeconds))
-
-        while !isStopRequested {
-            try Task.checkCancellation()
-            let position = await musicService.fetchPlaybackPosition()
-            if position >= targetPosition { return }
-            // フォールバック: 再生位置が取得できない場合は経過時間で判定
-            if let startedAt = trackStartedAt {
-                let elapsed = ContinuousClock.now - startedAt
-                let elapsedSeconds = Double(elapsed.components.seconds)
-                    + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
-                if elapsedSeconds >= targetPosition { return }
-            }
-            try await waitRespectingPause(seconds: 0.5)
-        }
-    }
-
-    private func handleTrackEnding(
-        track: TrackInfo,
-        nextTrack: TrackInfo?,
-        transitionPreparation: TimedPreparation<PreparedNarration>?,
-        overlapMode: OverlapMode
-    ) async throws -> TrackPlaybackOutcome {
-        updateState { $0.phase = .outro }
-
-        if let nextTrack {
-            let transitionResult = await resolvePreparationAtDeadline(
-                transitionPreparation,
-                segmentName: "\(track.name) から \(nextTrack.name) へのトランジション"
+        let leadSeconds = effectiveMusicLeadSeconds()
+        if settings.defaultOverlapMode == .enabled, leadSeconds > 0 {
+            try await waitUntilNarrationRemainingSeconds(
+                activeNarration,
+                isAtMost: leadSeconds
             )
-            switch transitionResult {
-            case .ready(let narration):
-                rememberTopics(for: nextTrack, script: narration.script)
-                switch overlapMode {
-                case .outroOver:
-                    try await playTransitionWithOutroOverlap(
-                        wavData: narration.wavData,
-                        currentTrackDurationSeconds: track.durationSeconds
-                    )
-                    return .finishedCurrentTrackOnly
-                case .fullRadio:
-                    try await playTransitionWithFullRadioOverlap(
-                        wavData: narration.wavData,
-                        currentTrackDurationSeconds: track.durationSeconds,
-                        nextTrack: nextTrack
-                    )
-                    return .startedNextTrackViaTransition
-                default:
-                    let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
-                    await fadeOutAndStopTrack(durationSeconds: fadeDuration)
-                    try await playTransition(wavData: narration.wavData, nextTrack: nextTrack)
-                    return .startedNextTrackViaTransition
+            try await startTrack(track, startVolume: settings.volumeSettings.talkVolume)
+            try await activeNarration.playbackTask.value
+            await fadeMusicVolume(
+                targetVolume: settings.volumeSettings.normalVolume,
+                durationSeconds: settings.volumeSettings.fadeDuration
+            )
+        } else {
+            try await activeNarration.playbackTask.value
+            try await startTrack(track, startVolume: settings.volumeSettings.normalVolume)
+        }
+    }
+
+    private func startNarration(_ prepared: PreparedNarration) -> ActiveNarration {
+        let playbackTask = Task {
+            try await self.waitWhilePaused()
+            try await self.audioPlaybackService.play(wavData: prepared.wavData)
+        }
+        return ActiveNarration(
+            prepared: prepared,
+            playbackTask: playbackTask,
+            durationSeconds: wavDurationSeconds(prepared.wavData)
+        )
+    }
+
+    private func waitUntilNarrationRemainingSeconds(
+        _ activeNarration: ActiveNarration,
+        isAtMost threshold: Double
+    ) async throws {
+        guard threshold > 0 else {
+            return
+        }
+        let waitSeconds = max(0, activeNarration.durationSeconds - threshold)
+        try await waitRespectingPause(seconds: waitSeconds)
+    }
+
+    private func effectiveMusicLeadSeconds() -> Double {
+        max(0, settings.volumeSettings.musicLeadSeconds + estimatedTrackStartLatencySeconds())
+    }
+
+    private func estimatedTrackStartLatencySeconds() -> Double {
+        switch musicService.serviceKind {
+        case .spotify:
+            return spotifyLeadCompensationSeconds
+        case .appleMusic, .youtubeMusic:
+            return 0
+        }
+    }
+
+    private func resolveNextNarration(
+        _ task: Task<PreparedNarration, Error>,
+        for track: TrackInfo
+    ) async throws -> ResolvedNarration {
+        let didTrackReachNaturalEnd = try await waitUntilNarrationReadyOrNaturalEnd(task, track: track)
+        if didTrackReachNaturalEnd {
+            await stopTrackImmediately()
+        }
+        let prepared = try await task.value
+        return ResolvedNarration(
+            prepared: prepared,
+            didTrackReachNaturalEnd: didTrackReachNaturalEnd
+        )
+    }
+
+    private func waitUntilNarrationReadyOrNaturalEnd(
+        _ task: Task<PreparedNarration, Error>,
+        track: TrackInfo
+    ) async throws -> Bool {
+        try await withThrowingTaskGroup(of: NarrationWaitOutcome.self) { group in
+            group.addTask {
+                _ = try await task.value
+                return .narrationReady
+            }
+            group.addTask { [weak self] in
+                guard let self else {
+                    throw CancellationError()
                 }
-            case .notReadyAtDeadline, .failed, .cancelled:
-                let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
-                await fadeOutAndStopTrack(durationSeconds: fadeDuration)
-                return .finishedCurrentTrackOnly
+                try await self.waitUntilNaturalTrackEnd(track: track)
+                return .naturalTrackEnd
             }
-        }
 
-        let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
-        await fadeOutAndStopTrack(durationSeconds: fadeDuration)
-        return .finishedFinalTrack
-    }
-
-    private func resolvePreparationAtDeadline<Value: Sendable>(
-        _ preparation: TimedPreparation<Value>?,
-        segmentName: String
-    ) async -> TimedNarrationPreparation<Value> {
-        guard let preparation else {
-            return .cancelled
-        }
-
-        let snapshot = await preparation.snapshot()
-        switch snapshot {
-        case .ready(let value):
-            return .ready(value)
-        case .pending:
-            // アウトロポイント到達時にタスクが起動直後の場合、完了まで待機してリトライする。
-            let completedSnapshot = await preparation.awaitCompletion()
-            switch completedSnapshot {
-            case .ready(let value):
-                return .ready(value)
-            case .failed(let errorMessage):
-                updateState { $0.statusMessage = String(format: String(localized: "%@ は音声生成に失敗したためスキップしました。"), segmentName) }
-                updateState { $0.errorMessage = errorMessage }
-                return .failed(errorMessage)
-            case .pending, .cancelled:
-                updateState { $0.statusMessage = String(format: String(localized: "%@ は再生タイミングに間に合わなかったためスキップしました。"), segmentName) }
-                return .notReadyAtDeadline
-            }
-        case .failed(let errorMessage):
-            updateState { $0.statusMessage = String(format: String(localized: "%@ は音声生成に失敗したためスキップしました。"), segmentName) }
-            updateState { $0.errorMessage = errorMessage }
-            return .failed(errorMessage)
-        case .cancelled:
-            return .cancelled
+            let outcome = try await group.next() ?? .narrationReady
+            group.cancelAll()
+            return outcome == .naturalTrackEnd
         }
     }
 
-    private func fadeOutAndStopTrack(durationSeconds: Double) async {
-        stopPositionPolling()
-        if durationSeconds > 0 {
-            await fadeMusicVolume(targetVolume: 0, durationSeconds: durationSeconds)
+    private func startResolvedNarration(
+        _ resolvedNarration: ResolvedNarration,
+        after track: TrackInfo,
+        isClosingNarration: Bool
+    ) async throws -> ActiveNarration {
+        if isClosingNarration {
+            updateState { $0.phase = .closing }
         }
-        await musicService.stopPlayback()
+
+        if settings.defaultOverlapMode == .enabled, !resolvedNarration.didTrackReachNaturalEnd {
+            await fadeMusicVolume(
+                targetVolume: settings.volumeSettings.talkVolume,
+                durationSeconds: settings.volumeSettings.fadeDuration
+            )
+            let activeNarration = startNarration(resolvedNarration.prepared)
+            let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
+            await fadeOutAndStopTrack(durationSeconds: fadeDuration)
+            return activeNarration
+        }
+
+        await stopTrackImmediately()
+        return startNarration(resolvedNarration.prepared)
     }
 
     private func setMusicVolume(level: Int) async {
@@ -700,31 +451,36 @@ actor RadioOrchestrator {
         updateState { $0.volume = level }
     }
 
-    private func startTrack(_ track: TrackInfo, fadeIn: Bool = false) async throws {
-        let startVolume = fadeIn ? settings.volumeSettings.talkVolume : settings.volumeSettings.normalVolume
+    private func startTrack(_ track: TrackInfo, startVolume: Int) async throws {
         await setMusicVolume(level: startVolume)
         try await musicService.play(track: track)
         await musicService.seekToPosition(0)
+        await setMusicVolume(level: startVolume)
         trackStartedAt = ContinuousClock.now
         startPositionPolling(track: track)
-        if fadeIn {
-            await fadeMusicVolume(targetVolume: settings.volumeSettings.normalVolume, durationSeconds: settings.volumeSettings.fadeDuration)
-        }
     }
 
-    private func playStandaloneNarration(wavData: Data) async throws {
-        try await waitWhilePaused()
-        try await audioPlaybackService.play(wavData: wavData)
+    private func stopTrackImmediately() async {
+        stopPositionPolling()
+        trackStartedAt = nil
+        await musicService.stopPlayback()
+        updateState { $0.currentPlaybackPosition = 0 }
     }
 
     private func synthesizeNarration(dialogues: [DialogueLine], segmentLabel: String) async throws -> Data {
         updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成開始（%@）"), segmentLabel); $0.isProcessing = true }
         do {
             let result = try await ttsService.synthesize(dialogues: dialogues, settings: settings)
-            if result.didUseFallback {
-                updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成終了（副モデル: %@）"), result.modelUsed); $0.isProcessing = false }
-            } else {
-                updateState { $0.statusMessage = String(localized: "TTS音声作成終了"); $0.isProcessing = false }
+            let credentialLabel = result.credentialSetLabelUsed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? String(localized: "名称未設定")
+                : result.credentialSetLabelUsed
+            updateState {
+                $0.statusMessage = String(
+                    format: String(localized: "TTS音声作成終了（セット: %@ / モデル: %@）"),
+                    credentialLabel,
+                    result.modelUsed
+                )
+                $0.isProcessing = false
             }
             return result.wavData
         } catch {
@@ -735,91 +491,57 @@ actor RadioOrchestrator {
         }
     }
 
-    private func playNarrationWithMusicLead(wavData: Data, track: TrackInfo, fadeIn: Bool = false) async throws {
-        let durationSeconds = wavDurationSeconds(wavData)
-        let startDelay = max(0, durationSeconds - settings.volumeSettings.musicLeadSeconds)
-        let startVolume = fadeIn ? settings.volumeSettings.talkVolume : settings.volumeSettings.normalVolume
+    /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機
+    private func waitUntilOutroPoint(track: TrackInfo) async throws {
+        let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds)
+        let targetPosition = max(0, effectiveDuration - Double(settings.volumeSettings.fadeEarlySeconds))
 
-        async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        async let startTask: Void = startTrackAfterDelay(track: track, delaySeconds: startDelay, startVolume: startVolume)
-        _ = try await (narrationTask, startTask)
-        if fadeIn {
-            await fadeMusicVolume(targetVolume: settings.volumeSettings.normalVolume, durationSeconds: settings.volumeSettings.fadeDuration)
+        while !isStopRequested {
+            try Task.checkCancellation()
+            if await hasReachedPlaybackPosition(targetPosition) {
+                return
+            }
+            try await waitRespectingPause(seconds: 0.5)
         }
     }
 
-    private func playTransition(wavData: Data, nextTrack: TrackInfo) async throws {
-        let durationSeconds = wavDurationSeconds(wavData)
-        let startDelay = max(0, durationSeconds - settings.volumeSettings.musicLeadSeconds)
-
-        async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        async let startTask: Void = startTrackAfterDelay(track: nextTrack, delaySeconds: startDelay, startVolume: settings.volumeSettings.talkVolume)
-        _ = try await (narrationTask, startTask)
-        await fadeMusicVolume(targetVolume: settings.volumeSettings.normalVolume, durationSeconds: settings.volumeSettings.fadeDuration)
-    }
-
-    private func playTransitionWithOutroOverlap(
-        wavData: Data,
-        currentTrackDurationSeconds: Int
-    ) async throws {
-        await setMusicVolume(level: settings.volumeSettings.talkVolume)
-
-        async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        async let outroTask: Void = finishCurrentTrackAtEffectiveEnd(trackDurationSeconds: currentTrackDurationSeconds)
-        _ = try await (narrationTask, outroTask)
-    }
-
-    private func playTransitionWithFullRadioOverlap(
-        wavData: Data,
-        currentTrackDurationSeconds: Int,
-        nextTrack: TrackInfo
-    ) async throws {
-        await setMusicVolume(level: settings.volumeSettings.talkVolume)
-
-        let narrationDuration = wavDurationSeconds(wavData)
-        let nextTrackDesiredDelay = max(0, narrationDuration - settings.volumeSettings.musicLeadSeconds)
-        let outgoingTrackTask = Task {
-            try await self.finishCurrentTrackAtEffectiveEnd(trackDurationSeconds: currentTrackDurationSeconds)
+    private func waitUntilNaturalTrackEnd(track: TrackInfo) async throws {
+        let naturalDuration = Double(track.durationSeconds)
+        guard naturalDuration > 0 else {
+            return
         }
 
-        async let narrationTask: Void = audioPlaybackService.play(wavData: wavData)
-        let nextTrackTask = Task {
-            try await self.waitRespectingPause(seconds: nextTrackDesiredDelay)
-            try await outgoingTrackTask.value
-            try await self.startTrackAfterDelay(
-                track: nextTrack,
-                delaySeconds: 0,
-                startVolume: self.settings.volumeSettings.talkVolume
-            )
+        while !isStopRequested {
+            try Task.checkCancellation()
+            if await hasReachedPlaybackPosition(naturalDuration) {
+                return
+            }
+            try await waitRespectingPause(seconds: 0.5)
         }
-
-        _ = try await narrationTask
-        try await nextTrackTask.value
-        await fadeMusicVolume(
-            targetVolume: settings.volumeSettings.normalVolume,
-            durationSeconds: settings.volumeSettings.fadeDuration
-        )
     }
 
-    private func finishCurrentTrackAtEffectiveEnd(trackDurationSeconds: Int) async throws {
-        let remainingSeconds = await remainingPlaybackSeconds(trackDurationSeconds: trackDurationSeconds)
-        let finalFadeDuration = min(settings.volumeSettings.fadeDuration, remainingSeconds)
-        let delayBeforeFinalFade = max(0, remainingSeconds - finalFadeDuration)
-
-        try await waitRespectingPause(seconds: delayBeforeFinalFade)
-        let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: trackDurationSeconds)
-        await fadeOutAndStopTrack(durationSeconds: fadeDuration)
+    private func hasReachedPlaybackPosition(_ targetPosition: Double) async -> Bool {
+        let position = await musicService.fetchPlaybackPosition()
+        if position >= targetPosition {
+            return true
+        }
+        guard let startedAt = trackStartedAt else {
+            return false
+        }
+        let elapsed = ContinuousClock.now - startedAt
+        let elapsedSeconds = Double(elapsed.components.seconds)
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
+        return elapsedSeconds >= targetPosition
     }
 
-    private func startTrackAfterDelay(track: TrackInfo, delaySeconds: Double, startVolume: Int? = nil) async throws {
-        try await waitRespectingPause(seconds: delaySeconds)
-        if let startVolume {
-            await setMusicVolume(level: startVolume)
+    private func fadeOutAndStopTrack(durationSeconds: Double) async {
+        stopPositionPolling()
+        if durationSeconds > 0 {
+            await fadeMusicVolume(targetVolume: 0, durationSeconds: durationSeconds)
         }
-        try await musicService.play(track: track)
-        await musicService.seekToPosition(0)
-        trackStartedAt = ContinuousClock.now
-        startPositionPolling(track: track)
+        trackStartedAt = nil
+        await musicService.stopPlayback()
+        updateState { $0.currentPlaybackPosition = 0 }
     }
 
     private func fadeMusicVolume(targetVolume: Int, durationSeconds: Double) async {
@@ -839,7 +561,7 @@ actor RadioOrchestrator {
             let nextVolume = Int(Double(currentVolume) + stepSize * Double(indexValue))
             await musicService.setVolume(level: nextVolume)
             updateState { $0.volume = nextVolume }
-            try? await Task.sleep(nanoseconds: UInt64(stepInterval * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(max(0, stepInterval) * 1_000_000_000))
         }
     }
 
@@ -965,13 +687,13 @@ actor RadioOrchestrator {
         if position > 0 {
             return max(0, effectiveDuration - position)
         }
-        if let startedAt = trackStartedAt {
-            let elapsed = ContinuousClock.now - startedAt
-            let elapsedSeconds = Double(elapsed.components.seconds)
-                + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
-            return max(0, effectiveDuration - elapsedSeconds)
+        guard let startedAt = trackStartedAt else {
+            return max(0, effectiveDuration - position)
         }
-        return max(0, effectiveDuration - position)
+        let elapsed = ContinuousClock.now - startedAt
+        let elapsedSeconds = Double(elapsed.components.seconds)
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
+        return max(0, effectiveDuration - elapsedSeconds)
     }
 
     private func wavDurationSeconds(_ wavData: Data) -> Double {
@@ -991,7 +713,6 @@ actor RadioOrchestrator {
             while !Task.isCancelled {
                 let position = await self.musicService.fetchPlaybackPosition()
                 self.updateState { $0.currentPlaybackPosition = position }
-                // 有効再生時間に達したらポーリングを終了
                 if position >= effectiveDuration { return }
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }

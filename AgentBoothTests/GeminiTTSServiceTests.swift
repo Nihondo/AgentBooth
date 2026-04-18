@@ -53,6 +53,7 @@ final class GeminiTTSServiceTests: XCTestCase {
         }
 
         let result = try await service.synthesize(dialogues: dialogues, settings: settings)
+        XCTAssertEqual(result.credentialSetLabelUsed, "main")
         XCTAssertEqual(result.modelUsed, "test-model")
         XCTAssertFalse(result.didUseFallback)
         XCTAssertGreaterThan(result.wavData.count, 44)
@@ -108,6 +109,7 @@ final class GeminiTTSServiceTests: XCTestCase {
         }
 
         let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        XCTAssertEqual(result.credentialSetLabelUsed, "backup")
         XCTAssertEqual(result.modelUsed, "model-2")
         XCTAssertTrue(result.didUseFallback)
     }
@@ -137,6 +139,7 @@ final class GeminiTTSServiceTests: XCTestCase {
         }
 
         let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        XCTAssertEqual(result.credentialSetLabelUsed, "backup")
         XCTAssertEqual(result.modelUsed, "model-2")
         XCTAssertTrue(result.didUseFallback)
     }
@@ -211,6 +214,7 @@ final class GeminiTTSServiceTests: XCTestCase {
         }
 
         let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        XCTAssertEqual(result.credentialSetLabelUsed, "active")
         XCTAssertEqual(result.modelUsed, "model-2")
         XCTAssertEqual(recorder.requestedKeys, ["key-2"])
     }

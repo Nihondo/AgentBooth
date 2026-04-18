@@ -20,8 +20,8 @@ final class YouTubeMusicPlayerController {
     func play(videoId: String, playlistId: String, using webView: WKWebView) async throws {
         let script = YouTubeMusicJSScripts.playTrack(videoId: videoId, playlistId: playlistId)
         _ = try? await scriptRunner.runJSONScript(script, webView: webView)
-        // ナビゲーション後、video 要素が現れるまで最大 5 秒待機
-        try await waitForVideoElement(webView: webView, timeoutSeconds: 5)
+        // ナビゲーション後、目的の videoId を再生する video が利用可能になるまで最大 5 秒待機
+        try await waitForPlaybackTarget(videoId: videoId, webView: webView, timeoutSeconds: 5)
     }
 
     // MARK: - 再生制御
@@ -139,27 +139,28 @@ final class YouTubeMusicPlayerController {
 
     // MARK: - プライベートユーティリティ
 
-    /// video 要素が DOM に現れるまで最大 `timeoutSeconds` 秒ポーリングする
+    /// 目的の `videoId` に対応する再生対象が利用可能になるまで最大 `timeoutSeconds` 秒ポーリングする
     @MainActor
-    private func waitForVideoElement(webView: WKWebView, timeoutSeconds: Double) async throws {
-        let checkScript = """
-        return (async () => {
-          const video = document.querySelector('video');
-          return JSON.stringify({ found: !!video });
-        })();
-        """
-        struct FoundResponse: Decodable { let found: Bool }
+    private func waitForPlaybackTarget(videoId: String, webView: WKWebView, timeoutSeconds: Double) async throws {
+        struct PlaybackTargetResponse: Decodable {
+            let matchedVideoID: Bool
+            let hasVideo: Bool
+            let isReady: Bool
+        }
+
+        let checkScript = YouTubeMusicJSScripts.waitForPlaybackTarget(videoId: videoId)
         let intervalNS: UInt64 = 300_000_000 // 0.3 秒
         let maxIterations = Int(timeoutSeconds / 0.3)
         for _ in 0..<maxIterations {
             if let response = try? await scriptRunner.decodeJSONScript(
-                FoundResponse.self,
+                PlaybackTargetResponse.self,
                 script: checkScript,
                 webView: webView
-            ), response.found {
+            ), response.matchedVideoID && response.hasVideo && response.isReady {
                 return
             }
             try? await Task.sleep(nanoseconds: intervalNS)
         }
+        throw YouTubeMusicScriptRunnerError.scriptFailed(String(localized: "タイムアウトしました。"))
     }
 }

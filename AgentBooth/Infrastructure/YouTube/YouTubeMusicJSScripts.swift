@@ -363,6 +363,23 @@ enum YouTubeMusicJSScripts {
         """
     }
 
+    static func waitForPlaybackTarget(videoId: String) -> String {
+        """
+        return (async () => {
+          const expectedVideoID = \(quotedJSONString(videoId));
+          const currentVideoID = new URL(window.location.href).searchParams.get('v') || "";
+          const video = document.querySelector('video');
+          const matchedVideoID = currentVideoID === expectedVideoID;
+          const hasVideo = !!video;
+          const isReady = !!video
+            && matchedVideoID
+            && (video.readyState || 0) > 0
+            && Boolean(video.currentSrc || video.src || currentVideoID);
+          return JSON.stringify({ matchedVideoID, hasVideo, isReady });
+        })();
+        """
+    }
+
     static let fetchVolume = """
     return (async () => {
       try {
@@ -426,4 +443,9 @@ enum YouTubeMusicJSScripts {
         })();
         """
     }
+}
+
+private func quotedJSONString(_ value: String) -> String {
+    let encoded = try? JSONEncoder().encode(value)
+    return encoded.flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
 }
