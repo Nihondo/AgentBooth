@@ -437,7 +437,7 @@ actor RadioOrchestrator {
                 durationSeconds: settings.volumeSettings.fadeDuration
             )
             let activeNarration = startNarration(resolvedNarration.prepared)
-            let fadeDuration = await calculateFadeOutDuration(trackDurationSeconds: track.durationSeconds)
+            let fadeDuration = calculateFadeOutDuration()
             await fadeOutAndStopTrack(durationSeconds: fadeDuration)
             return activeNarration
         }
@@ -666,9 +666,8 @@ actor RadioOrchestrator {
         return ["\(track.name): \(fallbackText)"]
     }
 
-    private func calculateFadeOutDuration(trackDurationSeconds: Int) async -> Double {
-        let remainingSeconds = await remainingPlaybackSeconds(trackDurationSeconds: trackDurationSeconds)
-        return min(Double(settings.volumeSettings.fadeEarlySeconds), remainingSeconds)
+    private func calculateFadeOutDuration() -> Double {
+        max(0, settings.volumeSettings.fadeDuration)
     }
 
     private func effectivePlaybackDuration(trackDurationSeconds: Int) -> Double {
@@ -678,22 +677,6 @@ actor RadioOrchestrator {
             return trackDuration
         }
         return min(trackDuration, maxPlayback)
-    }
-
-    /// 音楽サービスから実際の再生位置を取得し、残り再生可能秒数を返す
-    private func remainingPlaybackSeconds(trackDurationSeconds: Int) async -> Double {
-        let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: trackDurationSeconds)
-        let position = await musicService.fetchPlaybackPosition()
-        if position > 0 {
-            return max(0, effectiveDuration - position)
-        }
-        guard let startedAt = trackStartedAt else {
-            return max(0, effectiveDuration - position)
-        }
-        let elapsed = ContinuousClock.now - startedAt
-        let elapsedSeconds = Double(elapsed.components.seconds)
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000
-        return max(0, effectiveDuration - elapsedSeconds)
     }
 
     private func wavDurationSeconds(_ wavData: Data) -> Double {

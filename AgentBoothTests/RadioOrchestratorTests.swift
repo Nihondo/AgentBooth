@@ -305,6 +305,49 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertLessThan(duckIndex, fadeOutIndex)
     }
 
+    func testOverlapFadeOutContinuesPastEffectiveTrackEnd() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptService = FakeScriptGenerationService()
+        scriptService.transitionScript = RadioScript(
+            segmentType: "transition",
+            dialogues: [DialogueLine(speaker: "male", text: "late transition")],
+            summaryBullets: ["遅れて完成するトランジション"],
+            track: trackList[1]
+        )
+        let ttsService = ConditionalDelayTTSService(delaysByToken: ["late transition": 950_000_000])
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.fadeEarlySeconds = 1
+        settings.volumeSettings.fadeDuration = 0.5
+        settings.volumeSettings.musicLeadSeconds = 0
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            scriptService: scriptService,
+            ttsService: ttsService
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.stoppedTrackDates.count >= 1
+        }
+
+        let firstStart = try XCTUnwrap(musicService.playedTrackDates.first)
+        let firstStop = try XCTUnwrap(musicService.stoppedTrackDates.first)
+        XCTAssertGreaterThan(
+            firstStop.timeIntervalSince(firstStart),
+            1.35,
+            "フェード開始後は曲終了が近くても fadeDuration 分のフェードを優先すること"
+        )
+    }
+
     func testRecordingServiceIsStartedAndStoppedDuringShow() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),

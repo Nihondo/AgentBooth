@@ -7,6 +7,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     var tracksByPlaylist: [String: [TrackInfo]]
     var playedTracks: [TrackInfo] = []
     var playedTrackDates: [Date] = []
+    var stoppedTrackDates: [Date] = []
     var currentVolume: Int = 100
     var volumeHistory: [Int] = []
     var isPlaying = false
@@ -36,6 +37,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
 
     func stopPlayback() async {
         isPlaying = false
+        stoppedTrackDates.append(Date())
     }
 
     func pausePlayback() async {
