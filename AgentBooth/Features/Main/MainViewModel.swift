@@ -36,6 +36,12 @@ final class MainViewModel: ObservableObject {
         !selectedPlaylistName.isEmpty && !radioState.isRunning
     }
 
+    var canShuffle: Bool {
+        guard !radioState.isRunning else { return false }
+        if case .loaded = previewTrackListState { return true }
+        return false
+    }
+
     /// トラックリストに表示するトラック一覧（実行中はラジオ状態、停止中はプレビュー）
     var displayTracks: [TrackInfo] {
         if radioState.isRunning, !radioState.upcomingTracks.isEmpty {
@@ -89,6 +95,11 @@ final class MainViewModel: ObservableObject {
         Task {
             await loadPlaylists()
         }
+    }
+
+    func shufflePreviewTracks() {
+        guard case .loaded(let tracks) = previewTrackListState else { return }
+        previewTrackListState = .loaded(tracks.shuffled())
     }
 
     func selectPlaylist(_ playlistName: String) {
@@ -182,7 +193,14 @@ final class MainViewModel: ObservableObject {
             }
         }
 
+        let shuffledTracks: [TrackInfo]?
+        if case .loaded(let tracks) = previewTrackListState {
+            shuffledTracks = tracks
+        } else {
+            shuffledTracks = nil
+        }
+
         radioOrchestrator = orchestrator
-        await orchestrator.startShow(playlistName: selectedPlaylistName)
+        await orchestrator.startShow(playlistName: selectedPlaylistName, initialTracks: shuffledTracks)
     }
 }

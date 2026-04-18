@@ -60,7 +60,7 @@ actor RadioOrchestrator {
         self.stateDidChange = stateDidChange
     }
 
-    func startShow(playlistName: String) {
+    func startShow(playlistName: String, initialTracks: [TrackInfo]? = nil) {
         guard playbackTask == nil else {
             return
         }
@@ -77,7 +77,7 @@ actor RadioOrchestrator {
         }
 
         playbackTask = Task { [weak self] in
-            await self?.runShow(playlistName: playlistName)
+            await self?.runShow(playlistName: playlistName, initialTracks: initialTracks)
         }
     }
 
@@ -110,13 +110,13 @@ actor RadioOrchestrator {
         resetState()
     }
 
-    private func runShow(playlistName: String) async {
+    private func runShow(playlistName: String, initialTracks: [TrackInfo]? = nil) async {
         defer {
             playbackTask = nil
         }
 
         do {
-            try await performShow(playlistName: playlistName)
+            try await performShow(playlistName: playlistName, initialTracks: initialTracks)
             await finishRunShow(errorMessage: nil)
         } catch is CancellationError {
             await finishRunShow(errorMessage: nil)
@@ -125,8 +125,8 @@ actor RadioOrchestrator {
         }
     }
 
-    private func performShow(playlistName: String) async throws {
-        let tracks = try await loadTracks(for: playlistName)
+    private func performShow(playlistName: String, initialTracks: [TrackInfo]? = nil) async throws {
+        let tracks = try await loadTracks(for: playlistName, initialTracks: initialTracks)
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
         rememberTopics(for: tracks[0], script: openingNarration.script)
 
@@ -176,8 +176,13 @@ actor RadioOrchestrator {
         try await activeNarration.playbackTask.value
     }
 
-    private func loadTracks(for playlistName: String) async throws -> [TrackInfo] {
-        let allTracks = try await musicService.fetchTracks(in: playlistName)
+    private func loadTracks(for playlistName: String, initialTracks: [TrackInfo]? = nil) async throws -> [TrackInfo] {
+        let allTracks: [TrackInfo]
+        if let initialTracks, !initialTracks.isEmpty {
+            allTracks = initialTracks
+        } else {
+            allTracks = try await musicService.fetchTracks(in: playlistName)
+        }
         let tracks = Array(allTracks.prefix(RadioConstants.maxTrackCount))
         guard !tracks.isEmpty else {
             throw CocoaError(

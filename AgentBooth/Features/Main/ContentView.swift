@@ -107,6 +107,17 @@ struct ContentView: View {
             .accessibilityLabel("録音して再生")
             .help("番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。")
             .disabled(!viewModel.canStart)
+
+            Button {
+                viewModel.shufflePreviewTracks()
+            } label: {
+                Image(systemName: "shuffle")
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("シャッフル")
+            .help("トラック一覧をシャッフルします。このシャッフル順で番組が再生されます。")
+            .disabled(!viewModel.canShuffle)
         }
     }
 
