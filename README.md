@@ -109,6 +109,10 @@ Configure if you want to record the show.
 ### Common
 
 1. Set **API Key** and **CLI** in the **Text-to-Speech** tab
+> Gemini API keys can be obtained for free at Google AI Studio. You can set up multiple combinations of API keys and models, which will be tried in order from the top. This is useful for purposes such as using a paid tier only after the free tier API limit has been reached.
+
+2. Select the AI CLI to be used for script generation.
+> The Gemini CLI can be started for free. Additionally, you can configure any external CLI of your choice, such as when you want to use a local LLM.
 
 ### Apple Music
 
