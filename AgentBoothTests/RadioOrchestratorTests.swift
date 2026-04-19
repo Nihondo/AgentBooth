@@ -425,6 +425,45 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertTrue(messages.contains("TTS音声作成終了（セット: main / モデル: model-1）"))
     }
 
+    func testCueSheetRecordsTrackNarrationAndFadeEvents() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let cueSheetLogger = try makeCueSheetLogger()
+        let ttsService = SizedTTSService(audioDurationSeconds: 0.2)
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0.05
+        settings.volumeSettings.fadeDuration = 0.05
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            ttsService: ttsService,
+            cueSheetLogger: cueSheetLogger
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.stoppedTrackDates.count >= 1
+        }
+
+        let cueSheetText = try await readCueSheetText(from: cueSheetLogger)
+        XCTAssertTrue(cueSheetText.contains("次曲(1/1 Song A / Artist A / Album A)"))
+        XCTAssertTrue(cueSheetText.contains("曲選択(1/1 Song A / Artist A / Album A)"))
+        XCTAssertTrue(cueSheetText.contains("音量設定(20%)"))
+        XCTAssertTrue(cueSheetText.contains("曲再生開始(Song A / Artist A / Album A)"))
+        XCTAssertTrue(cueSheetText.contains("TTS再生開始(オープニング)"))
+        XCTAssertTrue(cueSheetText.contains("TTS再生終了(オープニング)"))
+        XCTAssertTrue(cueSheetText.contains("フェードイン開始(20% → 80%"))
+        XCTAssertTrue(cueSheetText.contains("フェードアウト開始("))
+        XCTAssertTrue(cueSheetText.contains("曲再生終了(Song A / Artist A / Album A)"))
+    }
+
     func testShowRunsNormallyWithoutRecordingService() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
@@ -461,6 +500,7 @@ final class RadioOrchestratorTests: XCTestCase {
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
+        cueSheetLogger: ShowCueSheetLogger? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void = { _ in }
     ) -> RadioOrchestrator {
         RadioOrchestrator(
@@ -471,6 +511,7 @@ final class RadioOrchestratorTests: XCTestCase {
             ttsService: ttsService,
             audioPlaybackService: audioPlaybackService,
             recordingService: recordingService,
+            cueSheetLogger: cueSheetLogger,
             stateDidChange: stateDidChange
         )
     }
@@ -515,5 +556,20 @@ final class RadioOrchestratorTests: XCTestCase {
             try await Task.sleep(nanoseconds: intervalNanoseconds)
         }
         XCTFail("Timed out waiting for condition")
+    }
+
+    private func makeCueSheetLogger() throws -> ShowCueSheetLogger {
+        let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+        return ShowCueSheetLogger(sessionDirectoryURL: directoryURL)
+    }
+
+    private func readCueSheetText(from logger: ShowCueSheetLogger) async throws -> String {
+        let fileURL = try await logger.cueSheetFileURL()
+        return try String(contentsOf: fileURL, encoding: .utf8)
     }
 }

@@ -162,14 +162,15 @@ final class MainViewModel: ObservableObject {
         }
 
         let currentSettings = settingsStore.currentSettings
+        let cueSheetLogger = ShowCueSheetLogger()
         let musicService = serviceFactory.makeMusicService(for: selectedService)
         let musicPlaybackProfile = serviceFactory.makeMusicPlaybackProfile(for: selectedService)
         let scriptService: any ScriptGenerationService = testMode
             ? TestModeScriptGenerationService()
-            : serviceFactory.makeScriptService(settings: currentSettings)
+            : serviceFactory.makeScriptService(settings: currentSettings, cueSheetLogger: cueSheetLogger)
         let ttsService: any TTSService = testMode
             ? TestModeTTSService()
-            : serviceFactory.makeTTSService(settings: currentSettings)
+            : serviceFactory.makeTTSService(settings: currentSettings, cueSheetLogger: cueSheetLogger)
         let audioPlaybackService: any AudioPlaybackServiceProtocol = testMode
             ? TestModeAudioPlaybackService()
             : serviceFactory.makeAudioPlaybackService()
@@ -184,7 +185,8 @@ final class MainViewModel: ObservableObject {
             scriptService: scriptService,
             ttsService: ttsService,
             audioPlaybackService: audioPlaybackService,
-            recordingService: recordingService
+            recordingService: recordingService,
+            cueSheetLogger: cueSheetLogger
         ) { [weak self] nextState in
             Task { @MainActor [weak self] in
                 self?.radioState = nextState

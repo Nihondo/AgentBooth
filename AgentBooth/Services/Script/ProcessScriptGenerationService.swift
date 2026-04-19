@@ -174,10 +174,15 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
     private let environmentBuilder = ScriptProcessEnvironmentBuilder()
     private let launchBuilder = ScriptProcessLaunchBuilder()
     private let fileManager: FileManager
+    private let cueSheetLogger: ShowCueSheetLogger?
     private var sessionLog: ScriptLogSession?
 
-    init(fileManager: FileManager = .default) {
+    init(
+        fileManager: FileManager = .default,
+        cueSheetLogger: ShowCueSheetLogger? = nil
+    ) {
         self.fileManager = fileManager
+        self.cueSheetLogger = cueSheetLogger
     }
 
     func generateOpening(tracks: [TrackInfo], settings: AppSettings) async throws -> RadioScript {
@@ -227,10 +232,10 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         track: TrackInfo?,
         settings: AppSettings
     ) async throws -> RadioScript {
-        let rawOutput = try runCLI(prompt: prompt, settings: settings)
+        let rawOutput = try await runCLI(prompt: prompt, settings: settings)
         do {
             let parsedScript = try parseRadioScript(from: rawOutput)
-            try saveLog(
+            try await saveLog(
                 segmentType: segmentType,
                 label: label,
                 prompt: prompt,
@@ -246,7 +251,7 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
                 track: track
             )
         } catch {
-            try? saveLog(
+            try? await saveLog(
                 segmentType: segmentType,
                 label: label,
                 prompt: prompt,
@@ -259,11 +264,12 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         }
     }
 
-    private func runCLI(prompt: String, settings: AppSettings) throws -> String {
+    private func runCLI(prompt: String, settings: AppSettings) async throws -> String {
         let command = try commandBuilder.makeCommand(prompt: prompt, settings: settings)
         guard let executableName = command.first else { throw ScriptGenerationError.unsupportedCLI }
         let environment = environmentBuilder.makeEnvironment()
         let launchSpec = try launchBuilder.makeLaunchSpec(command: command, environment: environment)
+        await cueSheetLogger?.append("CLI実行開始(\(executableName))", indentOffset: 1)
 
         let process = Process()
         let outputPipe = Pipe()
@@ -274,17 +280,27 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         process.standardOutput = outputPipe
         process.standardError = errorPipe
         process.standardInput = nil
-        process.currentDirectoryURL = (try? makeSessionLog())?.directoryURL
+        if let session = try? await makeSessionLog() {
+            process.currentDirectoryURL = session.directoryURL
+        }
 
         do {
             try process.run()
         } catch {
+            await cueSheetLogger?.append(
+                "CLI実行終了(\(executableName) / 起動失敗: \(error.localizedDescription))",
+                indentOffset: 1
+            )
             throw ScriptGenerationError.processFailed(String(format: String(localized: "%@ CLI を起動できませんでした: %@"), executableName, error.localizedDescription))
         }
 
         process.waitUntilExit()
         let outputText = String(decoding: outputPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         let errorText = String(decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        await cueSheetLogger?.append(
+            "CLI実行終了(\(executableName) / exit: \(process.terminationStatus))",
+            indentOffset: 1
+        )
 
         guard process.terminationStatus == 0 else {
             let detail = errorText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -376,8 +392,8 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         dialogues: [DialogueLine],
         summaryBullets: [String],
         error: Error?
-    ) throws {
-        let session = try makeSessionLog()
+    ) async throws {
+        let session = try await makeSessionLog()
         let formatter = DateFormatter()
         formatter.dateFormat = "HHmmss"
         let timestamp = formatter.string(from: Date())
@@ -414,8 +430,14 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         try content.write(to: fileURL, atomically: true, encoding: .utf8)
     }
 
-    private func makeSessionLog() throws -> ScriptLogSession {
+    private func makeSessionLog() async throws -> ScriptLogSession {
         if let sessionLog {
+            return sessionLog
+        }
+
+        if let cueSheetLogger {
+            let sessionLog = ScriptLogSession(directoryURL: try await cueSheetLogger.sessionDirectoryURL())
+            self.sessionLog = sessionLog
             return sessionLog
         }
 

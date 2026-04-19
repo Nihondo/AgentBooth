@@ -144,6 +144,46 @@ final class GeminiTTSServiceTests: XCTestCase {
         XCTAssertTrue(result.didUseFallback)
     }
 
+    func testSynthesizeWritesCueSheetAPICallEvents() async throws {
+        let session = makeSession()
+        let cueSheetLogger = try makeCueSheetLogger()
+        let service = GeminiTTSService(
+            session: session,
+            successfulCallThrottleInterval: 0,
+            cueSheetLogger: cueSheetLogger
+        )
+        let settings = makeSettings(credentialSets: [
+            TTSCredentialSet(label: "main", apiKey: "key-1", modelName: "model-1"),
+            TTSCredentialSet(label: "backup", apiKey: "key-2", modelName: "model-2"),
+        ])
+
+        MockURLProtocol.requestHandler = { request in
+            switch try Self.apiKey(from: request) {
+            case "key-1":
+                return try Self.makeErrorResponse(
+                    for: request,
+                    statusCode: 401,
+                    body: #"{"error":{"message":"invalid key"}}"#
+                )
+            case "key-2":
+                return try Self.makeSuccessResponse(for: request)
+            default:
+                XCTFail("unexpected key")
+                return try Self.makeSuccessResponse(for: request)
+            }
+        }
+
+        _ = try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+        }
+
+        let cueSheetText = try await readCueSheetText(from: cueSheetLogger)
+        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し開始(セット: main / モデル: model-1)"))
+        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し終了(ステータス: 401 / セット: main / モデル: model-1 / 次セット: あり)"))
+        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し開始(セット: backup / モデル: model-2)"))
+        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し終了(ステータス: 200 / セット: backup / モデル: model-2 / フォールバック: 使用)"))
+    }
+
     func testSynthesizeReturnsDailyQuotaExceededWhenAllSetsExhausted() async throws {
         let session = makeSession()
         let service = GeminiTTSService(session: session)
@@ -351,6 +391,21 @@ final class GeminiTTSServiceTests: XCTestCase {
             DialogueLine(speaker: "male", text: "こんばんは"),
             DialogueLine(speaker: "female", text: "テストです"),
         ]
+    }
+
+    private func makeCueSheetLogger() throws -> ShowCueSheetLogger {
+        let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+        return ShowCueSheetLogger(sessionDirectoryURL: directoryURL)
+    }
+
+    private func readCueSheetText(from logger: ShowCueSheetLogger) async throws -> String {
+        let fileURL = try await logger.cueSheetFileURL()
+        return try String(contentsOf: fileURL, encoding: .utf8)
     }
 
     private static func makeSuccessResponse(for request: URLRequest) throws -> (HTTPURLResponse, Data) {

@@ -211,13 +211,13 @@ AgentBoothTests/  ユニットテスト + フェイク実装（TestDoubles.swift
 
 ### 主要コンポーネント
 
-**`RadioOrchestrator`** (`Services/Radio/`) — Swift `actor`。番組進行の中核。opening → intro → playing → transition/outro → closing のフェーズを駆動し、音楽・TTS・フェードを協調制御する。
+**`RadioOrchestrator`** (`Services/Radio/`) — Swift `actor`。番組進行の中核。opening → intro → playing → transition/outro → closing のフェーズを駆動し、音楽・TTS・フェードを協調制御する。曲開始/終了、フェード、ナレーション再生も cuesheet に記録する。
 
 **`MainViewModel`** (`Features/Main/`) — `@MainActor ObservableObject`。`RadioOrchestrator` を保持し、UI 状態 (`RadioState`) を SwiftUI ビューへブリッジする。
 
-**`ProcessScriptGenerationService`** (`Services/Script/`) — 外部 CLI サブプロセスを呼び出して JSON 台本を生成する。
+**`ProcessScriptGenerationService`** (`Services/Script/`) — 外部 CLI サブプロセスを呼び出して JSON 台本を生成する。セッションごとのスクリプト保存フォルダには `cuesheet.txt` も併せて出力される。
 
-**`GeminiTTSService`** (`Services/TTS/`) — Gemini REST API を直接呼び出して WAV を生成する。リトライ・フォールバックモデルあり。
+**`GeminiTTSService`** (`Services/TTS/`) — Gemini REST API を直接呼び出して WAV を生成する。リトライ・フォールバックモデルあり。各試行のステータスやフォールバック状況も cuesheet に残す。
 
 **`AppleMusicService`** (`Services/Music/`) — `AppleScriptExecutor` 経由で Music.app を制御する。
 

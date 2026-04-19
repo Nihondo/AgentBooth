@@ -1,5 +1,10 @@
 import Foundation
 
+/// AppleScript 実行の抽象。
+protocol AppleScriptExecuting: Sendable {
+    func run(script: String) throws -> String
+}
+
 enum AppleScriptExecutorError: LocalizedError {
     case executionFailed(String)
 
@@ -12,7 +17,7 @@ enum AppleScriptExecutorError: LocalizedError {
 }
 
 /// Executes AppleScript through osascript.
-final class AppleScriptExecutor: @unchecked Sendable {
+final class AppleScriptExecutor: @unchecked Sendable, AppleScriptExecuting {
     func run(script: String) throws -> String {
         let process = Process()
         let outputPipe = Pipe()

@@ -70,8 +70,37 @@ final class ProcessScriptGenerationServiceTests: XCTestCase {
         XCTAssertEqual(script.dialogues.map(\.text), ["配列形式です", "まだ受理されます"])
     }
 
-    private func makeService(rawOutput: String) throws -> ProcessScriptGenerationService {
-        let service = ProcessScriptGenerationService()
+    func testGenerateOpeningWritesCueSheetCLIEvents() async throws {
+        let rawOutput = """
+        {
+          "dialogues": [
+            { "speaker": "male", "text": "テストです" },
+            { "speaker": "female", "text": "了解しました" }
+          ]
+        }
+        """
+        let cueSheetLogger = try makeCueSheetLogger()
+        let service = try makeService(rawOutput: rawOutput, cueSheetLogger: cueSheetLogger)
+        var settings = AppSettings()
+        settings.scriptCLIKind = .claude
+
+        _ = try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            try await service.generateOpening(
+                tracks: [TrackInfo(name: "Song A", artist: "Artist A", album: "Album A")],
+                settings: settings
+            )
+        }
+
+        let cueSheetText = try await readCueSheetText(from: cueSheetLogger)
+        XCTAssertTrue(cueSheetText.contains("CLI実行開始(claude)"))
+        XCTAssertTrue(cueSheetText.contains("CLI実行終了(claude / exit: 0)"))
+    }
+
+    private func makeService(
+        rawOutput: String,
+        cueSheetLogger: ShowCueSheetLogger? = nil
+    ) throws -> ProcessScriptGenerationService {
+        let service = ProcessScriptGenerationService(cueSheetLogger: cueSheetLogger)
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
@@ -93,5 +122,20 @@ final class ProcessScriptGenerationServiceTests: XCTestCase {
             try? FileManager.default.removeItem(at: temporaryDirectoryURL)
         }
         return service
+    }
+
+    private func makeCueSheetLogger() throws -> ShowCueSheetLogger {
+        let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+        return ShowCueSheetLogger(sessionDirectoryURL: directoryURL)
+    }
+
+    private func readCueSheetText(from logger: ShowCueSheetLogger) async throws -> String {
+        let fileURL = try await logger.cueSheetFileURL()
+        return try String(contentsOf: fileURL, encoding: .utf8)
     }
 }

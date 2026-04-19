@@ -297,9 +297,9 @@ struct FakeServiceFactory: AppServiceFactory {
 
     func makeMusicPlaybackProfile(for serviceKind: MusicServiceKind) -> MusicPlaybackProfile { musicPlaybackProfile }
 
-    func makeScriptService(settings: AppSettings) -> any ScriptGenerationService { scriptService }
+    func makeScriptService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any ScriptGenerationService { scriptService }
 
-    func makeTTSService(settings: AppSettings) -> any TTSService { ttsService }
+    func makeTTSService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any TTSService { ttsService }
 
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol { audioPlaybackService }
 

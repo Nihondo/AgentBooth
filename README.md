@@ -209,13 +209,13 @@ AgentBoothTests/  Unit tests + fake implementations (TestDoubles.swift)
 
 ### Key Components
 
-**`RadioOrchestrator`** (`Services/Radio/`) — Swift `actor`. Core of the show. Drives phases: opening → intro → playing → transition/outro → closing. Coordinates music, TTS, and fade.
+**`RadioOrchestrator`** (`Services/Radio/`) — Swift `actor`. Core of the show. Drives phases: opening → intro → playing → transition/outro → closing. Coordinates music, TTS, and fade. Emits session-level cuesheet events for track start/end, fade timing, and narration playback.
 
 **`MainViewModel`** (`Features/Main/`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges `RadioState` to SwiftUI views.
 
-**`ProcessScriptGenerationService`** (`Services/Script/`) — Spawns an external CLI subprocess to generate JSON scripts.
+**`ProcessScriptGenerationService`** (`Services/Script/`) — Spawns an external CLI subprocess to generate JSON scripts. Script session folders now also include `cuesheet.txt` with CLI timing and related playback events.
 
-**`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV. Includes retry and fallback model logic.
+**`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV. Includes retry and fallback model logic, and records per-attempt status/fallback details into the session cuesheet.
 
 **`AppleMusicService`** (`Services/Music/`) — Controls Music.app via `AppleScriptExecutor`.
 

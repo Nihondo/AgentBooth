@@ -5,6 +5,8 @@ actor RadioOrchestrator {
     private struct PreparedNarration: Sendable {
         let script: RadioScript
         let wavData: Data
+        let segmentLabel: String
+        let cueSheetIndentLevel: Int
     }
 
     private struct ActiveNarration: Sendable {
@@ -30,6 +32,7 @@ actor RadioOrchestrator {
     private let ttsService: any TTSService
     private let audioPlaybackService: any AudioPlaybackServiceProtocol
     private let recordingService: (any ShowRecordingServiceProtocol)?
+    private let cueSheetLogger: ShowCueSheetLogger?
     private let stateDidChange: @Sendable (RadioState) -> Void
 
     private var radioState = RadioState()
@@ -49,6 +52,7 @@ actor RadioOrchestrator {
         ttsService: any TTSService,
         audioPlaybackService: any AudioPlaybackServiceProtocol,
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
+        cueSheetLogger: ShowCueSheetLogger? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void
     ) {
         self.settings = settings
@@ -58,6 +62,7 @@ actor RadioOrchestrator {
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
         self.recordingService = recordingService
+        self.cueSheetLogger = cueSheetLogger
         self.stateDidChange = stateDidChange
     }
 
@@ -128,6 +133,10 @@ actor RadioOrchestrator {
 
     private func performShow(playlistName: String, initialTracks: [TrackInfo]? = nil) async throws {
         let tracks = try await loadTracks(for: playlistName, initialTracks: initialTracks)
+        await cueSheetLogger?.append(
+            "再生セッション開始(プレイリスト: \(playlistName) / 曲数: \(tracks.count))",
+            indentLevel: 0
+        )
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
         rememberTopics(for: tracks[0], script: openingNarration.script)
 
@@ -141,6 +150,10 @@ actor RadioOrchestrator {
                 return
             }
 
+            await cueSheetLogger?.append(
+                "次曲(\(indexValue + 1)/\(tracks.count) \(trackCueLabel(track)))",
+                indentLevel: 0
+            )
             updateTrackState(track, trackIndex: indexValue)
             try await startTrackForActiveNarration(track: track, activeNarration: activeNarration)
 
@@ -218,6 +231,11 @@ actor RadioOrchestrator {
 
     private func finishRunShow(errorMessage: String?) async {
         if let errorMessage {
+            await cueSheetLogger?.append("再生セッション終了(エラー: \(errorMessage))", indentLevel: 0)
+        } else {
+            await cueSheetLogger?.append("再生セッション終了", indentLevel: 0)
+        }
+        if let errorMessage {
             updateState { $0.errorMessage = errorMessage }
         }
         await audioPlaybackService.stopPlayback()
@@ -263,14 +281,27 @@ actor RadioOrchestrator {
     }
 
     private func prepareOpeningNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
-        updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
-        let script = try await scriptService.generateOpening(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-        let wavData = try await synthesizeNarration(
-            dialogues: script.dialogues,
-            segmentLabel: String(localized: "オープニング")
+        let segmentLabel = String(localized: "オープニング")
+        await cueSheetLogger?.append(
+            "\(segmentLabel)(\(trackCueLabel(tracks.first)))",
+            indentLevel: 0
         )
-        return PreparedNarration(script: script, wavData: wavData)
+        return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
+            await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
+            let script = try await scriptService.generateOpening(tracks: tracks, settings: settings)
+            updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+            await cueSheetLogger?.append(
+                "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
+            )
+            let wavData = try await synthesizeNarration(dialogues: script.dialogues, segmentLabel: segmentLabel)
+            return PreparedNarration(
+                script: script,
+                wavData: wavData,
+                segmentLabel: segmentLabel,
+                cueSheetIndentLevel: 1
+            )
+        }
     }
 
     private func makeNextNarrationTask(
@@ -294,33 +325,56 @@ actor RadioOrchestrator {
         nextTrack: TrackInfo
     ) async throws -> PreparedNarration {
         let continuityNote = buildContinuityNote(for: nextTrack, previousTrack: currentTrack)
-        updateState {
-            $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name)
-            $0.isProcessing = true
+        let segmentLabel = String(format: String(localized: "%@ から %@ へのトランジション"), currentTrack.name, nextTrack.name)
+        await cueSheetLogger?.append(
+            "トランジション(\(trackShortLabel(currentTrack)) → \(trackShortLabel(nextTrack)))",
+            indentLevel: 0
+        )
+        return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            updateState {
+                $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name)
+                $0.isProcessing = true
+            }
+            await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
+            let script = try await scriptService.generateTransition(
+                currentTrack: currentTrack,
+                nextTrack: nextTrack,
+                settings: settings,
+                continuityNote: continuityNote
+            )
+            updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+            await cueSheetLogger?.append(
+                "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
+            )
+            let wavData = try await synthesizeNarration(dialogues: script.dialogues, segmentLabel: segmentLabel)
+            return PreparedNarration(
+                script: script,
+                wavData: wavData,
+                segmentLabel: segmentLabel,
+                cueSheetIndentLevel: 1
+            )
         }
-        let script = try await scriptService.generateTransition(
-            currentTrack: currentTrack,
-            nextTrack: nextTrack,
-            settings: settings,
-            continuityNote: continuityNote
-        )
-        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-        let wavData = try await synthesizeNarration(
-            dialogues: script.dialogues,
-            segmentLabel: String(format: String(localized: "%@ から %@ へのトランジション"), currentTrack.name, nextTrack.name)
-        )
-        return PreparedNarration(script: script, wavData: wavData)
     }
 
     private func generatePreparedClosingNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {
-        updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
-        let script = try await scriptService.generateClosing(tracks: tracks, settings: settings)
-        updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-        let wavData = try await synthesizeNarration(
-            dialogues: script.dialogues,
-            segmentLabel: String(localized: "クロージング")
-        )
-        return PreparedNarration(script: script, wavData: wavData)
+        let segmentLabel = String(localized: "クロージング")
+        await cueSheetLogger?.append("\(segmentLabel)", indentLevel: 0)
+        return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
+            await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
+            let script = try await scriptService.generateClosing(tracks: tracks, settings: settings)
+            updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+            await cueSheetLogger?.append(
+                "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
+            )
+            let wavData = try await synthesizeNarration(dialogues: script.dialogues, segmentLabel: segmentLabel)
+            return PreparedNarration(
+                script: script,
+                wavData: wavData,
+                segmentLabel: segmentLabel,
+                cueSheetIndentLevel: 1
+            )
+        }
     }
 
     private func updateTrackState(_ track: TrackInfo, trackIndex: Int) {
@@ -336,6 +390,10 @@ actor RadioOrchestrator {
         track: TrackInfo,
         activeNarration: ActiveNarration
     ) async throws {
+        await cueSheetLogger?.append(
+            "曲選択(\(radioState.trackIndex + 1)/\(max(1, radioState.playlistTrackCount)) \(trackCueLabel(track)))",
+            indentLevel: 1
+        )
         let leadSeconds = effectiveMusicLeadSeconds()
         if settings.defaultOverlapMode == .enabled, leadSeconds > 0 {
             try await waitUntilNarrationRemainingSeconds(
@@ -346,7 +404,9 @@ actor RadioOrchestrator {
             try await activeNarration.playbackTask.value
             await fadeMusicVolume(
                 targetVolume: settings.volumeSettings.normalVolume,
-                durationSeconds: settings.volumeSettings.fadeDuration
+                durationSeconds: settings.volumeSettings.fadeDuration,
+                eventLabel: String(localized: "フェードイン"),
+                indentLevel: 2
             )
         } else {
             try await activeNarration.playbackTask.value
@@ -357,7 +417,23 @@ actor RadioOrchestrator {
     private func startNarration(_ prepared: PreparedNarration) -> ActiveNarration {
         let playbackTask = Task {
             try await self.waitWhilePaused()
-            try await self.audioPlaybackService.play(wavData: prepared.wavData)
+            await self.cueSheetLogger?.append(
+                "TTS再生開始(\(prepared.segmentLabel))",
+                indentLevel: prepared.cueSheetIndentLevel
+            )
+            do {
+                try await self.audioPlaybackService.play(wavData: prepared.wavData)
+                await self.cueSheetLogger?.append(
+                    "TTS再生終了(\(prepared.segmentLabel))",
+                    indentLevel: prepared.cueSheetIndentLevel
+                )
+            } catch {
+                await self.cueSheetLogger?.append(
+                    "TTS再生終了(\(prepared.segmentLabel) / エラー: \(error.localizedDescription))",
+                    indentLevel: prepared.cueSheetIndentLevel
+                )
+                throw error
+            }
         }
         return ActiveNarration(
             prepared: prepared,
@@ -431,7 +507,9 @@ actor RadioOrchestrator {
         if settings.defaultOverlapMode == .enabled, !resolvedNarration.didTrackReachNaturalEnd {
             await fadeMusicVolume(
                 targetVolume: settings.volumeSettings.talkVolume,
-                durationSeconds: settings.volumeSettings.fadeDuration
+                durationSeconds: settings.volumeSettings.fadeDuration,
+                eventLabel: String(localized: "ダッキング"),
+                indentLevel: 1
             )
             let activeNarration = startNarration(resolvedNarration.prepared)
             let fadeDuration = calculateFadeOutDuration()
@@ -449,9 +527,11 @@ actor RadioOrchestrator {
     }
 
     private func startTrack(_ track: TrackInfo, startVolume: Int) async throws {
+        await cueSheetLogger?.append("音量設定(\(startVolume)%)", indentLevel: 2)
         await setMusicVolume(level: startVolume)
         try await musicService.play(track: track)
         await setMusicVolume(level: startVolume)
+        await cueSheetLogger?.append("曲再生開始(\(trackCueLabel(track)))", indentLevel: 2)
         trackStartedAt = ContinuousClock.now
         startPositionPolling(track: track)
     }
@@ -460,11 +540,15 @@ actor RadioOrchestrator {
         stopPositionPolling()
         trackStartedAt = nil
         await musicService.stopPlayback()
+        if let currentTrack = radioState.currentTrack {
+            await cueSheetLogger?.append("曲再生終了(\(trackCueLabel(currentTrack)))", indentLevel: 1)
+        }
         updateState { $0.currentPlaybackPosition = 0 }
     }
 
     private func synthesizeNarration(dialogues: [DialogueLine], segmentLabel: String) async throws -> Data {
         updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成開始（%@）"), segmentLabel); $0.isProcessing = true }
+        await cueSheetLogger?.append("TTS音声作成開始(\(segmentLabel))")
         do {
             let result = try await ttsService.synthesize(dialogues: dialogues, settings: settings)
             let credentialLabel = result.credentialSetLabelUsed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -478,8 +562,12 @@ actor RadioOrchestrator {
                 )
                 $0.isProcessing = false
             }
+            await cueSheetLogger?.append(
+                "TTS音声作成終了(\(segmentLabel) / セット: \(credentialLabel) / モデル: \(result.modelUsed) / フォールバック: \(result.didUseFallback ? "あり" : "なし"))"
+            )
             return result.wavData
         } catch {
+            await cueSheetLogger?.append("TTS音声作成終了(\(segmentLabel) / エラー: \(error.localizedDescription))")
             throw CocoaError(
                 .coderInvalidValue,
                 userInfo: [NSLocalizedDescriptionKey: String(format: String(localized: "%@ の音声生成に失敗しました: %@"), segmentLabel, error.localizedDescription)]
@@ -533,18 +621,35 @@ actor RadioOrchestrator {
     private func fadeOutAndStopTrack(durationSeconds: Double) async {
         stopPositionPolling()
         if durationSeconds > 0 {
-            await fadeMusicVolume(targetVolume: 0, durationSeconds: durationSeconds)
+            await fadeMusicVolume(
+                targetVolume: 0,
+                durationSeconds: durationSeconds,
+                eventLabel: String(localized: "フェードアウト"),
+                indentLevel: 1
+            )
         }
         trackStartedAt = nil
         await musicService.stopPlayback()
+        if let currentTrack = radioState.currentTrack {
+            await cueSheetLogger?.append("曲再生終了(\(trackCueLabel(currentTrack)))", indentLevel: 1)
+        }
         updateState { $0.currentPlaybackPosition = 0 }
     }
 
-    private func fadeMusicVolume(targetVolume: Int, durationSeconds: Double) async {
+    private func fadeMusicVolume(
+        targetVolume: Int,
+        durationSeconds: Double,
+        eventLabel: String,
+        indentLevel: Int
+    ) async {
         let currentVolume = await musicService.fetchVolume()
         guard currentVolume != targetVolume else {
             return
         }
+        await cueSheetLogger?.append(
+            "\(eventLabel)開始(\(currentVolume)% → \(targetVolume)% / \(String(format: "%.2f", durationSeconds))s)",
+            indentLevel: indentLevel
+        )
 
         let steps = 20
         let stepSize = Double(targetVolume - currentVolume) / Double(steps)
@@ -559,6 +664,7 @@ actor RadioOrchestrator {
             updateState { $0.volume = nextVolume }
             try? await Task.sleep(nanoseconds: UInt64(max(0, stepInterval) * 1_000_000_000))
         }
+        await cueSheetLogger?.append("\(eventLabel)終了(\(targetVolume)%)", indentLevel: indentLevel)
     }
 
     private func waitRespectingPause(seconds: Double) async throws {
@@ -726,5 +832,16 @@ actor RadioOrchestrator {
             $0.currentPlaybackPosition = 0
             // recordingOutputURL は番組終了後もユーザーが確認できるよう保持する
         }
+    }
+
+    private func trackCueLabel(_ track: TrackInfo?) -> String {
+        guard let track else {
+            return String(localized: "不明な曲")
+        }
+        return "\(track.name) / \(track.artist) / \(track.album)"
+    }
+
+    private func trackShortLabel(_ track: TrackInfo) -> String {
+        "\(track.name) / \(track.artist)"
     }
 }

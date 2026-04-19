@@ -58,8 +58,8 @@ protocol AppServiceFactory: Sendable {
     func availableServices() -> [MusicServiceKind]
     @MainActor func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService
     func makeMusicPlaybackProfile(for serviceKind: MusicServiceKind) -> MusicPlaybackProfile
-    func makeScriptService(settings: AppSettings) -> any ScriptGenerationService
-    func makeTTSService(settings: AppSettings) -> any TTSService
+    func makeScriptService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any ScriptGenerationService
+    func makeTTSService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any TTSService
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)?
 }

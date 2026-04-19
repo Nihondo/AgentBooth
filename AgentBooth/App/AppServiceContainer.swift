@@ -36,12 +36,12 @@ struct LiveAppServiceFactory: AppServiceFactory {
         }
     }
 
-    func makeScriptService(settings: AppSettings) -> any ScriptGenerationService {
-        ProcessScriptGenerationService()
+    func makeScriptService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any ScriptGenerationService {
+        ProcessScriptGenerationService(cueSheetLogger: cueSheetLogger)
     }
 
-    func makeTTSService(settings: AppSettings) -> any TTSService {
-        GeminiTTSService()
+    func makeTTSService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any TTSService {
+        GeminiTTSService(cueSheetLogger: cueSheetLogger)
     }
 
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol {

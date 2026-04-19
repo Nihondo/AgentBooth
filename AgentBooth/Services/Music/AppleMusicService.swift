@@ -13,9 +13,9 @@ enum AppleMusicServiceError: LocalizedError {
 
 /// Controls Music.app via AppleScript.
 final class AppleMusicService: @unchecked Sendable, MusicService {
-    private let appleScriptExecutor: AppleScriptExecutor
+    private let appleScriptExecutor: any AppleScriptExecuting
 
-    init(appleScriptExecutor: AppleScriptExecutor = AppleScriptExecutor()) {
+    init(appleScriptExecutor: any AppleScriptExecuting = AppleScriptExecutor()) {
         self.appleScriptExecutor = appleScriptExecutor
     }
 
@@ -86,8 +86,8 @@ final class AppleMusicService: @unchecked Sendable, MusicService {
             set target_playlist to user playlist "\(escapedPlaylistName)"
             set found_tracks to (every track of target_playlist whose name is "\(escapedTrackName)" and artist is "\(escapedArtistName)")
             if (count of found_tracks) > 0 then
+                stop
                 play item 1 of found_tracks
-                set player position to 0
             end if
         end tell
         """

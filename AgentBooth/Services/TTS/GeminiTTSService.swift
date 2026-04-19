@@ -136,16 +136,19 @@ actor GeminiTTSService: TTSService {
     private let retryPolicy = GeminiRetryPolicy()
     private let encoder = JSONEncoder()
     private let successfulCallThrottleInterval: TimeInterval
+    private let cueSheetLogger: ShowCueSheetLogger?
     private var nextCallDate = Date.distantPast
     private var exhaustedSetIDs: Set<UUID> = []
     private var sessionLastError: GeminiTTSServiceError?
 
     init(
         session: URLSession = .shared,
-        successfulCallThrottleInterval: TimeInterval = 60
+        successfulCallThrottleInterval: TimeInterval = 60,
+        cueSheetLogger: ShowCueSheetLogger? = nil
     ) {
         self.session = session
         self.successfulCallThrottleInterval = successfulCallThrottleInterval
+        self.cueSheetLogger = cueSheetLogger
     }
 
     func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
@@ -169,6 +172,11 @@ actor GeminiTTSService: TTSService {
         var attemptLastError: GeminiTTSServiceError?
 
         for (index, credentialSet) in availableCredentialSets.enumerated() {
+            let displayLabel = displayCredentialLabel(credentialSet.label)
+            await cueSheetLogger?.append(
+                "Gemini API呼び出し開始(セット: \(displayLabel) / モデル: \(credentialSet.modelName))",
+                indentOffset: 1
+            )
             do {
                 let wavData = try await requestWAV(
                     dialogues: dialogues,
@@ -176,6 +184,10 @@ actor GeminiTTSService: TTSService {
                     modelName: credentialSet.modelName,
                     voiceSettings: settings.voiceSettings,
                     directionSettings: settings.directionSettings
+                )
+                await cueSheetLogger?.append(
+                    "Gemini API呼び出し終了(ステータス: 200 / セット: \(displayLabel) / モデル: \(credentialSet.modelName) / フォールバック: \(index > 0 ? "使用" : "なし"))",
+                    indentOffset: 1
                 )
                 nextCallDate = Date().addingTimeInterval(successfulCallThrottleInterval)
                 return TTSResult(
@@ -185,6 +197,10 @@ actor GeminiTTSService: TTSService {
                     didUseFallback: index > 0
                 )
             } catch let error as GeminiTTSServiceError {
+                await cueSheetLogger?.append(
+                    "Gemini API呼び出し終了(\(describeAPICallResult(error: error, credentialLabel: displayLabel, modelName: credentialSet.modelName, willRetryFallback: index + 1 < availableCredentialSets.count)))",
+                    indentOffset: 1
+                )
                 exhaustedSetIDs.insert(credentialSet.id)
                 sessionLastError = error
                 attemptLastError = error
@@ -287,6 +303,29 @@ actor GeminiTTSService: TTSService {
             return transcript
         }
         return "\(directionBlock)\n\n\(transcript)"
+    }
+
+    private func describeAPICallResult(
+        error: GeminiTTSServiceError,
+        credentialLabel: String,
+        modelName: String,
+        willRetryFallback: Bool
+    ) -> String {
+        switch error {
+        case .httpError(let statusCode, _):
+            return "ステータス: \(statusCode) / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし")"
+        case .invalidResponse(let detail):
+            return "ステータス: invalid-response / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし") / 詳細: \(detail)"
+        case .dailyQuotaExceeded:
+            return "ステータス: daily-quota-exceeded / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし")"
+        case .missingAPIKey:
+            return "ステータス: missing-api-key / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし")"
+        }
+    }
+
+    private func displayCredentialLabel(_ label: String) -> String {
+        let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedLabel.isEmpty ? String(localized: "名称未設定") : trimmedLabel
     }
 
     private func makeDirectionBlock(directionSettings: DirectionSettings) -> String {
