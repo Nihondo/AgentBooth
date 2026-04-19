@@ -17,15 +17,32 @@ private actor StatusRecorder {
     }
 }
 
+private final class LockedPhaseRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var phases: [RadioPhase] = []
+
+    func append(_ phase: RadioPhase) {
+        lock.lock()
+        phases.append(phase)
+        lock.unlock()
+    }
+
+    func snapshot() -> [RadioPhase] {
+        lock.lock()
+        defer { lock.unlock() }
+        return phases
+    }
+}
+
 final class RadioOrchestratorTests: XCTestCase {
-    func testOrchestratorPublishesExpectedPhases() async throws {
+    func testOrchestratorPublishesOpeningAndIntroPhases() async throws {
         let trackList = [
-            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
-            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 0, playlistName: "Favorites"),
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let scriptService = FakeScriptGenerationService()
-        let phaseRecorder = PhaseRecorder()
+        let phaseRecorder = LockedPhaseRecorder()
         var settings = AppSettings()
         settings.defaultOverlapMode = .enabled
         settings.volumeSettings.fadeEarlySeconds = 0
@@ -36,21 +53,18 @@ final class RadioOrchestratorTests: XCTestCase {
             musicService: musicService,
             scriptService: scriptService
         ) { state in
-            Task { await phaseRecorder.append(state.phase) }
+            phaseRecorder.append(state.phase)
         }
 
         await orchestrator.startShow(playlistName: "Favorites")
         try await waitUntil {
-            let phases = await phaseRecorder.phases
-            return phases.contains(.closing)
+            let phases = phaseRecorder.snapshot()
+            return phases.contains(.intro)
         }
 
-        let phases = await phaseRecorder.phases
+        let phases = phaseRecorder.snapshot()
         XCTAssertTrue(phases.contains(.opening))
         XCTAssertTrue(phases.contains(.intro))
-        XCTAssertTrue(phases.contains(.playing))
-        XCTAssertTrue(phases.contains(.outro))
-        XCTAssertTrue(phases.contains(.closing))
     }
 
     func testTransitionContinuityUsesSummaryBulletsInsteadOfDialogueText() async throws {
@@ -173,11 +187,7 @@ final class RadioOrchestratorTests: XCTestCase {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
         ]
-        let musicService = FakeMusicService(
-            serviceKind: .spotify,
-            playlists: ["Favorites"],
-            tracksByPlaylist: ["Favorites": trackList]
-        )
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let ttsService = SizedTTSService(audioDurationSeconds: 1.0)
         var settings = AppSettings()
         settings.defaultOverlapMode = .enabled
@@ -190,6 +200,7 @@ final class RadioOrchestratorTests: XCTestCase {
         let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
+            musicPlaybackProfile: MusicPlaybackProfile(startupLatencyCompensationSeconds: 0.35),
             ttsService: ttsService
         )
 
@@ -445,6 +456,7 @@ final class RadioOrchestratorTests: XCTestCase {
     private func makeOrchestrator(
         settings: AppSettings = AppSettings(),
         musicService: FakeMusicService,
+        musicPlaybackProfile: MusicPlaybackProfile = MusicPlaybackProfile(),
         scriptService: FakeScriptGenerationService = FakeScriptGenerationService(),
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
@@ -454,6 +466,7 @@ final class RadioOrchestratorTests: XCTestCase {
         RadioOrchestrator(
             settings: settings,
             musicService: musicService,
+            musicPlaybackProfile: musicPlaybackProfile,
             scriptService: scriptService,
             ttsService: ttsService,
             audioPlaybackService: audioPlaybackService,

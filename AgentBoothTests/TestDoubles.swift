@@ -2,7 +2,6 @@ import Foundation
 @testable import AgentBooth
 
 final class FakeMusicService: @unchecked Sendable, MusicService {
-    let serviceKind: MusicServiceKind
     var playlists: [String]
     var tracksByPlaylist: [String: [TrackInfo]]
     var playedTracks: [TrackInfo] = []
@@ -14,11 +13,9 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     var currentPosition: Double = 0
 
     init(
-        serviceKind: MusicServiceKind = .appleMusic,
         playlists: [String] = [],
         tracksByPlaylist: [String: [TrackInfo]] = [:]
     ) {
-        self.serviceKind = serviceKind
         self.playlists = playlists
         self.tracksByPlaylist = tracksByPlaylist
     }
@@ -269,6 +266,7 @@ actor FakeRecordingService: ShowRecordingServiceProtocol {
 
 struct FakeServiceFactory: AppServiceFactory {
     let musicService: FakeMusicService
+    let musicPlaybackProfile: MusicPlaybackProfile
     let scriptService: FakeScriptGenerationService
     let ttsService: any TTSService
     let audioPlaybackService: any AudioPlaybackServiceProtocol
@@ -277,6 +275,7 @@ struct FakeServiceFactory: AppServiceFactory {
 
     init(
         musicService: FakeMusicService,
+        musicPlaybackProfile: MusicPlaybackProfile = MusicPlaybackProfile(),
         scriptService: FakeScriptGenerationService = FakeScriptGenerationService(),
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
@@ -284,6 +283,7 @@ struct FakeServiceFactory: AppServiceFactory {
         supportedServices: [MusicServiceKind] = [.appleMusic, .youtubeMusic, .spotify]
     ) {
         self.musicService = musicService
+        self.musicPlaybackProfile = musicPlaybackProfile
         self.scriptService = scriptService
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
@@ -294,6 +294,8 @@ struct FakeServiceFactory: AppServiceFactory {
     func availableServices() -> [MusicServiceKind] { supportedServices }
 
     @MainActor func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService { musicService }
+
+    func makeMusicPlaybackProfile(for serviceKind: MusicServiceKind) -> MusicPlaybackProfile { musicPlaybackProfile }
 
     func makeScriptService(settings: AppSettings) -> any ScriptGenerationService { scriptService }
 

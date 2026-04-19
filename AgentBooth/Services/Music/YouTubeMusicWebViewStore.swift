@@ -6,8 +6,9 @@
 //   webView (loginWebView): ログイン UI 用。ブラウザウィンドウで表示。
 // 両者は WKWebsiteDataStore.default() を共有するためクッキーは自動同期。
 
-import SwiftUI
+import AppKit
 import Combine
+import SwiftUI
 import WebKit
 
 private enum YouTubeCookieSpec {
@@ -39,7 +40,7 @@ final class YouTubeMusicWebViewStore: ObservableObject {
     private var cookieObserver: CookieObserver?
     private var isClosingPopup = false
     /// playbackWebView を保持するオフスクリーンウィンドウ
-    private var offscreenWindow: NSWindow?
+    private var offscreenWindowHost: OffscreenPlaybackWindowHost?
 
     init() {
         let dataStore = WKWebsiteDataStore.default()
@@ -98,22 +99,10 @@ final class YouTubeMusicWebViewStore: ObservableObject {
 
     /// playbackWebView をウィンドウ階層に入れて audio 再生を常時有効化する
     private func setupOffscreenWindow() {
-        let win = NSWindow(
-            contentRect: NSRect(x: -10000, y: -10000, width: 1280, height: 720),
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
+        offscreenWindowHost = OffscreenPlaybackWindowHost(
+            contentView: playbackWebView,
+            frame: NSRect(x: -10000, y: -10000, width: 1280, height: 720)
         )
-        win.isReleasedWhenClosed = false
-        win.isOpaque = false
-        win.backgroundColor = .clear
-        win.level = .init(rawValue: NSWindow.Level.normal.rawValue - 1)
-        // Mission Control・Spaces から隠す
-        win.collectionBehavior = [.transient, .ignoresCycle, .canJoinAllSpaces]
-        win.contentView = playbackWebView
-        // orderFront は main window を隠すため orderBack を使用
-        win.orderBack(nil)
-        self.offscreenWindow = win
     }
 
     // MARK: - ログイン UI
@@ -241,4 +230,27 @@ struct YouTubeMusicWebViewRepresentable: NSViewRepresentable {
     @ObservedObject var store: YouTubeMusicWebViewStore
     func makeNSView(context: Context) -> WKWebView { store.webView }
     func updateNSView(_ nsView: WKWebView, context: Context) {}
+}
+
+/// オフスクリーン再生用のウィンドウを保持する。
+@MainActor
+final class OffscreenPlaybackWindowHost {
+    private let window: NSWindow
+
+    init(contentView: NSView, frame: NSRect) {
+        let window = NSWindow(
+            contentRect: frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .init(rawValue: NSWindow.Level.normal.rawValue - 1)
+        window.collectionBehavior = [.transient, .ignoresCycle, .canJoinAllSpaces]
+        window.contentView = contentView
+        window.orderBack(nil)
+        self.window = window
+    }
 }

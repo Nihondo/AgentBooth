@@ -28,13 +28,10 @@ enum SpotifyMusicServiceError: LocalizedError {
 /// Spotify の `MusicService` 実装。
 @MainActor
 final class SpotifyMusicService: MusicService, @unchecked Sendable {
-    let serviceKind: MusicServiceKind = .spotify
-
     private let store: SpotifyWebViewStore
     private let scriptRunner: SpotifyScriptRunner
     private var playlistByName: [String: SpotifyPlaylistItem] = [:]
     private var currentPlaylist: SpotifyPlaylistItem?
-    private var currentTracks: [SpotifyTrackItem] = []
 
     /// Spotify Web Player を制御するサービスを生成する。
     init(store: SpotifyWebViewStore, scriptRunner: SpotifyScriptRunner = SpotifyScriptRunner()) {
@@ -66,7 +63,6 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
         )
         print("🎵 [Spotify] fetched track rows:", items.count)
         currentPlaylist = playlist
-        currentTracks = items
         return items.compactMap { $0.toTrackInfo(playlistName: playlistName) }
     }
 
@@ -244,9 +240,12 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
         if store.playbackWebView.url?.absoluteString != url.absoluteString {
             store.playbackWebView.load(URLRequest(url: url))
         }
-        try await waitUntil(timeoutNanoseconds: 10_000_000_000) {
+        let didNavigate = await WebPlaybackPoller.waitUntil(timeoutNanoseconds: 10_000_000_000) {
             self.store.playbackWebView.url?.host == SpotifyWebViewStore.targetHost &&
             (self.store.playbackWebView.url?.absoluteString ?? "").contains(url.path)
+        }
+        guard didNavigate else {
+            throw SpotifyMusicServiceError.domNotMatched(String(localized: "タイムアウトしました。"))
         }
     }
 
@@ -256,7 +255,7 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
             let currentURL: String
         }
 
-        try await waitUntil(timeoutNanoseconds: 10_000_000_000) {
+        let didLoadRows = await WebPlaybackPoller.waitUntil(timeoutNanoseconds: 10_000_000_000) {
             if let response = try? await self.scriptRunner.decodeJSONScript(
                 ReadyResponse.self,
                 script: SpotifyDOMScripts.checkTrackRowsReady(playlistName: playlistName),
@@ -266,27 +265,18 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
             }
             return false
         }
+        guard didLoadRows else {
+            throw SpotifyMusicServiceError.domNotMatched(String(localized: "タイムアウトしました。"))
+        }
     }
 
     private func waitForPlaybackState(isPlaying expectedValue: Bool) async throws {
-        try await waitUntil(timeoutNanoseconds: 4_000_000_000) {
+        let didReachExpectedState = await WebPlaybackPoller.waitUntil(timeoutNanoseconds: 4_000_000_000) {
             (try? await self.fetchPlayerState().isPlaying) == expectedValue
         }
-    }
-
-    private func waitUntil(
-        timeoutNanoseconds: UInt64,
-        condition: @escaping () async -> Bool
-    ) async throws {
-        let intervalNanoseconds: UInt64 = 250_000_000
-        let iterations = max(1, Int(timeoutNanoseconds / intervalNanoseconds))
-        for _ in 0..<iterations {
-            if await condition() {
-                return
-            }
-            try? await Task.sleep(nanoseconds: intervalNanoseconds)
+        guard didReachExpectedState else {
+            throw SpotifyMusicServiceError.domNotMatched(String(localized: "タイムアウトしました。"))
         }
-        throw SpotifyMusicServiceError.domNotMatched(String(localized: "タイムアウトしました。"))
     }
 
     private func fetchPlayerState() async throws -> SpotifyPlayerStateResponse {
@@ -314,4 +304,22 @@ private struct SpotifyPlayerTrackResponse: Decodable {
     let title: String
     let artist: String
     let artworkURL: String?
+}
+
+/// Web 再生基盤で使う共通ポーリングユーティリティ。
+enum WebPlaybackPoller {
+    static func waitUntil(
+        timeoutNanoseconds: UInt64,
+        intervalNanoseconds: UInt64 = 250_000_000,
+        condition: @escaping () async -> Bool
+    ) async -> Bool {
+        let iterations = max(1, Int(timeoutNanoseconds / intervalNanoseconds))
+        for _ in 0..<iterations {
+            if await condition() {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: intervalNanoseconds)
+        }
+        return false
+    }
 }

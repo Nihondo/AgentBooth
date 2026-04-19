@@ -2,16 +2,18 @@ import Foundation
 
 /// A music backend that can list playlists and control playback.
 protocol MusicService: Sendable {
-    var serviceKind: MusicServiceKind { get }
     func fetchPlaylists() async throws -> [String]
     func fetchTracks(in playlistName: String) async throws -> [TrackInfo]
+    /// 指定トラックの先頭から再生を開始する。
     func play(track: TrackInfo) async throws
     func stopPlayback() async
     func pausePlayback() async
     func resumePlayback() async
     func setVolume(level: Int) async
     func fetchVolume() async -> Int
+    /// 現在再生中のトラック情報を返す。UI や診断用途のため維持している。
     func fetchCurrentTrack() async throws -> TrackInfo?
+    /// 現在再生中かを返す。UI や診断用途のため維持している。
     func fetchIsPlaying() async -> Bool
     /// 現在の再生位置を秒単位で返す。
     func fetchPlaybackPosition() async -> Double
@@ -55,6 +57,7 @@ protocol ShowRecordingServiceProtocol: Sendable {
 protocol AppServiceFactory: Sendable {
     func availableServices() -> [MusicServiceKind]
     @MainActor func makeMusicService(for serviceKind: MusicServiceKind) -> any MusicService
+    func makeMusicPlaybackProfile(for serviceKind: MusicServiceKind) -> MusicPlaybackProfile
     func makeScriptService(settings: AppSettings) -> any ScriptGenerationService
     func makeTTSService(settings: AppSettings) -> any TTSService
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol

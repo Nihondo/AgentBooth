@@ -13,8 +13,6 @@ enum AppleMusicServiceError: LocalizedError {
 
 /// Controls Music.app via AppleScript.
 final class AppleMusicService: @unchecked Sendable, MusicService {
-    let serviceKind: MusicServiceKind = .appleMusic
-
     private let appleScriptExecutor: AppleScriptExecutor
 
     init(appleScriptExecutor: AppleScriptExecutor = AppleScriptExecutor()) {
@@ -89,6 +87,7 @@ final class AppleMusicService: @unchecked Sendable, MusicService {
             set found_tracks to (every track of target_playlist whose name is "\(escapedTrackName)" and artist is "\(escapedArtistName)")
             if (count of found_tracks) > 0 then
                 play item 1 of found_tracks
+                set player position to 0
             end if
         end tell
         """
@@ -173,39 +172,4 @@ final class AppleMusicService: @unchecked Sendable, MusicService {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
     }
-}
-
-/// Placeholder for future YouTube Music automation support.
-struct YouTubeMusicPlaceholderService: MusicService {
-    let serviceKind: MusicServiceKind = .youtubeMusic
-
-    func fetchPlaylists() async throws -> [String] {
-        throw AppleMusicServiceError.unsupportedService
-    }
-
-    func fetchTracks(in playlistName: String) async throws -> [TrackInfo] {
-        throw AppleMusicServiceError.unsupportedService
-    }
-
-    func play(track: TrackInfo) async throws {
-        throw AppleMusicServiceError.unsupportedService
-    }
-
-    func stopPlayback() async {}
-
-    func pausePlayback() async {}
-
-    func resumePlayback() async {}
-
-    func setVolume(level: Int) async {}
-
-    func fetchVolume() async -> Int { 0 }
-
-    func fetchCurrentTrack() async throws -> TrackInfo? { nil }
-
-    func fetchIsPlaying() async -> Bool { false }
-
-    func fetchPlaybackPosition() async -> Double { 0 }
-
-    func seekToPosition(_ seconds: Double) async {}
 }

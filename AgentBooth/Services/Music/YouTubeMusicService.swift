@@ -28,14 +28,14 @@ enum YouTubeMusicServiceError: LocalizedError {
 /// @MainActor で隔離し WKWebView を安全に操作する。
 @MainActor
 final class YouTubeMusicService: MusicService, @unchecked Sendable {
-    let serviceKind: MusicServiceKind = .youtubeMusic
-
     private let store: YouTubeMusicWebViewStore
     private let apiFetcher: YouTubeMusicAPIFetcher
     private let playerController: YouTubeMusicPlayerController
 
     /// 直近に選択されたプレイリスト ID（再生時のコンテキスト用）
     private var currentPlaylistId: String = ""
+    /// プレイリスト名からプレイリスト ID を引くキャッシュ。
+    private var playlistIDByName: [String: String] = [:]
 
     init(store: YouTubeMusicWebViewStore) {
         self.store = store
@@ -49,20 +49,19 @@ final class YouTubeMusicService: MusicService, @unchecked Sendable {
     func fetchPlaylists() async throws -> [String] {
         try requireLoggedIn()
         let items = try await apiFetcher.fetchPlaylists(using: store.playbackWebView)
+        cachePlaylistIDs(items)
         return items.map(\.title)
     }
 
     /// プレイリスト名に対応するトラック一覧を返す
     func fetchTracks(in playlistName: String) async throws -> [TrackInfo] {
         try requireLoggedIn()
-        // プレイリスト一覧から名前に一致する ID を取得
-        let playlists = try await apiFetcher.fetchPlaylists(using: store.playbackWebView)
-        guard let playlist = playlists.first(where: { $0.title == playlistName }) else {
+        guard let playlistId = try await resolvePlaylistID(named: playlistName) else {
             return []
         }
-        currentPlaylistId = playlist.id
+        currentPlaylistId = playlistId
         let items = try await apiFetcher.fetchTracks(
-            playlistId: playlist.id,
+            playlistId: playlistId,
             using: store.playbackWebView
         )
         return items.map { item in
@@ -84,7 +83,8 @@ final class YouTubeMusicService: MusicService, @unchecked Sendable {
         guard !track.serviceID.isEmpty else {
             throw YouTubeMusicServiceError.unsupportedOperation
         }
-        let listId = track.playlistName.isEmpty ? currentPlaylistId : currentPlaylistId
+        let listId = try await resolvePlaybackPlaylistID(for: track)
+        currentPlaylistId = listId
         try await playerController.play(
             videoId: track.serviceID,
             playlistId: listId,
@@ -137,5 +137,30 @@ final class YouTubeMusicService: MusicService, @unchecked Sendable {
         guard store.isLoggedIn else {
             throw YouTubeMusicServiceError.notLoggedIn
         }
+    }
+
+    private func cachePlaylistIDs(_ playlists: [YouTubeMusicPlaylistItem]) {
+        playlistIDByName = Dictionary(
+            uniqueKeysWithValues: playlists.map { ($0.title, $0.id) }
+        )
+    }
+
+    private func resolvePlaylistID(named playlistName: String) async throws -> String? {
+        if let playlistId = playlistIDByName[playlistName] {
+            return playlistId
+        }
+        let playlists = try await apiFetcher.fetchPlaylists(using: store.playbackWebView)
+        cachePlaylistIDs(playlists)
+        return playlistIDByName[playlistName]
+    }
+
+    private func resolvePlaybackPlaylistID(for track: TrackInfo) async throws -> String {
+        if !track.playlistName.isEmpty, let playlistId = try await resolvePlaylistID(named: track.playlistName) {
+            return playlistId
+        }
+        guard !currentPlaylistId.isEmpty else {
+            throw YouTubeMusicServiceError.unsupportedOperation
+        }
+        return currentPlaylistId
     }
 }

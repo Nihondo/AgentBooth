@@ -96,7 +96,9 @@ currentTrack / trackIndex / currentPlaybackPosition を更新
 #### オーバーラップあり (`OverlapMode.enabled`)
 
 ```text
-activeNarration の残り時間が `musicLeadSeconds` 以下になるまで待つ
+activeNarration の残り時間が `effectiveMusicLeadSeconds`
+（`musicLeadSeconds` + `MusicPlaybackProfile.startupLatencyCompensationSeconds`）
+以下になるまで待つ
   → 曲を `talkVolume` で開始
   → TTS 完了後、`fadeDuration` で `normalVolume` まで戻す
 ```
@@ -110,8 +112,8 @@ activeNarration の再生完了まで待つ
 
 どちらの場合も、曲再生開始時に:
 
-- `musicService.play(track:)`
-- `seekToPosition(0)`
+- `musicService.play(track:)` を呼ぶ
+  - `play(track:)` の契約として「指定トラックを先頭から再生開始する」を保証する
 - `trackStartedAt` を記録
 - `startPositionPolling()` を開始
 
@@ -330,8 +332,17 @@ outro
 | `talkVolume` | 25 | トーク中の音楽音量 |
 | `fadeDuration` | 5.0s | 音量を滑らかに変える時間 |
 | `fadeEarlySeconds` | 10s | 実効終端の何秒前からアウトロへ入るか |
-| `musicLeadSeconds` | 10.0s | ナレーション終了前に次曲を出し始める秒数 |
+| `musicLeadSeconds` | 10.0s | ナレーション終了前に次曲を出し始める基準秒数 |
 | `maxPlaybackDurationSeconds` | 0 | 1曲あたりの実効再生上限。0 は無制限 |
+
+`effectiveMusicLeadSeconds` は次で決まる:
+
+```text
+musicLeadSeconds + MusicPlaybackProfile.startupLatencyCompensationSeconds
+```
+
+`MusicPlaybackProfile` はサービスごとの再生開始レイテンシ補正を表し、
+現行実装では Spotify のみ `0.35s`、Apple Music / YouTube Music は `0s`。
 
 ---
 
@@ -342,7 +353,7 @@ outro
 ```text
 ナレーション再生
 |-------------------------------|
-                         ^ 残り `musicLeadSeconds`
+                         ^ 残り `effectiveMusicLeadSeconds`
                          |
 曲再生開始               |
 |===============================|

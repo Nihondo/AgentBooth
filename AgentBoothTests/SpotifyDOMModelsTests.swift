@@ -127,8 +127,8 @@ final class SpotifyDOMModelsTests: XCTestCase {
         XCTAssertTrue(script.contains("matchedVideoID"))
     }
 
-    func testFakeMusicServiceSupportsSpotifyKind() async throws {
-        let service = FakeMusicService(serviceKind: .spotify)
-        XCTAssertEqual(service.serviceKind, .spotify)
+    func testMusicPlaybackProfileStoresStartupLatencyCompensation() {
+        let profile = MusicPlaybackProfile(startupLatencyCompensationSeconds: 0.35)
+        XCTAssertEqual(profile.startupLatencyCompensationSeconds, 0.35)
     }
 }

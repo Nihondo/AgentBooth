@@ -2,8 +2,6 @@ import Foundation
 
 /// Drives the radio playback lifecycle.
 actor RadioOrchestrator {
-    private let spotifyLeadCompensationSeconds = 0.35
-
     private struct PreparedNarration: Sendable {
         let script: RadioScript
         let wavData: Data
@@ -27,6 +25,7 @@ actor RadioOrchestrator {
 
     private let settings: AppSettings
     private let musicService: any MusicService
+    private let musicPlaybackProfile: MusicPlaybackProfile
     private let scriptService: any ScriptGenerationService
     private let ttsService: any TTSService
     private let audioPlaybackService: any AudioPlaybackServiceProtocol
@@ -45,6 +44,7 @@ actor RadioOrchestrator {
     init(
         settings: AppSettings,
         musicService: any MusicService,
+        musicPlaybackProfile: MusicPlaybackProfile,
         scriptService: any ScriptGenerationService,
         ttsService: any TTSService,
         audioPlaybackService: any AudioPlaybackServiceProtocol,
@@ -53,6 +53,7 @@ actor RadioOrchestrator {
     ) {
         self.settings = settings
         self.musicService = musicService
+        self.musicPlaybackProfile = musicPlaybackProfile
         self.scriptService = scriptService
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
@@ -377,16 +378,7 @@ actor RadioOrchestrator {
     }
 
     private func effectiveMusicLeadSeconds() -> Double {
-        max(0, settings.volumeSettings.musicLeadSeconds + estimatedTrackStartLatencySeconds())
-    }
-
-    private func estimatedTrackStartLatencySeconds() -> Double {
-        switch musicService.serviceKind {
-        case .spotify:
-            return spotifyLeadCompensationSeconds
-        case .appleMusic, .youtubeMusic:
-            return 0
-        }
+        max(0, settings.volumeSettings.musicLeadSeconds + musicPlaybackProfile.startupLatencyCompensationSeconds)
     }
 
     private func resolveNextNarration(
@@ -459,7 +451,6 @@ actor RadioOrchestrator {
     private func startTrack(_ track: TrackInfo, startVolume: Int) async throws {
         await setMusicVolume(level: startVolume)
         try await musicService.play(track: track)
-        await musicService.seekToPosition(0)
         await setMusicVolume(level: startVolume)
         trackStartedAt = ContinuousClock.now
         startPositionPolling(track: track)

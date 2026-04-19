@@ -41,11 +41,11 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 ### Key components
 
-**`RadioOrchestrator`** (`Services/Radio/RadioOrchestrator.swift`) — Swift `actor`. The core of the app. Drives the full radio show lifecycle: opening → intro → playing → transition/outro → closing. It keeps one active narration playback handle, prepares the next narration while music plays, waits instead of skipping delayed TTS, and extends the current track up to its natural end when early cutoff would otherwise interrupt the flow.
+**`RadioOrchestrator`** (`Services/Radio/RadioOrchestrator.swift`) — Swift `actor`. The core of the app. Drives the full radio show lifecycle: opening → intro → playing → transition/outro → closing. It keeps one active narration playback handle, prepares the next narration while music plays, waits instead of skipping delayed TTS, and extends the current track up to its natural end when early cutoff would otherwise interrupt the flow. Service-specific startup latency is injected via `MusicPlaybackProfile`, so the orchestrator no longer switches on the concrete music backend kind.
 
 **`MainViewModel`** (`Features/Main/MainViewModel.swift`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges UI state (`RadioState`) to SwiftUI views. Does not contain radio logic.
 
-**`AppServiceFactory` / `LiveAppServiceFactory`** — Dependency injection entry point. `AppServiceContainer.swift` wires up live services. Tests use fakes from `TestDoubles.swift`.
+**`AppServiceFactory` / `LiveAppServiceFactory`** — Dependency injection entry point. `AppServiceContainer.swift` wires up live services plus `MusicPlaybackProfile` values. Tests use fakes from `TestDoubles.swift`.
 
 **`ProcessScriptGenerationService`** (`Services/Script/`) — Calls an external CLI subprocess (`claude`, `gemini`, `codex`, or `copilot`) to generate JSON scripts. `ScriptCommandBuilder` assembles the command per CLI type.
 
@@ -110,6 +110,7 @@ The CLI must return:
 - `RadioOrchestrator` is a Swift `actor` — call its methods with `await` from `@MainActor` context in `MainViewModel`.
 - `@MainActor` is required for all UI-touching code (`MainViewModel`, `AppSettingsStore`, views).
 - All service protocols are `Sendable`.
+- `MusicService.play(track:)` is expected to start the selected track from the beginning; the orchestrator does not seek back to `0` after calling it.
 
 ## Testing
 

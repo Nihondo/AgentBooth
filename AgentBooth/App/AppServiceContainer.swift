@@ -1,6 +1,8 @@
 import Foundation
 
 struct LiveAppServiceFactory: AppServiceFactory {
+    private let spotifyStartupLatencyCompensationSeconds = 0.35
+
     func availableServices() -> [MusicServiceKind] {
         [.appleMusic, .youtubeMusic, .spotify]
     }
@@ -20,6 +22,17 @@ struct LiveAppServiceFactory: AppServiceFactory {
             return YouTubeMusicService(store: LiveAppServiceFactory.sharedYouTubeMusicStore)
         case .spotify:
             return SpotifyMusicService(store: LiveAppServiceFactory.sharedSpotifyStore)
+        }
+    }
+
+    func makeMusicPlaybackProfile(for serviceKind: MusicServiceKind) -> MusicPlaybackProfile {
+        switch serviceKind {
+        case .appleMusic, .youtubeMusic:
+            return MusicPlaybackProfile()
+        case .spotify:
+            return MusicPlaybackProfile(
+                startupLatencyCompensationSeconds: spotifyStartupLatencyCompensationSeconds
+            )
         }
     }
 

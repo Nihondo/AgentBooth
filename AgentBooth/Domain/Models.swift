@@ -26,6 +26,16 @@ enum MusicServiceKind: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+/// 音楽サービスごとの再生特性を表す設定。
+struct MusicPlaybackProfile: Equatable, Sendable {
+    /// 再生開始レイテンシを見込んで、トラック開始を前倒しする秒数。
+    let startupLatencyCompensationSeconds: Double
+
+    init(startupLatencyCompensationSeconds: Double = 0) {
+        self.startupLatencyCompensationSeconds = startupLatencyCompensationSeconds
+    }
+}
+
 /// The overlap strategy between music playback and generated narration.
 enum OverlapMode: String, CaseIterable, Codable, Identifiable {
     case enabled

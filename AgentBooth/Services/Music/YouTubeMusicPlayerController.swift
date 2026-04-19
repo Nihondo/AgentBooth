@@ -149,18 +149,21 @@ final class YouTubeMusicPlayerController {
         }
 
         let checkScript = YouTubeMusicJSScripts.waitForPlaybackTarget(videoId: videoId)
-        let intervalNS: UInt64 = 300_000_000 // 0.3 秒
-        let maxIterations = Int(timeoutSeconds / 0.3)
-        for _ in 0..<maxIterations {
-            if let response = try? await scriptRunner.decodeJSONScript(
+        let didBecomeReady = await WebPlaybackPoller.waitUntil(
+            timeoutNanoseconds: UInt64(timeoutSeconds * 1_000_000_000),
+            intervalNanoseconds: 300_000_000
+        ) {
+            if let response = try? await self.scriptRunner.decodeJSONScript(
                 PlaybackTargetResponse.self,
                 script: checkScript,
                 webView: webView
-            ), response.matchedVideoID && response.hasVideo && response.isReady {
-                return
+            ) {
+                return response.matchedVideoID && response.hasVideo && response.isReady
             }
-            try? await Task.sleep(nanoseconds: intervalNS)
+            return false
         }
-        throw YouTubeMusicScriptRunnerError.scriptFailed(String(localized: "タイムアウトしました。"))
+        guard didBecomeReady else {
+            throw YouTubeMusicScriptRunnerError.scriptFailed(String(localized: "タイムアウトしました。"))
+        }
     }
 }

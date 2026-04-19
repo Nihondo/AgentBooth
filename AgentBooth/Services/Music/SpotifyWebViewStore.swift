@@ -77,7 +77,7 @@ final class SpotifyWebViewStore: ObservableObject {
     private var coordinator: WebViewCoordinator?
     private var cookieObserver: CookieObserver?
     private var isClosingPopup = false
-    private var offscreenWindow: NSWindow?
+    private var offscreenWindowHost: OffscreenPlaybackWindowHost?
 
     /// WebView 群を生成し Spotify Web Player を初期ロードする。
     init() {
@@ -131,20 +131,10 @@ final class SpotifyWebViewStore: ObservableObject {
 
     /// playbackWebView をオフスクリーンウィンドウに保持する。
     private func setupOffscreenWindow() {
-        let window = NSWindow(
-            contentRect: NSRect(x: -10000, y: -10000, width: 1280, height: 1440),
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
+        offscreenWindowHost = OffscreenPlaybackWindowHost(
+            contentView: playbackWebView,
+            frame: NSRect(x: -10000, y: -10000, width: 1280, height: 1440)
         )
-        window.isReleasedWhenClosed = false
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.level = .init(rawValue: NSWindow.Level.normal.rawValue - 1)
-        window.collectionBehavior = [.transient, .ignoresCycle, .canJoinAllSpaces]
-        window.contentView = playbackWebView
-        window.orderBack(nil)
-        offscreenWindow = window
     }
 
     /// 表示用 WebView を再読み込みする。

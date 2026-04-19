@@ -163,6 +163,7 @@ final class MainViewModel: ObservableObject {
 
         let currentSettings = settingsStore.currentSettings
         let musicService = serviceFactory.makeMusicService(for: selectedService)
+        let musicPlaybackProfile = serviceFactory.makeMusicPlaybackProfile(for: selectedService)
         let scriptService: any ScriptGenerationService = testMode
             ? TestModeScriptGenerationService()
             : serviceFactory.makeScriptService(settings: currentSettings)
@@ -179,6 +180,7 @@ final class MainViewModel: ObservableObject {
         let orchestrator = RadioOrchestrator(
             settings: currentSettings,
             musicService: musicService,
+            musicPlaybackProfile: musicPlaybackProfile,
             scriptService: scriptService,
             ttsService: ttsService,
             audioPlaybackService: audioPlaybackService,
