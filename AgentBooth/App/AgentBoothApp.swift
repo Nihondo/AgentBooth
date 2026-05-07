@@ -127,7 +127,7 @@ private struct AgentBoothCommands: Commands {
            !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return value
         }
-        return "Copyright © 2025-2026 Nihondo"
+        return "Copyright © 2026 Nihondo"
     }
 }
 
