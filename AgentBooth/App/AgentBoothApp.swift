@@ -37,6 +37,13 @@ private struct AgentBoothCommands: Commands {
             } label: {
                 Label("AgentBooth について", systemImage: "info.circle")
             }
+            Divider()
+            Button {
+                AppUpdateController.shared.checkForUpdates()
+            } label: {
+                Label("アップデートを確認…", systemImage: "arrow.down.circle")
+            }
+            .disabled(!AppUpdateController.shared.canCheckForUpdates)
         }
 
         CommandGroup(replacing: .appSettings) {
@@ -152,6 +159,7 @@ struct AgentBoothApp: App {
                     Task { @MainActor in
                         await LiveAppServiceFactory.sharedSpotifyStore.refreshLoginStatus()
                     }
+                    _ = AppUpdateController.shared
                 }
         }
         .commands {

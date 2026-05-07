@@ -6,6 +6,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     case program
     case tts
     case recording
+    case update
 
     var id: String { rawValue }
 
@@ -21,6 +22,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return String(localized: "テキスト読み上げ")
         case .recording:
             return String(localized: "録音")
+        case .update:
+            return String(localized: "アップデート")
         }
     }
 
@@ -36,6 +39,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return "waveform"
         case .recording:
             return "record.circle"
+        case .update:
+            return "arrow.down.circle"
         }
     }
 
@@ -51,6 +56,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return String(localized: "Gemini TTS と台本生成 CLI の設定を行います。")
         case .recording:
             return String(localized: "番組のシステム音声キャプチャ録音の設定を行います。")
+        case .update:
+            return String(localized: "アプリのアップデートを確認します。")
         }
     }
 }
@@ -138,6 +145,8 @@ struct SettingsView: View {
             ttsSettingsView
         case .recording:
             recordingSettingsView
+        case .update:
+            UpdateSettingsView()
         }
     }
 

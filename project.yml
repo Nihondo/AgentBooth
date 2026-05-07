@@ -5,6 +5,10 @@ options:
   knownRegions:
     - en
     - ja
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    version: 2.9.1
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -27,18 +31,28 @@ targets:
       - sdk: ScreenCaptureKit.framework
       - sdk: AVFoundation.framework
       - sdk: CoreMedia.framework
+      - package: Sparkle
+        product: Sparkle
+    info:
+      path: AgentBooth/Info.plist
+      properties:
+        CFBundleDisplayName: AgentBooth
+        LSApplicationCategoryType: public.app-category.music
+        NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
+        NSScreenCaptureUsageDescription: AgentBooth needs System Audio Capture permission to record radio programs.
+        SUFeedURL: https://products.desireforwealth.com/appcast/agentbooth/appcast.xml
+        SUPublicEDKey: PLACEHOLDER_REPLACE_AFTER_KEYGEN
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+        SUAutomaticallyUpdate: false
+        SUAllowsAutomaticUpdates: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dmng.AgentBooth
         PRODUCT_NAME: AgentBooth
         ASSETCATALOG_COMPILER_APPICON_NAME: agentbooth
-        GENERATE_INFOPLIST_FILE: YES
         MARKETING_VERSION: "0.9.3"
         CURRENT_PROJECT_VERSION: "4"
-        INFOPLIST_KEY_CFBundleDisplayName: AgentBooth
-        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.music"
-        INFOPLIST_KEY_NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
-        INFOPLIST_KEY_NSScreenCaptureUsageDescription: AgentBooth needs System Audio Capture permission to record radio programs.
         CODE_SIGN_STYLE: Automatic
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: YES

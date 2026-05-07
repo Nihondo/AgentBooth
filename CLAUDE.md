@@ -124,3 +124,29 @@ The CLI must return:
 - YouTube Music requires manual login via Settings → 音楽 → "YouTube Music でログイン" before use.
 - Spotify requires manual login via Settings → 音楽 → "Spotify でログイン" before use.
 - Spotify automation is DOM-based. Selector breakage is expected when Spotify updates the Web Player UI.
+
+## Sparkle (Automatic Updates)
+
+Sparkle is integrated via SPM (declared in `project.yml` packages section). Key files:
+
+- `App/AppUpdateController.swift` — singleton wrapping `SPUStandardUpdaterController`; publishes `canCheckForUpdates`, `lastUpdateCheckDate`, `automaticChecksEnabled` via Combine KVO
+- `Features/Settings/UpdateSettingsView.swift` — Settings tab for version info and update controls
+- Info.plist keys are generated from `project.yml` `info.properties` section
+
+### EdDSA Key Management
+
+`SUPublicEDKey` in `project.yml` is currently set to `PLACEHOLDER_REPLACE_AFTER_KEYGEN`. Before shipping:
+
+1. Generate the key pair with Sparkle's bundled tool:
+   ```bash
+   # Path varies by SPM cache — find generate_keys under .build/
+   find . -name generate_keys -path "*/Sparkle*" | head -1
+   ./path/to/generate_keys
+   ```
+2. Save the **private key** to the macOS Keychain (the tool prompts for this automatically).
+3. Replace the placeholder in `project.yml` with the **public key** output, then run `xcodegen generate`.
+4. If the private key is ever lost, generate a new pair and ship a transitional release before retiring the old key.
+
+### Appcast
+
+The feed URL is `https://products.desireforwealth.com/appcast/agentbooth/appcast.xml`. This file does not yet exist. Use Sparkle's `generate_appcast` tool (or adapt `AgentLimits/Products/tools/build_appcast.py`) to create and upload it for each release.

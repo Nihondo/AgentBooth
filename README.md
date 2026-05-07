@@ -102,6 +102,17 @@ Configure if you want to record the show.
 > Recording captures system audio. A Screen Recording permission prompt appears on first use.
 > System notifications and audio from other apps may also be captured — it is recommended to turn off notifications while recording.
 
+### Updates
+
+| Field | Description |
+|---|---|
+| **Current Version** | Installed version and build number |
+| **Last Checked** | When the last update check ran |
+| **Check Now** | Manually trigger an update check |
+| **Automatically check for updates** | Enable or disable once-per-day background checks |
+
+You can also check for updates from the **AgentBooth** menu → **Check for Updates…**.
+
 ---
 
 ## How to Use

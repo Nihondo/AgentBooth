@@ -195,3 +195,16 @@
 "YouTube Music にログインしてください。" = "Please log in to YouTube Music.";
 "ログイン済みです。ウィンドウを閉じてください。" = "You are logged in. You can close this window.";
 "Spotify にログインしてください。" = "Please log in to Spotify.";
+
+/* UpdateSettingsView / AppUpdateController */
+"アップデート" = "Updates";
+"アプリのアップデートを確認します。" = "Check for app updates.";
+"バージョン情報" = "Version";
+"現在のバージョン" = "Current Version";
+"最終チェック" = "Last Checked";
+"今すぐ確認" = "Check Now";
+"自動的にアップデートを確認する" = "Automatically check for updates";
+"リリース情報" = "Release Notes";
+"リリースページを開く" = "Open Releases Page";
+"未確認" = "Never";
+"アップデートを確認…" = "Check for Updates…";

@@ -34,15 +34,18 @@
 		53B398DE31C40A8892A018FB /* SpotifyDOMModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2139F826E9784613C9F829D7 /* SpotifyDOMModelsTests.swift */; };
 		57918480D551301E9AC01429 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */; };
 		60F641F5B882326551B806D8 /* SpotifyDOMScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429B24A26CC85B5FE930CC56 /* SpotifyDOMScripts.swift */; };
+		6265F6EB3A4258876E0719C1 /* UpdateSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */; };
 		67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */; };
 		6A03426E5CBD3D577F1B2A7E /* YouTubeMusicLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0006EEE51C46F3CE4BB4DB9 /* YouTubeMusicLoginViewModel.swift */; };
 		6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */; };
 		7D84E7A8CF330A6F91EA20AB /* PromptBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3581E582CF14B056EA04E774 /* PromptBuilder.swift */; };
 		8A6038B407586D01EF43AF69 /* AppleMusicServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24BDCA94B7E16E800972E0F /* AppleMusicServiceTests.swift */; };
 		8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */; };
+		8FA602632063039B3ABC3639 /* AppUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24461C0D2642ACEB80CF7AB1 /* AppUpdateController.swift */; };
 		905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */; };
 		93C17D9F6CBADB0C5048B313 /* SpotifyMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3F43408FD0E46636FFFE94 /* SpotifyMusicService.swift */; };
 		9792D589885A62488DC945DC /* GeminiTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */; };
+		9984E3FABFA28D378105B3D3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D1C133ECE650FB7B761C1EFC /* Sparkle */; };
 		A00C081B0916E172E5067D44 /* YouTubeMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A703B9C53D2B555D308819FF /* YouTubeMusicService.swift */; };
 		A4813849F1A19B657F6A4FD2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CCE6F6D9D1ABD6A1F577A60C /* Localizable.strings */; };
 		A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */; };
@@ -86,6 +89,7 @@
 		14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioPlaybackService.swift; sourceTree = "<group>"; };
 		2139F826E9784613C9F829D7 /* SpotifyDOMModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyDOMModelsTests.swift; sourceTree = "<group>"; };
 		217B8B55154291EFF70A5181 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		24461C0D2642ACEB80CF7AB1 /* AppUpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateController.swift; sourceTree = "<group>"; };
 		27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestratorTests.swift; sourceTree = "<group>"; };
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
@@ -110,6 +114,7 @@
 		6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationServiceTests.swift; sourceTree = "<group>"; };
 		6E3C230852B2B4EF5DC77156 /* SpotifyWebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyWebViewStore.swift; sourceTree = "<group>"; };
 		6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptCommandBuilderTests.swift; sourceTree = "<group>"; };
+		73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSettingsView.swift; sourceTree = "<group>"; };
 		79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSServiceTests.swift; sourceTree = "<group>"; };
 		850ED65A096909F8BB2135BB /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		8EDB07082B0F31540781BF85 /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
@@ -131,6 +136,7 @@
 		D499D54135ECCF1B538D617F /* DevelopmentTeam.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DevelopmentTeam.xcconfig; sourceTree = "<group>"; };
 		D53DEEF6D66DA1AF40C8B6CB /* YouTubeMusicJSScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicJSScripts.swift; sourceTree = "<group>"; };
 		D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestModeScriptGenerationService.swift; sourceTree = "<group>"; };
+		DC80677A7772BDDE46C35075 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserWindow.swift; sourceTree = "<group>"; };
 		E3BD548FFD67212BA64CAF3B /* AgentBoothTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentBoothTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E631FA254CDC04930FA07299 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -154,6 +160,7 @@
 				A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */,
 				CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */,
 				ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */,
+				9984E3FABFA28D378105B3D3 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -165,6 +172,7 @@
 			children = (
 				F495016F14804CDB1C59A40E /* AgentBoothApp.swift */,
 				9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */,
+				24461C0D2642ACEB80CF7AB1 /* AppUpdateController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -358,6 +366,7 @@
 			children = (
 				633C58B34ED2C9421B9AEAB3 /* AgentBooth.entitlements */,
 				3695314D2707876818736936 /* agentbooth.icon */,
+				DC80677A7772BDDE46C35075 /* Info.plist */,
 				052903E6DE3A402F94B8DB42 /* App */,
 				0DADC5CB437B016001D87605 /* Domain */,
 				BC6D1C4441F580B0159341B4 /* Features */,
@@ -385,6 +394,7 @@
 			children = (
 				0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */,
 				EB05E2F5F6192C615B028634 /* TTSCredentialSetsEditor.swift */,
+				73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -464,6 +474,7 @@
 			);
 			name = AgentBooth;
 			packageProductDependencies = (
+				D1C133ECE650FB7B761C1EFC /* Sparkle */,
 			);
 			productName = AgentBooth;
 			productReference = E8950BBEDA233AFFA12AC842 /* AgentBooth.app */;
@@ -493,6 +504,9 @@
 			);
 			mainGroup = B3F2187D0DB3C3839F080282;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3755B14F4E24D3DF3CF6A94A /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2FE4B8FCD37D01DDF1C2B4CE /* Products */;
 			projectDirPath = "";
@@ -543,6 +557,7 @@
 				3EFE8DA04411390A5860523A /* AgentBoothApp.swift in Sources */,
 				4522F62CB093FF281D651C07 /* AppServiceContainer.swift in Sources */,
 				57918480D551301E9AC01429 /* AppSettingsStore.swift in Sources */,
+				8FA602632063039B3ABC3639 /* AppUpdateController.swift in Sources */,
 				C2BA66ACF0124BA3C94EA297 /* AppleMusicArtworkFetcher.swift in Sources */,
 				C3C62647B02BF4B636812DA3 /* AppleMusicService.swift in Sources */,
 				4692DE91A11C64755EEF0A3A /* AppleScriptExecutor.swift in Sources */,
@@ -573,6 +588,7 @@
 				1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */,
 				CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */,
 				CF0D5E1367928F78F888ACE7 /* TrackListView.swift in Sources */,
+				6265F6EB3A4258876E0719C1 /* UpdateSettingsView.swift in Sources */,
 				67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */,
 				10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */,
 				28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */,
@@ -666,11 +682,7 @@
 				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
-				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth needs System Audio Capture permission to record radio programs.";
+				INFOPLIST_FILE = AgentBooth/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -813,11 +825,7 @@
 				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AgentBooth;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AgentBooth needs automation access to Music.app to control playlist playback.";
-				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "AgentBooth needs System Audio Capture permission to record radio programs.";
+				INFOPLIST_FILE = AgentBooth/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -861,6 +869,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3755B14F4E24D3DF3CF6A94A /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.9.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D1C133ECE650FB7B761C1EFC /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3755B14F4E24D3DF3CF6A94A /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 08494898E4A4512F4D6DA865 /* Project object */;
 }
