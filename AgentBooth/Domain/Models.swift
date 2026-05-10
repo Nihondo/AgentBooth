@@ -259,6 +259,43 @@ struct VolumeSettings: Codable, Equatable, Sendable {
     }
 }
 
+/// BGM / ジングルの音源指定種別。
+enum AudioAssetSourceKind: String, Codable, CaseIterable, Identifiable, Sendable {
+    case file
+    case directory
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .file:
+            return String(localized: "ファイル")
+        case .directory:
+            return String(localized: "ディレクトリ")
+        }
+    }
+}
+
+/// BGM / ジングルの音源指定。
+struct AudioAssetSource: Codable, Equatable, Sendable {
+    var kind: AudioAssetSourceKind = .file
+    var path: String = ""
+}
+
+/// トーク中に重ねるベッド BGM とジングルの設定。
+struct BGMSettings: Codable, Equatable, Sendable {
+    var isBedEnabled: Bool = false
+    var isOpeningJingleEnabled: Bool = false
+    var isClosingJingleEnabled: Bool = false
+    var bedAudioSource: AudioAssetSource = .init()
+    var openingJingleSource: AudioAssetSource = .init()
+    var closingJingleSource: AudioAssetSource = .init()
+    var bedVolume: Double = 0.18
+    var jingleVolume: Double = 0.7
+    var bedFadeInDuration: Double = 0.5
+    var bedFadeOutDuration: Double = 1.2
+}
+
 /// Optional radio show metadata.
 struct RadioShowSettings: Codable, Equatable, Sendable {
     var showName: String = ""
@@ -287,6 +324,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var personalitySettings: PersonalitySettings = .init()
     var directionSettings: DirectionSettings = .init()
     var volumeSettings: VolumeSettings = .init()
+    var bgmSettings: BGMSettings = .init()
     var radioShowSettings: RadioShowSettings = .init()
     var isRecordingEnabled: Bool = false
     var recordingOutputDirectory: String = ""
@@ -302,7 +340,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel, ttsCredentialSets
         case scriptCLIKind, scriptCLIModel
         case defaultMusicService, defaultOverlapMode
-        case voiceSettings, personalitySettings, directionSettings, volumeSettings, radioShowSettings
+        case voiceSettings, personalitySettings, directionSettings, volumeSettings, bgmSettings, radioShowSettings
         case isRecordingEnabled, recordingOutputDirectory, youtubeMusicUserAgent
         case customCLIExecutable, customCLIArguments, customCLIModelArguments
     }
@@ -329,6 +367,7 @@ extension AppSettings {
         personalitySettings = try c.decodeIfPresent(PersonalitySettings.self, forKey: .personalitySettings) ?? .init()
         directionSettings = try c.decodeIfPresent(DirectionSettings.self, forKey: .directionSettings) ?? .init()
         volumeSettings = try c.decodeIfPresent(VolumeSettings.self, forKey: .volumeSettings) ?? .init()
+        bgmSettings = try c.decodeIfPresent(BGMSettings.self, forKey: .bgmSettings) ?? .init()
         radioShowSettings = try c.decodeIfPresent(RadioShowSettings.self, forKey: .radioShowSettings) ?? .init()
         isRecordingEnabled = try c.decodeIfPresent(Bool.self, forKey: .isRecordingEnabled) ?? false
         recordingOutputDirectory = try c.decodeIfPresent(String.self, forKey: .recordingOutputDirectory) ?? ""

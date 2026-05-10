@@ -37,11 +37,13 @@ targets:
       path: AgentBooth/Info.plist
       properties:
         CFBundleDisplayName: AgentBooth
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: public.app-category.music
         NSAppleEventsUsageDescription: AgentBooth needs automation access to Music.app to control playlist playback.
         NSScreenCaptureUsageDescription: AgentBooth needs System Audio Capture permission to record radio programs.
         SUFeedURL: https://products.desireforwealth.com/appcast/agentbooth/appcast.xml
-        SUPublicEDKey: PLACEHOLDER_REPLACE_AFTER_KEYGEN
+        SUPublicEDKey: AjyX0n1pRegRGzzE3P8OcIWoretFg4UPxUqFPJTfS6M=
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
         SUAutomaticallyUpdate: false

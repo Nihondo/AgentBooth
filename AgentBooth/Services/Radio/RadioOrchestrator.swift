@@ -15,6 +15,11 @@ actor RadioOrchestrator {
         let durationSeconds: Double
     }
 
+    private struct NarrationAudioPolicy: Sendable {
+        let allowsBedAudio: Bool
+        let jinglePlacement: JinglePlacement?
+    }
+
     private struct ResolvedNarration: Sendable {
         let prepared: PreparedNarration
         let didTrackReachNaturalEnd: Bool
@@ -31,6 +36,7 @@ actor RadioOrchestrator {
     private let scriptService: any ScriptGenerationService
     private let ttsService: any TTSService
     private let audioPlaybackService: any AudioPlaybackServiceProtocol
+    private let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol
     private let recordingService: (any ShowRecordingServiceProtocol)?
     private let cueSheetLogger: ShowCueSheetLogger?
     private let stateDidChange: @Sendable (RadioState) -> Void
@@ -51,6 +57,7 @@ actor RadioOrchestrator {
         scriptService: any ScriptGenerationService,
         ttsService: any TTSService,
         audioPlaybackService: any AudioPlaybackServiceProtocol,
+        bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol,
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void
@@ -61,6 +68,7 @@ actor RadioOrchestrator {
         self.scriptService = scriptService
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
+        self.bedAudioPlaybackService = bedAudioPlaybackService
         self.recordingService = recordingService
         self.cueSheetLogger = cueSheetLogger
         self.stateDidChange = stateDidChange
@@ -94,6 +102,7 @@ actor RadioOrchestrator {
         updateState { $0.isPaused = true }
         await musicService.pausePlayback()
         await audioPlaybackService.pausePlayback()
+        await bedAudioPlaybackService.pausePlayback()
     }
 
     func resumeShow() async {
@@ -103,6 +112,7 @@ actor RadioOrchestrator {
         updateState { $0.isPaused = false }
         await musicService.resumePlayback()
         await audioPlaybackService.resumePlayback()
+        await bedAudioPlaybackService.resumePlayback()
     }
 
     func stopShow() async {
@@ -111,6 +121,7 @@ actor RadioOrchestrator {
         playbackTask = nil
         stopPositionPolling()
         trackStartedAt = nil
+        await bedAudioPlaybackService.stopPlayback()
         await audioPlaybackService.stopPlayback()
         await musicService.stopPlayback()
         resetState()
@@ -142,7 +153,10 @@ actor RadioOrchestrator {
 
         await startRecordingIfNeeded(playlistName: playlistName)
 
-        var activeNarration = startNarration(openingNarration)
+        var activeNarration = await startNarration(
+            openingNarration,
+            audioPolicy: openingNarrationAudioPolicy()
+        )
 
         for (indexValue, track) in tracks.enumerated() {
             try Task.checkCancellation()
@@ -238,6 +252,7 @@ actor RadioOrchestrator {
         if let errorMessage {
             updateState { $0.errorMessage = errorMessage }
         }
+        await bedAudioPlaybackService.stopPlayback()
         await audioPlaybackService.stopPlayback()
         await musicService.stopPlayback()
         await finalizeRecording()
@@ -400,6 +415,7 @@ actor RadioOrchestrator {
                 activeNarration,
                 isAtMost: leadSeconds
             )
+            await bedAudioPlaybackService.fadeOutAndStopBed(settings: settings.bgmSettings)
             try await startTrack(track, startVolume: settings.volumeSettings.talkVolume)
             try await activeNarration.playbackTask.value
             await fadeMusicVolume(
@@ -410,13 +426,51 @@ actor RadioOrchestrator {
             )
         } else {
             try await activeNarration.playbackTask.value
+            await bedAudioPlaybackService.fadeOutAndStopBed(settings: settings.bgmSettings)
             try await startTrack(track, startVolume: settings.volumeSettings.normalVolume)
         }
     }
 
-    private func startNarration(_ prepared: PreparedNarration) -> ActiveNarration {
+    private func openingNarrationAudioPolicy() -> NarrationAudioPolicy {
+        NarrationAudioPolicy(
+            allowsBedAudio: true,
+            jinglePlacement: settings.bgmSettings.isOpeningJingleEnabled ? .opening : nil
+        )
+    }
+
+    private func startNarration(
+        _ prepared: PreparedNarration,
+        audioPolicy: NarrationAudioPolicy
+    ) async -> ActiveNarration {
+        let estimatedJingleDuration: Double
+        if let jinglePlacement = audioPolicy.jinglePlacement {
+            estimatedJingleDuration = await bedAudioPlaybackService.estimateJingleDuration(
+                settings: settings.bgmSettings,
+                placement: jinglePlacement
+            )
+        } else {
+            estimatedJingleDuration = 0
+        }
+
         let playbackTask = Task {
             try await self.waitWhilePaused()
+            if let jinglePlacement = audioPolicy.jinglePlacement {
+                let jingleDuration = await self.bedAudioPlaybackService.playJingle(
+                    settings: self.settings.bgmSettings,
+                    placement: jinglePlacement
+                )
+                if jingleDuration > 0 {
+                    await self.cueSheetLogger?.append(
+                        "ジングル再生(\(prepared.segmentLabel) / \(String(format: "%.2f", jingleDuration))s)",
+                        indentLevel: prepared.cueSheetIndentLevel
+                    )
+                }
+                try await self.waitWhilePaused()
+            }
+
+            if audioPolicy.allowsBedAudio {
+                await self.bedAudioPlaybackService.startBed(settings: self.settings.bgmSettings)
+            }
             await self.cueSheetLogger?.append(
                 "TTS再生開始(\(prepared.segmentLabel))",
                 indentLevel: prepared.cueSheetIndentLevel
@@ -427,7 +481,11 @@ actor RadioOrchestrator {
                     "TTS再生終了(\(prepared.segmentLabel))",
                     indentLevel: prepared.cueSheetIndentLevel
                 )
+                if audioPolicy.allowsBedAudio {
+                    await self.bedAudioPlaybackService.fadeOutAndStopBed(settings: self.settings.bgmSettings)
+                }
             } catch {
+                await self.bedAudioPlaybackService.stopPlayback()
                 await self.cueSheetLogger?.append(
                     "TTS再生終了(\(prepared.segmentLabel) / エラー: \(error.localizedDescription))",
                     indentLevel: prepared.cueSheetIndentLevel
@@ -438,7 +496,7 @@ actor RadioOrchestrator {
         return ActiveNarration(
             prepared: prepared,
             playbackTask: playbackTask,
-            durationSeconds: wavDurationSeconds(prepared.wavData)
+            durationSeconds: wavDurationSeconds(prepared.wavData) + estimatedJingleDuration
         )
     }
 
@@ -504,6 +562,17 @@ actor RadioOrchestrator {
             updateState { $0.phase = .closing }
         }
 
+        if isClosingNarration, settings.bgmSettings.isClosingJingleEnabled {
+            if !resolvedNarration.didTrackReachNaturalEnd {
+                let fadeDuration = calculateFadeOutDuration()
+                await fadeOutAndStopTrack(durationSeconds: fadeDuration)
+            }
+            return await startNarration(
+                resolvedNarration.prepared,
+                audioPolicy: NarrationAudioPolicy(allowsBedAudio: true, jinglePlacement: .closing)
+            )
+        }
+
         if settings.defaultOverlapMode == .enabled, !resolvedNarration.didTrackReachNaturalEnd {
             await fadeMusicVolume(
                 targetVolume: settings.volumeSettings.talkVolume,
@@ -511,14 +580,38 @@ actor RadioOrchestrator {
                 eventLabel: String(localized: "ダッキング"),
                 indentLevel: 1
             )
-            let activeNarration = startNarration(resolvedNarration.prepared)
+            let activeNarration = await startNarration(
+                resolvedNarration.prepared,
+                audioPolicy: NarrationAudioPolicy(allowsBedAudio: false, jinglePlacement: nil)
+            )
             let fadeDuration = calculateFadeOutDuration()
             await fadeOutAndStopTrack(durationSeconds: fadeDuration)
+            await startBedForRemainingNarrationIfNeeded(activeNarration)
             return activeNarration
         }
 
         await stopTrackImmediately()
-        return startNarration(resolvedNarration.prepared)
+        return await startNarration(
+            resolvedNarration.prepared,
+            audioPolicy: NarrationAudioPolicy(allowsBedAudio: true, jinglePlacement: nil)
+        )
+    }
+
+    private func startBedForRemainingNarrationIfNeeded(_ activeNarration: ActiveNarration) async {
+        guard settings.bgmSettings.isBedEnabled,
+              await audioPlaybackService.fetchIsPlaying() else {
+            return
+        }
+
+        await bedAudioPlaybackService.startBed(settings: settings.bgmSettings)
+        Task { [settings, bedAudioPlaybackService] in
+            do {
+                try await activeNarration.playbackTask.value
+                await bedAudioPlaybackService.fadeOutAndStopBed(settings: settings.bgmSettings)
+            } catch {
+                await bedAudioPlaybackService.stopPlayback()
+            }
+        }
     }
 
     private func setMusicVolume(level: Int) async {

@@ -3,16 +3,19 @@
 ## 概要
 
 現行実装は「常に 1 本の再生中ナレーションを持ち、そのナレーションに合わせて曲を始める」構造になっている。
+TTS の再生経路は従来どおり `AudioPlaybackServiceProtocol.play(wavData:)` で、BGM / ジングルは別系統の `BedAudioPlaybackServiceProtocol` が担当する。
 
 ```text
 [開始]
   → オープニング生成・TTS
+  → オープニングジングル（有効時）
   → オープニング再生
   → 曲1
   → トランジション生成・TTS
   → 曲2
   → ...
   → クロージング生成・TTS
+  → クロージングジングル（有効時）
   → クロージング再生
   → [終了]
 ```
@@ -22,6 +25,9 @@
 - `intro_over` は廃止
 - オーバーラップ設定は `enabled` / `disabled` の 2 値
 - TTS は締切でスキップしない
+- BGM / ジングル失敗は TTS 失敗にしない
+- ベッド BGM は外部楽曲が鳴っていないトーク区間だけに限定する
+- ジングルはオープニング前とクロージング前だけで、トランジションでは鳴らさない
 - 早期終了位置に達しても、次 TTS が未完成なら現在曲を自然終端まで延長する
 - 同じ TTS を二重再生しないため、ループをまたいで持つのは「音声データ」ではなく「再生中ハンドル」
 
@@ -48,10 +54,11 @@ CLI で opening スクリプト生成
   → PreparedNarration 完成
   → `rememberTopics()` で summaryBullets を履歴に記録
   → 録音開始（有効時）
-  → `startNarration()` で再生開始
+  → `startNarration(..., audioPolicy: openingNarrationAudioPolicy())` で再生開始
 ```
 
 ここで作られた再生中ハンドルが、最初の `activeNarration` になる。
+オープニングジングルが有効な場合は TTS の前にジングルを再生し、`activeNarration.durationSeconds` には TTS 秒数に推定ジングル秒数を足す。
 
 ---
 
@@ -75,7 +82,42 @@ PreparedNarration
 これにより、
 
 - 曲末で始めたトランジション/クロージングを次ループでもう一度 `play` しない
-- 次曲開始タイミングを「再生中 TTS の残り時間」で決められる
+- 次曲開始タイミングを「再生中ナレーションの残り時間」で決められる
+- ジングルがあるナレーションでも、曲開始タイミングがジングル分だけ早まりすぎない
+
+---
+
+## 3-A. ナレーション音声ポリシー
+
+`startNarration()` は `NarrationAudioPolicy` を受け取り、ナレーションごとに BGM / ジングルの扱いを切り替える。
+
+```swift
+allowsBedAudio: Bool
+jinglePlacement: JinglePlacement?
+```
+
+基本ルール:
+
+| ナレーション | ベッド BGM | ジングル |
+|---|---:|---|
+| オープニング | 許可 | `isOpeningJingleEnabled` の場合だけ opening |
+| 曲上に重ねるトランジション | 不許可 | なし |
+| 曲停止後に残る同じトランジション | 許可 | なし |
+| 曲停止後のトランジション | 許可 | なし |
+| クロージング（ジングル OFF） | 既存 overlap ルールに従う | なし |
+| クロージング（ジングル ON） | 許可 | closing |
+
+`startNarration()` 内部の順序:
+
+```text
+waitWhilePaused()
+  → ジングル再生（policy で指定がある場合）
+  → ベッド BGM 開始（allowsBedAudio の場合）
+  → TTS 再生開始
+  → TTS 完了後にベッド BGM をフェードアウト停止
+```
+
+TTS エラー・キャンセル・停止時は `bedAudioPlaybackService.stopPlayback()` で BGM / ジングルを残さない。
 
 ---
 
@@ -99,6 +141,7 @@ currentTrack / trackIndex / currentPlaybackPosition を更新
 activeNarration の残り時間が `effectiveMusicLeadSeconds`
 （`musicLeadSeconds` + `MusicPlaybackProfile.startupLatencyCompensationSeconds`）
 以下になるまで待つ
+  → ベッド BGM をフェードアウト停止
   → 曲を `talkVolume` で開始
   → TTS 完了後、`fadeDuration` で `normalVolume` まで戻す
 ```
@@ -107,6 +150,7 @@ activeNarration の残り時間が `effectiveMusicLeadSeconds`
 
 ```text
 activeNarration の再生完了まで待つ
+  → ベッド BGM をフェードアウト停止
   → 曲を `normalVolume` で開始
 ```
 
@@ -197,18 +241,32 @@ resolveNextNarration()
 
 ```text
 音量を `talkVolume` まで下げる
-  → 次ナレーションを開始 (`startNarration`)
+  → 次ナレーションを開始 (`allowsBedAudio=false`, `jinglePlacement=nil`)
   → 現在曲をフェードアウトして停止
+  → TTS がまだ再生中なら、残りトーク用のベッド BGM を開始
 ```
 
 停止後、今始めたナレーションが次ループの `activeNarration` になる。
+このとき BGM が鳴るのは曲が完全に止まった後だけで、曲 + トーク + BGM の三重再生にはしない。
 
 #### オーバーラップなし
 
 ```text
 現在曲を停止
-  → 次ナレーションを開始 (`startNarration`)
+  → 次ナレーションを開始 (`allowsBedAudio=true`, `jinglePlacement=nil`)
 ```
+
+#### クロージングジングルあり
+
+最終曲後の closing で `isClosingJingleEnabled == true` の場合だけ、既存 overlap よりジングルを優先する。
+
+```text
+現在曲がまだ鳴っていればフェードアウト停止
+  → closing ジングル
+  → closing TTS + ベッド BGM
+```
+
+この分岐により、クロージングジングルと曲尾は重ならない。ジングル OFF の場合は、従来どおり曲尾にクロージングを重ねられる。
 
 ---
 
@@ -218,12 +276,12 @@ resolveNextNarration()
 
 ```text
 phase = closing
-closing の再生を開始
+closing の再生を開始（ジングル ON の場合は先に closing ジングル）
   → playbackTask 完了まで待つ
 ```
 
-closing もトランジションと同じ仕組みで生成されるが、
-最終ループのため次曲開始は行わない。
+closing もトランジションと同じ仕組みで生成されるが、最終ループのため次曲開始は行わない。
+クロージングジングル ON の場合だけ、外部楽曲を止めてからジングルと closing TTS に入る。
 
 ---
 
@@ -231,6 +289,7 @@ closing もトランジションと同じ仕組みで生成されるが、
 
 ```text
 audioPlaybackService.stopPlayback()
+bedAudioPlaybackService.stopPlayback()
 musicService.stopPlayback()
 録音停止・保存
 resetState()
@@ -251,7 +310,7 @@ resetState()
 
 ## 7. 一時停止・再開
 
-`pauseShow()` / `resumeShow()` は音楽と音声再生を両方止める。
+`pauseShow()` / `resumeShow()` は音楽、TTS、BGM / ジングルを止める。
 
 ### 一時停止
 
@@ -259,6 +318,7 @@ resetState()
 isPaused = true
 musicService.pausePlayback()
 audioPlaybackService.pausePlayback()
+bedAudioPlaybackService.pausePlayback()
 ```
 
 ### 再開
@@ -267,6 +327,7 @@ audioPlaybackService.pausePlayback()
 isPaused = false
 musicService.resumePlayback()
 audioPlaybackService.resumePlayback()
+bedAudioPlaybackService.resumePlayback()
 ```
 
 `waitRespectingPause()` を使う箇所は、一時停止中に進行しない。
@@ -285,7 +346,7 @@ idle
  │
  ▼
 opening
- │  オープニング生成・TTS・録音開始
+ │  オープニング生成・TTS・録音開始・ジングル/BGM制御
  ▼
 intro
  │  activeNarration に合わせて曲開始
@@ -311,6 +372,7 @@ outro
 曲再生中
 │
 ├─ [メイン] activeNarration の完了待ち・音量制御
+│   └─ 曲開始前に必要ならベッド BGM を停止
 │
 ├─ [バックグラウンド] nextNarrationTask
 │   ├─ transition スクリプト生成 または closing スクリプト生成
@@ -346,6 +408,25 @@ musicLeadSeconds + MusicPlaybackProfile.startupLatencyCompensationSeconds
 
 ---
 
+## 重要な設定値（`BGMSettings`）
+
+| 設定 | デフォルト | 説明 |
+|---|---|---|
+| `isBedEnabled` | `false` | ベッド BGM を使うか |
+| `isOpeningJingleEnabled` | `false` | オープニング前ジングルを使うか |
+| `isClosingJingleEnabled` | `false` | クロージング前ジングルを使うか |
+| `bedAudioSource` | 空 | ベッド BGM のファイルまたはディレクトリ |
+| `openingJingleSource` | 空 | オープニングジングルのファイルまたはディレクトリ |
+| `closingJingleSource` | 空 | クロージングジングルのファイルまたはディレクトリ |
+| `bedVolume` | 0.18 | ベッド BGM の正規化音量 |
+| `jingleVolume` | 0.7 | ジングルの正規化音量 |
+| `bedFadeInDuration` | 0.5s | ベッド BGM 開始時のフェードイン |
+| `bedFadeOutDuration` | 1.2s | ベッド BGM 停止時のフェードアウト |
+
+`AudioAssetSource` は `file` または `directory` を持つ。ディレクトリ指定時は `AudioAssetPicker` が直下の音声ファイルから再生直前にランダムで 1 件を選ぶ。
+
+---
+
 ## タイムライン
 
 ### オーバーラップあり
@@ -355,6 +436,9 @@ musicLeadSeconds + MusicPlaybackProfile.startupLatencyCompensationSeconds
 |-------------------------------|
                          ^ 残り `effectiveMusicLeadSeconds`
                          |
+ベッド BGM
+|------------------------ fade out
+                         |
 曲再生開始               |
 |===============================|
 
@@ -362,6 +446,7 @@ musicLeadSeconds + MusicPlaybackProfile.startupLatencyCompensationSeconds
                   ^ アウトロ開始（実効終端 - fadeEarlySeconds）
                   |---- 次 TTS 完成待ち ----|
                   | TTS 完成後は talkVolume に下げて重ねる |
+                  | 曲フェードアウト完了後、TTS が残っていればベッド BGM |
 ```
 
 ### オーバーラップなし

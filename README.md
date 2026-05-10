@@ -91,6 +91,18 @@ Balance between music and talk. Defaults work without changes.
 | **Talk Start Before End Seconds** | Seconds before a track ends to start outro talk |
 | **Max Playback Duration** | Maximum seconds per track (0 = unlimited) |
 
+Optional BGM and jingles can add a more radio-like sound. Bed BGM loops only during talk sections where no external track is playing, and fades out before a music track starts. Jingles play only before the opening and/or closing when enabled.
+
+| Field | Description |
+|---|---|
+| **Enable Bed BGM** | Loop a selected audio file, or a random audio file from a selected folder, under standalone talk sections |
+| **Use Opening Jingle** | Play the selected opening jingle before the opening talk |
+| **Use Closing Jingle** | Play the selected closing jingle before the closing talk |
+| **Bed BGM / Opening Jingle / Closing Jingle** | Choose either a single audio file or a folder; folders are sampled randomly at playback time |
+| **Bed Volume** | Volume for the bed BGM |
+| **Jingle Volume** | Volume for jingles |
+| **Bed Fade Out Seconds** | Fade duration used when the bed BGM stops |
+
 ### Recording
 
 Configure if you want to record the show.

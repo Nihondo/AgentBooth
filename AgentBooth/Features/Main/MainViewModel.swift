@@ -174,6 +174,9 @@ final class MainViewModel: ObservableObject {
         let audioPlaybackService: any AudioPlaybackServiceProtocol = testMode
             ? TestModeAudioPlaybackService()
             : serviceFactory.makeAudioPlaybackService()
+        let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = testMode
+            ? TestModeBedAudioPlaybackService()
+            : serviceFactory.makeBedAudioPlaybackService()
         let shouldRecord = recordingRequested || shouldRecordOnNextStart
         shouldRecordOnNextStart = false
         let recordingService = shouldRecord ? serviceFactory.makeRecordingService() : nil
@@ -185,6 +188,7 @@ final class MainViewModel: ObservableObject {
             scriptService: scriptService,
             ttsService: ttsService,
             audioPlaybackService: audioPlaybackService,
+            bedAudioPlaybackService: bedAudioPlaybackService,
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger
         ) { [weak self] nextState in

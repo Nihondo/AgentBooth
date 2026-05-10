@@ -51,6 +51,10 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 **`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV audio. Includes retry/fallback model logic and writes per-attempt status/fallback details to the session cuesheet.
 
+**`SystemBedAudioPlaybackService`** (`Services/Audio/`) — Separate BGM / jingle playback service built on `AVAudioPlayer`. It does not replace `SystemAudioPlaybackService` or mix PCM with TTS. Bed BGM loops only in narration sections where external music is not playing, fades out before track start, and follows pause / resume / stop. Jingles are one-shot cues for opening and closing only.
+
+**`AudioAssetPicker`** (`Services/Audio/`) — Resolves `AudioAssetSource` settings into playable audio file URLs. File sources must point to an existing audio file; directory sources choose one audio file from the directory at playback time. Keep random asset selection here rather than in `RadioOrchestrator`.
+
 **`AppleMusicService`** (`Services/Music/`) — Controls Apple Music.app via `AppleScriptExecutor` (Infrastructure layer).
 
 **`YouTubeMusicService`** (`Services/Music/`) — `@MainActor final class`. Implements `MusicService` for YouTube Music. Delegates to `YouTubeMusicAPIFetcher` (playlist/track fetch) and `YouTubeMusicPlayerController` (playback control). All operations run through `store.playbackWebView`.
@@ -85,7 +89,7 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 ### Domain models (`Domain/Models.swift`)
 
-All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs), `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
+All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs including `BGMSettings` / `AudioAssetSource`), `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
 
 ### Script JSON format
 
@@ -104,6 +108,15 @@ The CLI must return:
 |---|---|
 | `enabled` | Talk may overlap the tail of the current track and the lead-in of the next track |
 | `disabled` | Talk and music stay separated |
+
+### BGM / jingle behavior
+
+- TTS playback stays on `AudioPlaybackServiceProtocol.play(wavData:)`; BGM and jingles are controlled through `BedAudioPlaybackServiceProtocol`.
+- Opening jingle and closing jingle are individually enabled. Transition narrations must not play jingles.
+- Bed BGM is allowed only when no external music track is playing. Before starting a track, call `fadeOutAndStopBed(settings:)`.
+- In overlap mode, transition narration starts with bed disabled while the current track is still playing; after the track has fully stopped, start bed for the remaining narration if TTS is still active.
+- If closing jingle is enabled while music is still playing, the orchestrator stops/fades the track before the jingle and closing narration.
+- BGM / jingle failures should skip only that cue and must not fail TTS narration playback.
 
 ## Concurrency model
 
@@ -135,7 +148,7 @@ Sparkle is integrated via SPM (declared in `project.yml` packages section). Key 
 
 ### EdDSA Key Management
 
-`SUPublicEDKey` in `project.yml` is currently set to `PLACEHOLDER_REPLACE_AFTER_KEYGEN`. Before shipping:
+`SUPublicEDKey` in `project.yml` is the Sparkle EdDSA public key used when generating `Info.plist`. If the private key is lost or the update signing key must be rotated:
 
 1. Generate the key pair with Sparkle's bundled tool:
    ```bash
@@ -144,7 +157,7 @@ Sparkle is integrated via SPM (declared in `project.yml` packages section). Key 
    ./path/to/generate_keys
    ```
 2. Save the **private key** to the macOS Keychain (the tool prompts for this automatically).
-3. Replace the placeholder in `project.yml` with the **public key** output, then run `xcodegen generate`.
+3. Replace `SUPublicEDKey` in `project.yml` with the **public key** output, then run `xcodegen generate`.
 4. If the private key is ever lost, generate a new pair and ship a transitional release before retiring the old key.
 
 ### Appcast

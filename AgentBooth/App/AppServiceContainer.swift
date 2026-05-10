@@ -48,6 +48,10 @@ struct LiveAppServiceFactory: AppServiceFactory {
         SystemAudioPlaybackService()
     }
 
+    func makeBedAudioPlaybackService() -> any BedAudioPlaybackServiceProtocol {
+        SystemBedAudioPlaybackService()
+    }
+
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)? {
         SystemAudioCaptureService()
     }

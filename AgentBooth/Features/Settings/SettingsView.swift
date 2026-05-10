@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum SettingsCategory: String, CaseIterable, Identifiable {
     case general
@@ -295,6 +297,52 @@ struct SettingsView: View {
                     )
                 }
             }
+
+            settingsGroup("BGM・ジングル") {
+                settingsRow("") {
+                    Toggle("ベッド BGM を有効にする", isOn: $draftSettings.bgmSettings.isBedEnabled)
+                }
+
+                settingsRow("") {
+                    Toggle("オープニングでジングルを使う", isOn: $draftSettings.bgmSettings.isOpeningJingleEnabled)
+                }
+
+                settingsRow("") {
+                    Toggle("クロージングでジングルを使う", isOn: $draftSettings.bgmSettings.isClosingJingleEnabled)
+                }
+
+                audioAssetSourceRow(
+                    title: "ベッド BGM",
+                    source: $draftSettings.bgmSettings.bedAudioSource
+                )
+
+                audioAssetSourceRow(
+                    title: "オープニングジングル",
+                    source: $draftSettings.bgmSettings.openingJingleSource
+                )
+
+                audioAssetSourceRow(
+                    title: "クロージングジングル",
+                    source: $draftSettings.bgmSettings.closingJingleSource
+                )
+
+                settingsRow("ベッド音量") {
+                    volumeSlider(value: $draftSettings.bgmSettings.bedVolume)
+                }
+
+                settingsRow("ジングル音量") {
+                    volumeSlider(value: $draftSettings.bgmSettings.jingleVolume)
+                }
+
+                settingsRow("ベッドフェードアウト秒数") {
+                    playbackBalanceField(
+                        placeholder: "1.2",
+                        value: $draftSettings.bgmSettings.bedFadeOutDuration,
+                        formatter: decimalFormatter,
+                        description: "楽曲開始前やトーク終了後にBGMを止める時間"
+                    )
+                }
+            }
         }
     }
 
@@ -492,6 +540,50 @@ struct SettingsView: View {
         }
     }
 
+    private func audioAssetSourceRow(
+        title: String,
+        source: Binding<AudioAssetSource>
+    ) -> some View {
+        settingsRow(title) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Picker("音源種別", selection: source.kind) {
+                        ForEach(AudioAssetSourceKind.allCases) { kind in
+                            Text(kind.displayName).tag(kind)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 130)
+
+                    Button("選択") {
+                        selectAudioAsset(for: source)
+                    }
+
+                    Button("クリア") {
+                        source.wrappedValue.path = ""
+                    }
+                    .disabled(source.wrappedValue.path.isEmpty)
+                }
+
+                Text(source.wrappedValue.path.isEmpty ? "未選択" : source.wrappedValue.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+            }
+        }
+    }
+
+    private func volumeSlider(value: Binding<Double>) -> some View {
+        HStack(spacing: 12) {
+            Slider(value: value, in: 0...1)
+                .frame(width: 220)
+            Text("\(Int((value.wrappedValue * 100).rounded()))%")
+                .monospacedDigit()
+                .frame(width: 44, alignment: .trailing)
+        }
+    }
+
     private var numberFormatter: NumberFormatter {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -518,5 +610,21 @@ struct SettingsView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func selectAudioAsset(for source: Binding<AudioAssetSource>) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = source.wrappedValue.kind == .directory
+        panel.canChooseFiles = source.wrappedValue.kind == .file
+        panel.canCreateDirectories = false
+        if source.wrappedValue.kind == .file {
+            panel.allowedContentTypes = [.audio]
+        }
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+        source.wrappedValue.path = url.path
     }
 }

@@ -249,6 +249,63 @@ actor FakeAudioPlaybackService: AudioPlaybackServiceProtocol {
     func fetchIsPlaying() async -> Bool { isPlaying }
 }
 
+actor FakeBedAudioPlaybackService: BedAudioPlaybackServiceProtocol {
+    private(set) var estimateJingleCallCount = 0
+    private(set) var playJingleCallCount = 0
+    private(set) var startBedCallCount = 0
+    private(set) var startBedDates: [Date] = []
+    private(set) var fadeOutAndStopBedCallCount = 0
+    private(set) var fadeOutAndStopBedDates: [Date] = []
+    private(set) var stopCallCount = 0
+    private(set) var pauseCallCount = 0
+    private(set) var resumeCallCount = 0
+    private(set) var lastSettings: BGMSettings?
+    private(set) var lastJinglePlacement: JinglePlacement?
+    private var jingleDurationToReturn: Double = 0
+
+    func setJingleDurationToReturn(_ duration: Double) {
+        jingleDurationToReturn = duration
+    }
+
+    func estimateJingleDuration(settings: BGMSettings, placement: JinglePlacement) async -> Double {
+        estimateJingleCallCount += 1
+        lastSettings = settings
+        lastJinglePlacement = placement
+        return jingleDurationToReturn
+    }
+
+    func playJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double {
+        playJingleCallCount += 1
+        lastSettings = settings
+        lastJinglePlacement = placement
+        return jingleDurationToReturn
+    }
+
+    func startBed(settings: BGMSettings) async {
+        startBedCallCount += 1
+        startBedDates.append(Date())
+        lastSettings = settings
+    }
+
+    func fadeOutAndStopBed(settings: BGMSettings) async {
+        fadeOutAndStopBedCallCount += 1
+        fadeOutAndStopBedDates.append(Date())
+        lastSettings = settings
+    }
+
+    func stopPlayback() async {
+        stopCallCount += 1
+    }
+
+    func pausePlayback() async {
+        pauseCallCount += 1
+    }
+
+    func resumePlayback() async {
+        resumeCallCount += 1
+    }
+}
+
 actor FakeRecordingService: ShowRecordingServiceProtocol {
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
@@ -270,6 +327,7 @@ struct FakeServiceFactory: AppServiceFactory {
     let scriptService: FakeScriptGenerationService
     let ttsService: any TTSService
     let audioPlaybackService: any AudioPlaybackServiceProtocol
+    let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol
     let recordingService: (any ShowRecordingServiceProtocol)?
     let supportedServices: [MusicServiceKind]
 
@@ -279,6 +337,7 @@ struct FakeServiceFactory: AppServiceFactory {
         scriptService: FakeScriptGenerationService = FakeScriptGenerationService(),
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
+        bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = FakeBedAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         supportedServices: [MusicServiceKind] = [.appleMusic, .youtubeMusic, .spotify]
     ) {
@@ -287,6 +346,7 @@ struct FakeServiceFactory: AppServiceFactory {
         self.scriptService = scriptService
         self.ttsService = ttsService
         self.audioPlaybackService = audioPlaybackService
+        self.bedAudioPlaybackService = bedAudioPlaybackService
         self.recordingService = recordingService
         self.supportedServices = supportedServices
     }
@@ -302,6 +362,8 @@ struct FakeServiceFactory: AppServiceFactory {
     func makeTTSService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any TTSService { ttsService }
 
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol { audioPlaybackService }
+
+    func makeBedAudioPlaybackService() -> any BedAudioPlaybackServiceProtocol { bedAudioPlaybackService }
 
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)? { recordingService }
 }

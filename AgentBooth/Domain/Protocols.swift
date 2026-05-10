@@ -47,6 +47,23 @@ protocol AudioPlaybackServiceProtocol: Sendable {
     func fetchIsPlaying() async -> Bool
 }
 
+/// ジングルを鳴らす番組上の位置。
+enum JinglePlacement: Equatable, Sendable {
+    case opening
+    case closing
+}
+
+/// ナレーションに重ねるベッド BGM とジングルを制御するサービス。
+protocol BedAudioPlaybackServiceProtocol: Sendable {
+    func estimateJingleDuration(settings: BGMSettings, placement: JinglePlacement) async -> Double
+    func playJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double
+    func startBed(settings: BGMSettings) async
+    func fadeOutAndStopBed(settings: BGMSettings) async
+    func stopPlayback() async
+    func pausePlayback() async
+    func resumePlayback() async
+}
+
 /// A recording service that captures system audio during a show.
 protocol ShowRecordingServiceProtocol: Sendable {
     func startRecording(outputURL: URL) async throws
@@ -61,5 +78,6 @@ protocol AppServiceFactory: Sendable {
     func makeScriptService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any ScriptGenerationService
     func makeTTSService(settings: AppSettings, cueSheetLogger: ShowCueSheetLogger?) -> any TTSService
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol
+    func makeBedAudioPlaybackService() -> any BedAudioPlaybackServiceProtocol
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)?
 }

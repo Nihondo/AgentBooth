@@ -316,6 +316,47 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertLessThan(duckIndex, fadeOutIndex)
     }
 
+    func testOverlapTransitionStartsBedOnlyAfterTrackStops() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let bedAudioPlaybackService = FakeBedAudioPlaybackService()
+        let ttsService = SizedTTSService(audioDurationSeconds: 0.4)
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.fadeEarlySeconds = 1
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.05
+        settings.bgmSettings.isBedEnabled = true
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            ttsService: ttsService,
+            bedAudioPlaybackService: bedAudioPlaybackService
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let startBedDates = await bedAudioPlaybackService.startBedDates
+            guard let firstStopDate = musicService.stoppedTrackDates.first else {
+                return false
+            }
+            return startBedDates.contains { $0 > firstStopDate }
+        }
+
+        let firstStartDate = try XCTUnwrap(musicService.playedTrackDates.first)
+        let firstStopDate = try XCTUnwrap(musicService.stoppedTrackDates.first)
+        let startBedDates = await bedAudioPlaybackService.startBedDates
+        let startsWhileTrackIsPlaying = startBedDates.filter { $0 > firstStartDate && $0 < firstStopDate }
+        XCTAssertTrue(startsWhileTrackIsPlaying.isEmpty)
+        XCTAssertTrue(startBedDates.contains { $0 > firstStopDate })
+    }
+
     func testOverlapFadeOutContinuesPastEffectiveTrackEnd() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
@@ -492,6 +533,71 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertTrue(phases.contains(.opening))
     }
 
+    func testOpeningJingleAndBedAreStartedWhenEnabled() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let bedAudioPlaybackService = FakeBedAudioPlaybackService()
+        await bedAudioPlaybackService.setJingleDurationToReturn(0.05)
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.bgmSettings.isBedEnabled = true
+        settings.bgmSettings.isOpeningJingleEnabled = true
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            bedAudioPlaybackService: bedAudioPlaybackService
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let playJingleCallCount = await bedAudioPlaybackService.playJingleCallCount
+            let startBedCallCount = await bedAudioPlaybackService.startBedCallCount
+            let fadeOutAndStopBedCallCount = await bedAudioPlaybackService.fadeOutAndStopBedCallCount
+            return playJingleCallCount >= 1 && startBedCallCount >= 1 && fadeOutAndStopBedCallCount >= 1
+        }
+
+        let lastJinglePlacement = await bedAudioPlaybackService.lastJinglePlacement
+        let fadeOutAndStopBedCallCount = await bedAudioPlaybackService.fadeOutAndStopBedCallCount
+        XCTAssertEqual(lastJinglePlacement, .opening)
+        XCTAssertGreaterThanOrEqual(fadeOutAndStopBedCallCount, 1)
+    }
+
+    func testTransitionDoesNotPlayJingle() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let bedAudioPlaybackService = FakeBedAudioPlaybackService()
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.bgmSettings.isOpeningJingleEnabled = true
+        settings.bgmSettings.isClosingJingleEnabled = false
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            bedAudioPlaybackService: bedAudioPlaybackService
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.playedTracks.count >= 2
+        }
+
+        let playJingleCallCount = await bedAudioPlaybackService.playJingleCallCount
+        let lastJinglePlacement = await bedAudioPlaybackService.lastJinglePlacement
+        XCTAssertEqual(playJingleCallCount, 1)
+        XCTAssertEqual(lastJinglePlacement, .opening)
+    }
+
     private func makeOrchestrator(
         settings: AppSettings = AppSettings(),
         musicService: FakeMusicService,
@@ -499,6 +605,7 @@ final class RadioOrchestratorTests: XCTestCase {
         scriptService: FakeScriptGenerationService = FakeScriptGenerationService(),
         ttsService: any TTSService = FakeTTSService(),
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
+        bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = FakeBedAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void = { _ in }
@@ -510,6 +617,7 @@ final class RadioOrchestratorTests: XCTestCase {
             scriptService: scriptService,
             ttsService: ttsService,
             audioPlaybackService: audioPlaybackService,
+            bedAudioPlaybackService: bedAudioPlaybackService,
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger,
             stateDidChange: stateDidChange
