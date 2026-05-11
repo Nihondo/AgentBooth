@@ -45,6 +45,7 @@ enum PromptBuilder {
         あなたはラジオ番組の台本作家です。
         再生中の楽曲に途中から重ねる、ラジオパーソナリティ2名のイントロトークを作成してください。
 
+        \(showInfoBlock(settings: settings))
         【楽曲情報】
         - 曲名: \(track.name)
         - アーティスト: \(track.artist)
@@ -82,6 +83,7 @@ enum PromptBuilder {
         あなたはラジオ番組の台本作家です。
         前の曲の感想から次の曲紹介まで、ラジオパーソナリティ2名によるひと続きの自然な掛け合いを作成してください。
 
+        \(showInfoBlock(settings: settings))
         【前の曲】
         - 曲名: \(currentTrack.name)
         - アーティスト: \(currentTrack.artist)
@@ -188,6 +190,7 @@ enum PromptBuilder {
     }
 
     private static func showInfoBlock(settings: AppSettings) -> String {
+        let realtimeContext = RealtimeContextProvider.makeContext(settings: settings.radioShowSettings)
         var lines: [String] = []
         if !settings.radioShowSettings.showName.isEmpty {
             lines.append("- 番組名: \(settings.radioShowSettings.showName)")
@@ -195,9 +198,15 @@ enum PromptBuilder {
         if !settings.radioShowSettings.frequency.isEmpty {
             lines.append("- 周波数: \(settings.radioShowSettings.frequency)")
         }
-        guard !lines.isEmpty else {
-            return ""
+        lines.append("- 現在時刻: \(realtimeContext.hour)時台")
+        lines.append("- 曜日: \(realtimeContext.weekday)")
+        lines.append("- 季節: \(realtimeContext.season)（\(realtimeContext.monthName)）")
+
+        if let locationName = realtimeContext.locationName {
+            lines.append("- 現在地: \(locationName)")
+            lines.append("- 天気: 現在地の最新の天気に軽く触れてよいが、Web検索できない場合や不確実な場合は省略する")
         }
+
         return "【番組情報】\n" + lines.joined(separator: "\n") + "\n"
     }
 

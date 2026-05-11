@@ -370,6 +370,11 @@ struct SettingsView: View {
                     TextField("例: 77.5 FM", text: $draftSettings.radioShowSettings.frequency)
                         .textFieldStyle(.roundedBorder)
                 }
+
+                settingsRow("地域名") {
+                    TextField("例: 東京", text: optionalTextBinding(\.radioShowSettings.locationName))
+                        .textFieldStyle(.roundedBorder)
+                }
             }
 
             settingsGroup("パーソナリティ") {
@@ -520,6 +525,18 @@ struct SettingsView: View {
                 .frame(maxWidth: 420, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func optionalTextBinding(_ keyPath: WritableKeyPath<AppSettings, String?>) -> Binding<String> {
+        Binding(
+            get: {
+                draftSettings[keyPath: keyPath] ?? ""
+            },
+            set: { newValue in
+                let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                draftSettings[keyPath: keyPath] = trimmedValue.isEmpty ? nil : newValue
+            }
+        )
     }
 
     private func playbackBalanceField<Value>(

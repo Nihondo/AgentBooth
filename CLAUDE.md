@@ -34,7 +34,7 @@ open AgentBooth.xcodeproj
 Domain/           - Protocols.swift (service interfaces), Models.swift (all value types/enums)
 App/              - AgentBoothApp.swift (entry point), AppServiceContainer.swift (LiveAppServiceFactory)
 Features/         - ContentView + MainViewModel (UI), SettingsView, NowPlayingBar, TrackListView, YouTubeMusicBrowser/, SpotifyBrowser/
-Services/         - Radio/, Script/, TTS/, Music/, Audio/, Recording/
+Services/         - Radio/, Script/, TTS/, Music/, Audio/, Context/, Recording/
 Infrastructure/   - Settings/AppSettingsStore, Music/AppleScriptExecutor + AppleMusicArtworkFetcher, YouTube/, Spotify/
 AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 ```
@@ -48,6 +48,8 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 **`AppServiceFactory` / `LiveAppServiceFactory`** — Dependency injection entry point. `AppServiceContainer.swift` wires up live services plus `MusicPlaybackProfile` values. Tests use fakes from `TestDoubles.swift`.
 
 **`ProcessScriptGenerationService`** (`Services/Script/`) — Calls an external CLI subprocess (`claude`, `gemini`, `codex`, or `copilot`) to generate JSON scripts. `ScriptCommandBuilder` assembles the command per CLI type. Each script session folder also gets a `cuesheet.txt` file with CLI timing and related playback events.
+
+**`RealtimeContextProvider`** (`Services/Context/`) — Builds prompt context from local `Date()` values: hour, weekday, month, season, and optional `RadioShowSettings.locationName`. AgentBooth does not call a weather API; when a location is set, prompts allow the selected CLI to mention current weather only if it can verify it.
 
 **`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV audio. Includes retry/fallback model logic and writes per-attempt status/fallback details to the session cuesheet.
 
@@ -89,7 +91,7 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 ### Domain models (`Domain/Models.swift`)
 
-All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs including `BGMSettings` / `AudioAssetSource`), `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
+All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs including `RadioShowSettings`, `BGMSettings` / `AudioAssetSource`), `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
 
 ### Script JSON format
 

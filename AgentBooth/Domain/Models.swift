@@ -300,6 +300,7 @@ struct BGMSettings: Codable, Equatable, Sendable {
 struct RadioShowSettings: Codable, Equatable, Sendable {
     var showName: String = ""
     var frequency: String = ""
+    var locationName: String?
 }
 
 /// Gemini TTS の「API キー + モデル」1組。

@@ -74,9 +74,12 @@ Apple Music はこれだけで動作します。YouTube Music / Spotify は先�
 | **オーバーラップモード** | 音楽とトークを重ねるか、分けるか（後述） |
 | **番組名** | 台本に反映される番組名 |
 | **周波数・チャンネル名** | 例: `77.5 FM`（台本の雰囲気づけに使う） |
+| **地域名** | 任意の地域名。設定すると、CLI が確認できる場合だけ現在の天気に軽く触れることがあります |
 | **男性ホスト名** | 男性パーソナリティの名前 |
 | **女性ホスト名** | 女性パーソナリティの名前 |
 | **シーン・セリフの指示** | 台本生成と TTS 読み上げへの追加指示（例: 深夜帯、静かに話す） |
+
+台本生成プロンプトには、ローカルの時刻・曜日・月・季節が自動で含まれます。天気は AgentBooth 側では取得せず、地域名が設定されている場合に限り、選択した CLI が確認できれば触れてよいという指示だけを渡します。
 
 ### 楽曲の再生
 
@@ -228,7 +231,7 @@ Spotify Web Player の画面構造が変わると動作しなくなることが�
 Domain/           プロトコルと全バリュー型（Protocols.swift / Models.swift）
 App/              エントリポイント・DI（AppServiceContainer）
 Features/         UI 層（ContentView / MainViewModel / SettingsView / NowPlayingBar）
-Services/         ビジネスロジック（Radio / Script / TTS / Music / Audio）
+Services/         ビジネスロジック（Radio / Script / TTS / Music / Audio / Context）
 Infrastructure/   外部依存ラッパー（AppleScript / WebView / Settings）
 AgentBoothTests/  ユニットテスト + フェイク実装（TestDoubles.swift）
 ```
@@ -240,6 +243,8 @@ AgentBoothTests/  ユニットテスト + フェイク実装（TestDoubles.swift
 **`MainViewModel`** (`Features/Main/`) — `@MainActor ObservableObject`。`RadioOrchestrator` を保持し、UI 状態 (`RadioState`) を SwiftUI ビューへブリッジする。
 
 **`ProcessScriptGenerationService`** (`Services/Script/`) — 外部 CLI サブプロセスを呼び出して JSON 台本を生成する。セッションごとのスクリプト保存フォルダには `cuesheet.txt` も併せて出力される。
+
+**`RealtimeContextProvider`** (`Services/Context/`) — 台本プロンプトにローカルの時刻・曜日・月・季節・任意の地域名を追加する。AgentBooth 自体は天気を直接取得しない。
 
 **`GeminiTTSService`** (`Services/TTS/`) — Gemini REST API を直接呼び出して WAV を生成する。リトライ・フォールバックモデルあり。各試行のステータスやフォールバック状況も cuesheet に残す。
 
@@ -273,6 +278,7 @@ AgentBooth/
 │       ├── Script/                 ProcessScriptGenerationService
 │       ├── TTS/                    GeminiTTSService
 │       ├── Audio/                  SystemAudioPlaybackService
+│       ├── Context/                RealtimeContextProvider
 │       ├── Recording/
 │       └── Music/                  AppleMusicService, YouTubeMusicService, SpotifyMusicService
 ├── AgentBoothTests/                ユニットテスト + TestDoubles.swift

@@ -74,9 +74,12 @@ The app cannot start without the API Key and CLI set.
 | **Overlap Mode** | Whether music and talk overlap or stay separated (see below) |
 | **Show Name** | Name of the radio show, used in script generation |
 | **Frequency / Channel** | e.g. `77.5 FM` — used to set the mood of the script |
+| **Location Name** | Optional area name used in script generation. When set, the CLI may lightly mention current weather if it can verify it |
 | **Male Host Name** | Display name for the male personality |
 | **Female Host Name** | Display name for the female personality |
 | **Scene / Direction** | Additional direction for script generation and TTS delivery (e.g. "late night, quiet tone") |
+
+Script prompts automatically include the local hour, weekday, month, and season so generated talk can reflect the time of day. Weather is not fetched by AgentBooth itself; it is only suggested to the selected CLI when a location name is set.
 
 ### Music Playback
 
@@ -225,7 +228,7 @@ Spotify Web Player may have updated its layout, breaking the integration. This i
 Domain/           Protocols and all value types (Protocols.swift / Models.swift)
 App/              Entry point and DI (AppServiceContainer)
 Features/         UI layer (ContentView / MainViewModel / SettingsView / NowPlayingBar)
-Services/         Business logic (Radio / Script / TTS / Music / Audio)
+Services/         Business logic (Radio / Script / TTS / Music / Audio / Context)
 Infrastructure/   External wrappers (AppleScript / WebView / Settings)
 AgentBoothTests/  Unit tests + fake implementations (TestDoubles.swift)
 ```
@@ -237,6 +240,8 @@ AgentBoothTests/  Unit tests + fake implementations (TestDoubles.swift)
 **`MainViewModel`** (`Features/Main/`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges `RadioState` to SwiftUI views.
 
 **`ProcessScriptGenerationService`** (`Services/Script/`) — Spawns an external CLI subprocess to generate JSON scripts. Script session folders now also include `cuesheet.txt` with CLI timing and related playback events.
+
+**`RealtimeContextProvider`** (`Services/Context/`) — Adds local hour, weekday, month, season, and optional location context to script prompts. AgentBooth does not fetch weather directly.
 
 **`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV. Includes retry and fallback model logic, and records per-attempt status/fallback details into the session cuesheet.
 
@@ -270,6 +275,7 @@ AgentBooth/
 │       ├── Script/                 ProcessScriptGenerationService
 │       ├── TTS/                    GeminiTTSService
 │       ├── Audio/                  SystemAudioPlaybackService
+│       ├── Context/                RealtimeContextProvider
 │       ├── Recording/
 │       └── Music/                  AppleMusicService, YouTubeMusicService, SpotifyMusicService
 ├── AgentBoothTests/                Unit tests + TestDoubles.swift
