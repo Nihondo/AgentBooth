@@ -47,9 +47,11 @@ actor RadioOrchestrator {
     private var isStopRequested = false
     private var artistTopicHistory: [String: [String]] = [:]
     private var albumTopicHistory: [String: [String]] = [:]
+    private var sessionTopicLedger: [String] = []
     private var positionPollingTask: Task<Void, Never>?
     /// 曲の実再生開始時刻（再生位置が取れない場合のフォールバック用）
     private var trackStartedAt: ContinuousClock.Instant?
+    private let maxSessionTopicLedgerEntries = 8
 
     init(
         settings: AppSettings,
@@ -819,6 +821,11 @@ actor RadioOrchestrator {
             appendTopicSummary(summaryEntry, key: track.artist, store: &artistTopicHistory)
             appendTopicSummary(summaryEntry, key: track.album, store: &albumTopicHistory)
         }
+
+        let sessionSummaryEntries = sessionTopicSummaryEntries(for: track, script: script)
+        for summaryEntry in sessionSummaryEntries {
+            appendSessionTopicSummary(summaryEntry)
+        }
     }
 
     private func buildContinuityNote(for track: TrackInfo, previousTrack: TrackInfo?) -> String? {
@@ -841,8 +848,17 @@ actor RadioOrchestrator {
             let newEntries = entries.filter { !shownEntries.contains($0) }
             if !newEntries.isEmpty {
                 lines.append("同一アルバムとして直前に触れた内容:")
-                newEntries.forEach { lines.append("- \($0)") }
+                newEntries.forEach {
+                    lines.append("- \($0)")
+                    shownEntries.insert($0)
+                }
             }
+        }
+
+        let sessionEntries = sessionTopicLedger.filter { !shownEntries.contains($0) }
+        if !sessionEntries.isEmpty {
+            lines.append("番組内で既に触れた話題（重複回避）:")
+            sessionEntries.forEach { lines.append("- \($0)") }
         }
 
         guard !lines.isEmpty else {
@@ -868,6 +884,16 @@ actor RadioOrchestrator {
         store[normalizedKey] = entries
     }
 
+    private func appendSessionTopicSummary(_ summary: String) {
+        guard !summary.isEmpty, !sessionTopicLedger.contains(summary) else {
+            return
+        }
+        sessionTopicLedger.append(summary)
+        if sessionTopicLedger.count > maxSessionTopicLedgerEntries {
+            sessionTopicLedger = Array(sessionTopicLedger.suffix(maxSessionTopicLedgerEntries))
+        }
+    }
+
     private func normalizeKey(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
@@ -888,6 +914,13 @@ actor RadioOrchestrator {
             return []
         }
         return ["\(track.name): \(fallbackText)"]
+    }
+
+    private func sessionTopicSummaryEntries(for track: TrackInfo, script: RadioScript) -> [String] {
+        script.summaryBullets
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .map { "\(track.name): \($0)" }
     }
 
     private func calculateFadeOutDuration() -> Double {

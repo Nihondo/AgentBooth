@@ -104,7 +104,7 @@ The CLI must return:
   "summaryBullets": ["...", "..."]
 }
 ```
-`summaryBullets` is fed back into the next prompt only when the artist/album repeats. A legacy format with only `dialogues` is also accepted.
+`summaryBullets` is stored in the current in-memory show topic ledger and fed into transition prompts so later talk can avoid repeating earlier topics. Same-artist / same-album repeats also receive focused continuity notes from `artistTopicHistory` / `albumTopicHistory`. A legacy format with only `dialogues` is also accepted.
 
 ### Overlap modes
 

@@ -175,7 +175,7 @@ CLI で transition スクリプト生成
 ```
 
 - プロンプトは「前曲感想 + 次曲紹介」
-- `buildContinuityNote()` が同一アーティスト/アルバム時の既出話題を渡す
+- `buildContinuityNote()` が番組内の直近既出話題を渡し、同一アーティスト/アルバム時は局所的な連続性メモも加える
 
 #### 最終曲の場合
 
@@ -474,12 +474,15 @@ musicLeadSeconds + MusicPlaybackProfile.startupLatencyCompensationSeconds
 
 ## トピック重複回避
 
-同一アーティスト・同一アルバムが続く場合、
-`summaryBullets` を `artistTopicHistory` / `albumTopicHistory` に保持し、
+transition prompt では、1番組内の直近話題台帳として
+`summaryBullets` を `sessionTopicLedger` に保持し、
 次の transition prompt へ continuity note として渡す。
+同一アーティスト・同一アルバムが続く場合は、
+`artistTopicHistory` / `albumTopicHistory` の局所メモも追加する。
 
 ルール:
 
-- 1 キーあたり最大 2 件保持
+- `sessionTopicLedger` は `summaryBullets` 由来の直近 8 件を保持
+- `artistTopicHistory` / `albumTopicHistory` は 1 キーあたり最大 2 件保持
 - 重複項目は追加しない
-- `summaryBullets` が空なら会話文の先頭数行からフォールバック要約を作る
+- `summaryBullets` が空なら、同一アーティスト/アルバム用の局所メモだけ会話文の先頭数行からフォールバック要約を作る

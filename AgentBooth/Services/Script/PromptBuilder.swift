@@ -177,7 +177,7 @@ enum PromptBuilder {
             return ""
         }
         return """
-        【直前のオンエアで既に触れた内容】
+        【既に触れた内容】
         \(continuityNote)
 
         """

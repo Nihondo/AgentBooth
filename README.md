@@ -302,7 +302,7 @@ The CLI must write the following JSON to stdout.
 ```
 
 - `summaryBullets`: 2–4 short bullets
-- Passed back to the next prompt only when the same artist/album repeats
+- Used as an in-show topic ledger for transition prompts so later talk can avoid repeating earlier topics; same-artist / same-album repeats also get a focused continuity note
 - Legacy format with `dialogues` only is accepted for backwards compatibility
 
 ### Build and Test

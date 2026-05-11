@@ -92,6 +92,29 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertFalse(continuityNote.contains("male: 会話本文の一行目です"))
     }
 
+    func testTransitionContinuityIncludesSessionTopicsAcrossDifferentArtists() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let scriptService = FakeScriptGenerationService()
+        scriptService.openingScript = RadioScript(
+            segmentType: "opening",
+            dialogues: FakeScriptGenerationService.sampleDialogues(),
+            summaryBullets: ["夜景の見えるスタジオの雰囲気に触れた"],
+            track: nil
+        )
+
+        try await runShow(tracks: trackList, scriptService: scriptService)
+
+        let transitionNotes = await scriptService.recordedTransitionContinuityNotes()
+        let continuityNote = try XCTUnwrap(transitionNotes.first ?? nil)
+        XCTAssertTrue(continuityNote.contains("番組内で既に触れた話題（重複回避）:"))
+        XCTAssertTrue(continuityNote.contains("Song A: 夜景の見えるスタジオの雰囲気に触れた"))
+        XCTAssertFalse(continuityNote.contains("同一アーティストとして直前に触れた内容:"))
+        XCTAssertFalse(continuityNote.contains("同一アルバムとして直前に触れた内容:"))
+    }
+
     func testTransitionContinuityFallsBackToDialogueExcerptWhenSummaryBulletsAreMissing() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
@@ -115,7 +138,7 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertTrue(continuityNote.contains("Song A: male: 最初の会話です / female: 次の話題につなげます"))
     }
 
-    func testContinuityHistoryKeepsOnlyLatestTwoSummaryEntries() async throws {
+    func testArtistContinuityHistoryKeepsOnlyLatestTwoSummaryEntries() async throws {
         let trackList = [
             TrackInfo(name: "Song 1", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
             TrackInfo(name: "Song 2", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
@@ -128,7 +151,13 @@ final class RadioOrchestratorTests: XCTestCase {
 
         let transitionNotes = await scriptService.recordedTransitionContinuityNotes().compactMap { $0 }
         let continuityNote = try XCTUnwrap(transitionNotes.last)
-        let bulletLines = continuityNote
+        var artistSection = continuityNote
+        for sectionMarker in ["同一アルバムとして直前に触れた内容:", "番組内で既に触れた話題（重複回避）:"] {
+            if let markerRange = artistSection.range(of: sectionMarker) {
+                artistSection = String(artistSection[..<markerRange.lowerBound])
+            }
+        }
+        let bulletLines = artistSection
             .split(separator: "\n")
             .filter { $0.hasPrefix("- ") }
 
