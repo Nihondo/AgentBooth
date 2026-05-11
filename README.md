@@ -78,6 +78,7 @@ The app cannot start without the API Key and CLI set.
 | **Male Host Name** | Display name for the male personality |
 | **Female Host Name** | Display name for the female personality |
 | **Scene / Direction** | Additional direction for script generation and TTS delivery (e.g. "late night, quiet tone") |
+| **Time-Based Presets** | Optional delivery directions for early morning, morning, afternoon, evening, night, and late night. The matching preset is appended to Scene / Direction during script generation and TTS |
 
 Script prompts automatically include the local hour, weekday, month, and season so generated talk can reflect the time of day. Weather is not fetched by AgentBooth itself; it is only suggested to the selected CLI when a location name is set.
 

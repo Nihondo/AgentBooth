@@ -137,7 +137,7 @@ enum ScriptCLIKind: String, CaseIterable, Codable, Identifiable {
         case .gemini: "Gemini"
         case .codex: "Codex"
         case .copilot: "Copilot"
-        case .custom: "カスタム"
+        case .custom: String(localized: "カスタム")
         }
     }
 }
@@ -213,9 +213,102 @@ struct PersonalitySettings: Codable, Equatable, Sendable {
     var femaleHostName: String = "佐藤"
 }
 
+/// 時刻から切り替える番組の時間帯。
+enum TimeBand: String, Codable, CaseIterable, Identifiable, Sendable {
+    case earlyMorning
+    case morning
+    case afternoon
+    case evening
+    case night
+    case lateNight
+
+    var id: String { rawValue }
+
+    /// UI表示用の時間帯名。
+    var displayName: String {
+        switch self {
+        case .earlyMorning:
+            return String(localized: "早朝")
+        case .morning:
+            return String(localized: "朝")
+        case .afternoon:
+            return String(localized: "昼")
+        case .evening:
+            return String(localized: "夕方")
+        case .night:
+            return String(localized: "夜")
+        case .lateNight:
+            return String(localized: "深夜")
+        }
+    }
+
+    /// UIに表示する時間帯の目安。
+    var hourRangeDescription: String {
+        switch self {
+        case .earlyMorning:
+            return "5:00-7:59"
+        case .morning:
+            return "8:00-11:59"
+        case .afternoon:
+            return "12:00-16:59"
+        case .evening:
+            return "17:00-19:59"
+        case .night:
+            return "20:00-23:59"
+        case .lateNight:
+            return "0:00-4:59"
+        }
+    }
+
+    /// 指定日時をローカルカレンダー上の時間帯へ変換する。
+    static func makeTimeBand(date: Date = Date(), calendar: Calendar = .current) -> TimeBand {
+        makeTimeBand(hour: calendar.component(.hour, from: date))
+    }
+
+    /// 0〜23時の値を時間帯へ変換する。
+    static func makeTimeBand(hour: Int) -> TimeBand {
+        switch hour {
+        case 0..<5:
+            return .lateNight
+        case 5..<8:
+            return .earlyMorning
+        case 8..<12:
+            return .morning
+        case 12..<17:
+            return .afternoon
+        case 17..<20:
+            return .evening
+        case 20..<24:
+            return .night
+        default:
+            return .morning
+        }
+    }
+}
+
 /// シーン・話し方などのディレクション設定。
 struct DirectionSettings: Codable, Equatable, Sendable {
     var sceneDirection: String = ""
+    var timeBasedPresets: [TimeBand: String] = [:]
+
+    enum CodingKeys: String, CodingKey {
+        case sceneDirection, timeBasedPresets
+    }
+
+    init(
+        sceneDirection: String = "",
+        timeBasedPresets: [TimeBand: String] = [:]
+    ) {
+        self.sceneDirection = sceneDirection
+        self.timeBasedPresets = timeBasedPresets
+    }
+
+    /// 旧バージョンの設定JSONに時間帯プリセットがなくても既定値で復元する。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sceneDirection = try c.decodeIfPresent(String.self, forKey: .sceneDirection) ?? ""
+        timeBasedPresets = try c.decodeIfPresent([TimeBand: String].self, forKey: .timeBasedPresets) ?? [:]
+    }
 }
 
 /// Playback volume tuning.

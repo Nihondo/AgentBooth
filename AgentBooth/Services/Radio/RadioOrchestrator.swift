@@ -39,6 +39,7 @@ actor RadioOrchestrator {
     private let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol
     private let recordingService: (any ShowRecordingServiceProtocol)?
     private let cueSheetLogger: ShowCueSheetLogger?
+    private let currentDateProvider: @Sendable () -> Date
     private let stateDidChange: @Sendable (RadioState) -> Void
 
     private var radioState = RadioState()
@@ -60,6 +61,7 @@ actor RadioOrchestrator {
         bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol,
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
+        currentDateProvider: @escaping @Sendable () -> Date = { Date() },
         stateDidChange: @escaping @Sendable (RadioState) -> Void
     ) {
         self.settings = settings
@@ -71,6 +73,7 @@ actor RadioOrchestrator {
         self.bedAudioPlaybackService = bedAudioPlaybackService
         self.recordingService = recordingService
         self.cueSheetLogger = cueSheetLogger
+        self.currentDateProvider = currentDateProvider
         self.stateDidChange = stateDidChange
     }
 
@@ -302,14 +305,19 @@ actor RadioOrchestrator {
             indentLevel: 0
         )
         return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            let narrationSettings = makeDirectionAdjustedSettings()
             updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
             await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
-            let script = try await scriptService.generateOpening(tracks: tracks, settings: settings)
+            let script = try await scriptService.generateOpening(tracks: tracks, settings: narrationSettings)
             updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
             await cueSheetLogger?.append(
                 "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
             )
-            let wavData = try await synthesizeNarration(dialogues: script.dialogues, segmentLabel: segmentLabel)
+            let wavData = try await synthesizeNarration(
+                dialogues: script.dialogues,
+                segmentLabel: segmentLabel,
+                settings: narrationSettings
+            )
             return PreparedNarration(
                 script: script,
                 wavData: wavData,
@@ -346,6 +354,7 @@ actor RadioOrchestrator {
             indentLevel: 0
         )
         return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            let narrationSettings = makeDirectionAdjustedSettings()
             updateState {
                 $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name)
                 $0.isProcessing = true
@@ -354,14 +363,18 @@ actor RadioOrchestrator {
             let script = try await scriptService.generateTransition(
                 currentTrack: currentTrack,
                 nextTrack: nextTrack,
-                settings: settings,
+                settings: narrationSettings,
                 continuityNote: continuityNote
             )
             updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
             await cueSheetLogger?.append(
                 "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
             )
-            let wavData = try await synthesizeNarration(dialogues: script.dialogues, segmentLabel: segmentLabel)
+            let wavData = try await synthesizeNarration(
+                dialogues: script.dialogues,
+                segmentLabel: segmentLabel,
+                settings: narrationSettings
+            )
             return PreparedNarration(
                 script: script,
                 wavData: wavData,
@@ -375,14 +388,19 @@ actor RadioOrchestrator {
         let segmentLabel = String(localized: "クロージング")
         await cueSheetLogger?.append("\(segmentLabel)", indentLevel: 0)
         return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
+            let narrationSettings = makeDirectionAdjustedSettings()
             updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
             await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
-            let script = try await scriptService.generateClosing(tracks: tracks, settings: settings)
+            let script = try await scriptService.generateClosing(tracks: tracks, settings: narrationSettings)
             updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
             await cueSheetLogger?.append(
                 "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
             )
-            let wavData = try await synthesizeNarration(dialogues: script.dialogues, segmentLabel: segmentLabel)
+            let wavData = try await synthesizeNarration(
+                dialogues: script.dialogues,
+                segmentLabel: segmentLabel,
+                settings: narrationSettings
+            )
             return PreparedNarration(
                 script: script,
                 wavData: wavData,
@@ -639,11 +657,15 @@ actor RadioOrchestrator {
         updateState { $0.currentPlaybackPosition = 0 }
     }
 
-    private func synthesizeNarration(dialogues: [DialogueLine], segmentLabel: String) async throws -> Data {
+    private func synthesizeNarration(
+        dialogues: [DialogueLine],
+        segmentLabel: String,
+        settings narrationSettings: AppSettings
+    ) async throws -> Data {
         updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成開始（%@）"), segmentLabel); $0.isProcessing = true }
         await cueSheetLogger?.append("TTS音声作成開始(\(segmentLabel))")
         do {
-            let result = try await ttsService.synthesize(dialogues: dialogues, settings: settings)
+            let result = try await ttsService.synthesize(dialogues: dialogues, settings: narrationSettings)
             let credentialLabel = result.credentialSetLabelUsed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? String(localized: "名称未設定")
                 : result.credentialSetLabelUsed
@@ -666,6 +688,13 @@ actor RadioOrchestrator {
                 userInfo: [NSLocalizedDescriptionKey: String(format: String(localized: "%@ の音声生成に失敗しました: %@"), segmentLabel, error.localizedDescription)]
             )
         }
+    }
+
+    private func makeDirectionAdjustedSettings() -> AppSettings {
+        TimeBasedDirectionResolver.makeSettings(
+            settings: settings,
+            date: currentDateProvider()
+        )
     }
 
     /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機

@@ -51,6 +51,8 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 **`RealtimeContextProvider`** (`Services/Context/`) — Builds prompt context from local `Date()` values: hour, weekday, month, season, and optional `RadioShowSettings.locationName`. AgentBooth does not call a weather API; when a location is set, prompts allow the selected CLI to mention current weather only if it can verify it.
 
+**`TimeBasedDirectionResolver`** (`Services/Context/`) — Applies `DirectionSettings.timeBasedPresets` by resolving the current `TimeBand` and appending the matching preset to `sceneDirection`. `RadioOrchestrator` calls this for each prepared narration so both script generation and Gemini TTS receive the same effective direction.
+
 **`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV audio. Includes retry/fallback model logic and writes per-attempt status/fallback details to the session cuesheet.
 
 **`SystemBedAudioPlaybackService`** (`Services/Audio/`) — Separate BGM / jingle playback service built on `AVAudioPlayer`. It does not replace `SystemAudioPlaybackService` or mix PCM with TTS. Bed BGM loops only in narration sections where external music is not playing, fades out before track start, and follows pause / resume / stop. Jingles are one-shot cues for opening and closing only.
@@ -91,7 +93,7 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 ### Domain models (`Domain/Models.swift`)
 
-All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs including `RadioShowSettings`, `BGMSettings` / `AudioAssetSource`), `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
+All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs including `RadioShowSettings`, `DirectionSettings`, `BGMSettings` / `AudioAssetSource`), `TimeBand`, `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
 
 ### Script JSON format
 

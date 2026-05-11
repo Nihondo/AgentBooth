@@ -64,6 +64,7 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
 final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationService {
     private let continuityRecorder = ContinuityNoteRecorder()
     private let generationStepRecorder = GenerationStepRecorder()
+    private let settingsRecorder = ScriptSettingsRecorder()
 
     var openingScript = RadioScript(
         segmentType: "opening",
@@ -85,6 +86,7 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
     )
 
     func generateOpening(tracks: [TrackInfo], settings: AppSettings) async throws -> RadioScript {
+        await settingsRecorder.record(settings)
         await generationStepRecorder.record("opening")
         return RadioScript(
             segmentType: openingScript.segmentType,
@@ -100,6 +102,7 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
         settings: AppSettings,
         continuityNote: String?
     ) async throws -> RadioScript {
+        await settingsRecorder.record(settings)
         await continuityRecorder.recordTransition(continuityNote)
         await generationStepRecorder.record("transition:\(currentTrack.name)->\(nextTrack.name)")
         return RadioScript(
@@ -111,6 +114,7 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
     }
 
     func generateClosing(tracks: [TrackInfo], settings: AppSettings) async throws -> RadioScript {
+        await settingsRecorder.record(settings)
         await generationStepRecorder.record("closing")
         return RadioScript(
             segmentType: closingScript.segmentType,
@@ -127,6 +131,11 @@ final class FakeScriptGenerationService: @unchecked Sendable, ScriptGenerationSe
     func recordedGenerationSteps() async -> [String] {
         await generationStepRecorder.steps
     }
+
+    func recordedSettings() async -> [AppSettings] {
+        await settingsRecorder.settings
+    }
+
     static func sampleDialogues() -> [DialogueLine] {
         [
             DialogueLine(speaker: "male", text: "こんにちは"),
@@ -151,8 +160,19 @@ private actor GenerationStepRecorder {
     }
 }
 
+private actor ScriptSettingsRecorder {
+    private(set) var settings: [AppSettings] = []
+
+    func record(_ nextSettings: AppSettings) {
+        settings.append(nextSettings)
+    }
+}
+
 actor FakeTTSService: TTSService {
+    private(set) var recordedSettings: [AppSettings] = []
+
     func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
+        recordedSettings.append(settings)
         var wavData = Data(repeating: 0, count: 44)
         wavData.append(Data(repeating: 1, count: 4_800))
         let credentialLabel = settings.activeTTSCredentialSets.first?.label ?? ""

@@ -397,6 +397,19 @@ struct SettingsView: View {
                 }
             }
 
+            settingsGroup("時間帯別プリセット") {
+                ForEach(TimeBand.allCases) { timeBand in
+                    settingsRow("\(timeBand.displayName)（\(timeBand.hourRangeDescription)）") {
+                        TextField(
+                            timeBandPresetPlaceholder(timeBand),
+                            text: timeBandPresetBinding(timeBand),
+                            axis: .vertical
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(2...)
+                    }
+                }
+            }
         }
     }
 
@@ -510,14 +523,14 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text(title)
+            Text(localizedString(title))
                 .font(.headline)
         }
     }
 
     private func settingsRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
-            Text(title)
+            Text(localizedString(title))
                 .frame(width: 170, alignment: .trailing)
                 .foregroundStyle(.secondary)
 
@@ -525,6 +538,10 @@ struct SettingsView: View {
                 .frame(maxWidth: 420, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func localizedString(_ key: String) -> String {
+        NSLocalizedString(key, comment: "")
     }
 
     private func optionalTextBinding(_ keyPath: WritableKeyPath<AppSettings, String?>) -> Binding<String> {
@@ -539,6 +556,26 @@ struct SettingsView: View {
         )
     }
 
+    private func timeBandPresetBinding(_ timeBand: TimeBand) -> Binding<String> {
+        Binding(
+            get: {
+                draftSettings.directionSettings.timeBasedPresets[timeBand] ?? ""
+            },
+            set: { newValue in
+                let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmedValue.isEmpty {
+                    draftSettings.directionSettings.timeBasedPresets.removeValue(forKey: timeBand)
+                } else {
+                    draftSettings.directionSettings.timeBasedPresets[timeBand] = newValue
+                }
+            }
+        )
+    }
+
+    private func timeBandPresetPlaceholder(_ timeBand: TimeBand) -> String {
+        String(format: String(localized: "例: %@らしい話し方"), timeBand.displayName)
+    }
+
     private func playbackBalanceField<Value>(
         placeholder: String,
         value: Binding<Value>,
@@ -546,11 +583,11 @@ struct SettingsView: View {
         description: String
     ) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            TextField(placeholder, value: value, formatter: formatter)
+            TextField(localizedString(placeholder), value: value, formatter: formatter)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 140, height: 28)
 
-            Text(description)
+            Text(localizedString(description))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(minHeight: 28, alignment: .leading)

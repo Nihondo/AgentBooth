@@ -51,10 +51,11 @@ final class RadioOrchestratorTests: XCTestCase {
         let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
-            scriptService: scriptService
-        ) { state in
-            phaseRecorder.append(state.phase)
-        }
+            scriptService: scriptService,
+            stateDidChange: { state in
+                phaseRecorder.append(state.phase)
+            }
+        )
 
         await orchestrator.startShow(playlistName: "Favorites")
         try await waitUntil {
@@ -448,13 +449,14 @@ final class RadioOrchestratorTests: XCTestCase {
         let orchestrator = makeOrchestrator(
             settings: settings,
             musicService: musicService,
-            ttsService: ttsService
-        ) { state in
-            let statusMessage = state.statusMessage
-            if !statusMessage.isEmpty {
-                Task { await statusRecorder.append(statusMessage) }
+            ttsService: ttsService,
+            stateDidChange: { state in
+                let statusMessage = state.statusMessage
+                if !statusMessage.isEmpty {
+                    Task { await statusRecorder.append(statusMessage) }
+                }
             }
-        }
+        )
 
         await orchestrator.startShow(playlistName: "Favorites")
         try await waitUntil {
@@ -518,10 +520,11 @@ final class RadioOrchestratorTests: XCTestCase {
 
         let orchestrator = makeOrchestrator(
             settings: settings,
-            musicService: musicService
-        ) { state in
-            Task { await phaseRecorder.append(state.phase) }
-        }
+            musicService: musicService,
+            stateDidChange: { state in
+                Task { await phaseRecorder.append(state.phase) }
+            }
+        )
 
         await orchestrator.startShow(playlistName: "Favorites")
         try await waitUntil {
@@ -598,6 +601,51 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertEqual(lastJinglePlacement, .opening)
     }
 
+    func testTimeBasedDirectionPresetIsPassedToScriptAndTTS() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptService = FakeScriptGenerationService()
+        let ttsService = FakeTTSService()
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.fadeDuration = 0.01
+        settings.directionSettings.sceneDirection = "共通ディレクション"
+        TimeBand.allCases.forEach { timeBand in
+            settings.directionSettings.timeBasedPresets[timeBand] = "時間帯に合わせて話す"
+        }
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            scriptService: scriptService,
+            ttsService: ttsService,
+            currentDateProvider: { Date(timeIntervalSince1970: 1_811_076_400) }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let scriptSettings = await scriptService.recordedSettings()
+            let ttsSettings = await ttsService.recordedSettings
+            return !scriptSettings.isEmpty && !ttsSettings.isEmpty
+        }
+        await orchestrator.stopShow()
+
+        let recordedScriptSettings = await scriptService.recordedSettings()
+        let recordedTTSSettings = await ttsService.recordedSettings
+        let scriptDirection = try XCTUnwrap(recordedScriptSettings.first)
+            .directionSettings.sceneDirection
+        let ttsDirection = try XCTUnwrap(recordedTTSSettings.first)
+            .directionSettings.sceneDirection
+        XCTAssertTrue(scriptDirection.contains("共通ディレクション"))
+        XCTAssertTrue(scriptDirection.contains("時間帯別ディレクション（"))
+        XCTAssertTrue(scriptDirection.contains("時間帯に合わせて話す"))
+        XCTAssertEqual(ttsDirection, scriptDirection)
+    }
+
     private func makeOrchestrator(
         settings: AppSettings = AppSettings(),
         musicService: FakeMusicService,
@@ -608,6 +656,7 @@ final class RadioOrchestratorTests: XCTestCase {
         bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = FakeBedAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
+        currentDateProvider: @escaping @Sendable () -> Date = { Date() },
         stateDidChange: @escaping @Sendable (RadioState) -> Void = { _ in }
     ) -> RadioOrchestrator {
         RadioOrchestrator(
@@ -620,6 +669,7 @@ final class RadioOrchestratorTests: XCTestCase {
             bedAudioPlaybackService: bedAudioPlaybackService,
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger,
+            currentDateProvider: currentDateProvider,
             stateDidChange: stateDidChange
         )
     }

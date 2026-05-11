@@ -137,6 +137,23 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.currentSettings.customCLIModelArguments, [])
     }
 
+    func testMissingTimeBasedPresetsFallBackToEmptyDictionary() throws {
+        let (defaults, keychainStore, _) = makeStore()
+
+        let legacyDirectionSettings: [String: Any] = [
+            "sceneDirection": "深夜帯、静かに話す",
+        ]
+        let legacySettings: [String: Any] = [
+            "directionSettings": legacyDirectionSettings,
+        ]
+        let encoded = try JSONSerialization.data(withJSONObject: legacySettings)
+        defaults.set(encoded, forKey: "app_settings")
+
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(store.currentSettings.directionSettings.sceneDirection, "深夜帯、静かに話す")
+        XCTAssertEqual(store.currentSettings.directionSettings.timeBasedPresets, [:])
+    }
+
     func testLoadLegacyMusicBedFallsBackToEnabled() throws {
         let (defaults, keychainStore, _) = makeStore()
 

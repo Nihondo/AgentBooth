@@ -44,6 +44,11 @@
 "台本生成 CLI" = "Script Generation CLI";
 "録音設定" = "Recording Settings";
 "注意事項" = "Notes";
+"BGM・ジングル" = "BGM / Jingles";
+"時間帯別プリセット" = "Time-Based Presets";
+"Gemini TTS" = "Gemini TTS";
+"YouTube Music" = "YouTube Music";
+"Spotify" = "Spotify";
 
 /* SettingsView - Row labels */
 "既定のサービス" = "Default Service";
@@ -60,14 +65,25 @@
 "オーバーラップモード" = "Overlap Mode";
 "番組名" = "Show Name";
 "周波数・チャンネル名" = "Frequency / Channel";
+"地域名" = "Location Name";
 "男性ホスト名" = "Male Host Name";
 "女性ホスト名" = "Female Host Name";
 "シーン・セリフの指示" = "Scene / Dialogue Direction";
+"ベッド音量" = "Bed Volume";
+"ジングル音量" = "Jingle Volume";
+"ベッドフェードアウト秒数" = "Bed Fade Out Seconds";
+"ベッド BGM" = "Bed BGM";
+"オープニングジングル" = "Opening Jingle";
+"クロージングジングル" = "Closing Jingle";
 "フォールバックモデル" = "Fallback Model";
 "TTS モデル" = "TTS Model";
 "男性ボイス" = "Male Voice";
 "女性ボイス" = "Female Voice";
+"CLI" = "CLI";
 "CLI モデル" = "CLI Model";
+"実行ファイル" = "Executable";
+"引数" = "Arguments";
+"モデル引数" = "Model Arguments";
 "録音出力先" = "Recording Output Directory";
 "注意" = "Note";
 
@@ -86,16 +102,31 @@
 "曲開始後にトークを重ねる秒数" = "Seconds to start talk after track begins";
 "曲終了前にトークを重ねる秒数" = "Seconds to resume talk before track ends";
 "1曲あたりの再生上限。0で無制限" = "Playback limit per track. 0 for unlimited.";
+"楽曲開始前やトーク終了後にBGMを止める時間" = "Fade duration for stopping BGM before music starts or after talk ends";
 "空欄の場合は ~/Music/AgentBooth/ に保存されます。" = "If blank, saved to ~/Music/AgentBooth/.";
+"コマンド名またはフルパス。空の場合は台本生成に失敗します。" = "Command name or full path. Script generation fails if left blank.";
+"1 行 1 引数。{prompt} をプロンプトに置換します。\n例: -p\n{prompt}" = "One argument per line. {prompt} is replaced with the prompt.\nExample: -p\n{prompt}";
+"「CLI モデル」指定時のみ末尾に追加。{model} をモデル名に置換。\n例: --model\n{model}" = "Appended only when CLI Model is set. {model} is replaced with the model name.\nExample: --model\n{model}";
 
 /* SettingsView - Placeholders */
 "0（制限なし）" = "0 (unlimited)";
 "例: 77.5 FM" = "e.g. 77.5 FM";
+"例: 東京" = "e.g. Tokyo";
+"例: %@らしい話し方" = "e.g. %@-style delivery";
 "田中" = "Tanaka";
 "佐藤" = "Sato";
 "例: 深夜帯、静かに話す" = "e.g. Late night, speak quietly";
 "未指定なら CLI の既定値" = "Default: CLI's default";
 "未入力なら ~/Music/AgentBooth/" = "Default: ~/Music/AgentBooth/";
+"mycli または /opt/bin/mycli" = "mycli or /opt/bin/mycli";
+
+/* SettingsView - BGM controls */
+"ベッド BGM を有効にする" = "Enable Bed BGM";
+"オープニングでジングルを使う" = "Use Opening Jingle";
+"クロージングでジングルを使う" = "Use Closing Jingle";
+"選択" = "Select";
+"クリア" = "Clear";
+"未選択" = "Not Selected";
 
 /* SettingsView - Recording notes */
 "録音はシステム音声キャプチャ（ScreenCaptureKit）を使用します。" = "Recording uses system audio capture (ScreenCaptureKit).";
@@ -111,6 +142,24 @@
 "開始" = "Start";
 "一時停止" = "Pause";
 "再開" = "Resume";
+
+/* Domain/Models - ScriptCLIKind.displayName */
+"カスタム" = "Custom";
+
+/* Domain/Models - TimeBand.displayName */
+"早朝" = "Early Morning";
+"朝" = "Morning";
+"昼" = "Afternoon";
+"夕方" = "Evening";
+"夜" = "Night";
+"深夜" = "Late Night";
+
+/* Domain/Models - AudioAssetSourceKind.displayName */
+"ファイル" = "File";
+"ディレクトリ" = "Directory";
+
+/* TimeBasedDirectionResolver */
+"時間帯別ディレクション（%@）:" = "Time-based direction (%@):";
 
 /* Error descriptions - GeminiTTS */
 "Gemini API Key が未設定です。" = "Gemini API Key is not set.";
