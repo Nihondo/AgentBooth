@@ -1,3 +1,4 @@
+import Combine
 import CoreGraphics
 import Foundation
 
@@ -10,11 +11,14 @@ final class MainViewModel: ObservableObject {
     @Published private(set) var radioState = RadioState()
     @Published private(set) var isRecordingSession = false
     @Published private(set) var previewTrackListState: TrackListState = .idle
+    @Published private(set) var showProfiles: [ShowProfile]
+    @Published private(set) var activeProfileId: UUID?
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: AppServiceFactory
     private var radioOrchestrator: RadioOrchestrator?
     private var shouldRecordOnNextStart = false
+    private var settingsCancellables: Set<AnyCancellable> = []
 
     init(settingsStore: AppSettingsStore, serviceFactory: AppServiceFactory) {
         self.settingsStore = settingsStore
@@ -22,10 +26,24 @@ final class MainViewModel: ObservableObject {
         let currentSettings = settingsStore.currentSettings
         self.availableServices = serviceFactory.availableServices()
         self.selectedService = currentSettings.defaultMusicService
+        self.showProfiles = settingsStore.showProfiles
+        self.activeProfileId = currentSettings.activeProfileId
 
         if !availableServices.contains(selectedService), let firstService = availableServices.first {
             self.selectedService = firstService
         }
+
+        settingsStore.$showProfiles
+            .sink { [weak self] profiles in
+                self?.showProfiles = profiles
+            }
+            .store(in: &settingsCancellables)
+
+        settingsStore.$currentSettings
+            .sink { [weak self] settings in
+                self?.activeProfileId = settings.activeProfileId
+            }
+            .store(in: &settingsCancellables)
     }
 
     var primaryControlState: PrimaryControlState {
@@ -56,6 +74,15 @@ final class MainViewModel: ObservableObject {
     /// 現在再生中のトラックID（ハイライト用）
     var currentPlayingTrackID: String? {
         radioState.isRunning ? radioState.currentTrack?.id : nil
+    }
+
+    func selectProfile(_ profileID: UUID) {
+        guard !radioState.isRunning else { return }
+        do {
+            try settingsStore.selectProfile(profileID)
+        } catch {
+            radioState.errorMessage = error.localizedDescription
+        }
     }
 
     /// 録音を有効にしたうえで番組を開始する

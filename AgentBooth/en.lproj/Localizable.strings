@@ -6,6 +6,7 @@
 "再生" = "Play";
 "停止" = "Stop";
 "録音して再生" = "Record and Play";
+"プロフィール" = "Profile";
 "番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。" = "Start the program while recording via system audio capture. Other app audio may be mixed in during recording. Do Not Disturb mode is recommended.";
 "録音保存先: " = "Recording saved to: ";
 
@@ -19,12 +20,19 @@
 "トラック一覧を取得中..." = "Loading tracks...";
 
 /* SettingsView - Category titles */
+"プロフィール管理" = "Profile Management";
+"声と話し方" = "Voice & Direction";
+"生成・TTS接続" = "Generation & TTS Connection";
 "楽曲の再生" = "Music Playback";
 "番組情報" = "Program Info";
 "テキスト読み上げ" = "Text-to-Speech";
 "録音" = "Recording";
 
 /* SettingsView - Category descriptions */
+"番組プロフィールを作成、複製、切り替えます。" = "Create, duplicate, and switch show profiles.";
+"声、話し方、時間帯別のディレクションを設定します。" = "Configure voices, delivery direction, and time-based presets.";
+"曲とトークの重なり方や音量を設定します。" = "Configure how music and talk overlap and balance volume.";
+"トーク中のBGMと番組ジングルを設定します。" = "Configure talk bed BGM and show jingles.";
 "音楽サービスの設定を行います。" = "Configure music service settings.";
 "楽曲の再生バランスを設定します。" = "Configure music playback balance.";
 "番組名やパーソナリティ名を設定します。" = "Set program name and personality names.";
@@ -35,6 +43,12 @@
 "AgentBooth 設定" = "AgentBooth Settings";
 
 /* SettingsView - Group titles */
+"プロフィール" = "Profile";
+"番組プロフィール" = "Show Profile";
+"アプリ設定" = "App Settings";
+"アクティブプロフィール" = "Active Profile";
+"プロフィール一覧" = "Profiles";
+"含まれる設定" = "Included Settings";
 "既定値" = "Defaults";
 "再生バランス" = "Playback Balance";
 "再生モード" = "Playback Mode";
@@ -51,6 +65,7 @@
 "Spotify" = "Spotify";
 
 /* SettingsView - Row labels */
+"現在のプロフィール" = "Current Profile";
 "既定のサービス" = "Default Service";
 "ログイン状態" = "Login Status";
 "ログイン済み" = "Logged In";
@@ -86,6 +101,25 @@
 "モデル引数" = "Model Arguments";
 "録音出力先" = "Recording Output Directory";
 "注意" = "Note";
+
+/* SettingsView - Profile controls */
+"プロフィール名" = "Profile Name";
+"新規プロフィール名" = "New Profile Name";
+"使用中" = "Active";
+"複製" = "Duplicate";
+"削除" = "Delete";
+"新規作成" = "Create";
+"デフォルト" = "Default";
+"新規プロフィール" = "New Profile";
+"プロフィールのコピー" = "Profile Copy";
+"%@ のコピー" = "%@ Copy";
+"番組名、周波数、地域、パーソナリティ名" = "Show name, frequency, location, and personality names";
+"声、話し方、時間帯別ディレクション" = "Voices, delivery direction, and time-based direction";
+"オーバーラップ、音量、フェード、最大再生秒数" = "Overlap, volume, fades, and max playback duration";
+"BGM、ジングル、素材ファイル、音量" = "BGM, jingles, audio files, and volume";
+"音楽サービス、ログイン、TTS資格情報、台本生成CLI、録音先はアプリ共通設定です。" = "Music services, login sessions, TTS credentials, script generation CLI, and recording output are shared app settings.";
+"プロフィールが見つかりません。" = "Profile not found.";
+"最後のプロフィールは削除できません。" = "The last profile cannot be deleted.";
 
 /* SettingsView - Login buttons */
 "YouTube Music でログイン" = "Log in to YouTube Music";

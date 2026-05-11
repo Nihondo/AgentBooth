@@ -28,8 +28,8 @@ AI writes the script, two hosts read it aloud, and it blends with music in real 
 ## Quick Start
 
 1. Launch the app (first time: right-click → **Open**)
-2. Open **Settings** → **Text-to-Speech** tab
-3. Enter your Gemini API Key in **API Key** (free at [Google AI Studio](https://aistudio.google.com/))
+2. Open **Settings** → **Generation & TTS Connection**
+3. Add a Gemini TTS credential set with your API Key (free at [Google AI Studio](https://aistudio.google.com/))
 4. Choose an AI in **CLI** (e.g. `claude`)
 5. Close Settings, choose a playlist on the main screen, and press **Start**
 
@@ -43,19 +43,28 @@ Apple Music works immediately. YouTube Music and Spotify require signing in firs
 
 ## Settings Guide
 
-Open **Settings** from the toolbar and configure each tab.
+Open **Settings** from the toolbar and configure the sidebar sections.
 
-### Text-to-Speech (configure this first)
+### Profiles
+
+Profiles save the show experience as reusable presets. Use **Profile Management** to create, duplicate, rename, delete, and switch profiles. The active profile is also available from the main toolbar and cannot be changed while a show is running.
+
+Profiles include:
+
+- Show name, frequency/channel, location, and host names
+- Voice names, scene direction, and time-based presets
+- Overlap mode, music/talk volume, fades, and maximum track duration
+- Bed BGM, jingles, selected audio assets, and BGM/jingle volume
+
+Music service login, TTS credentials, script generation CLI, and recording output are shared app settings and do not change when switching profiles.
+
+### Generation & TTS Connection (configure this first)
 
 The app cannot start without the API Key and CLI set.
 
 | Field | Description |
 |---|---|
-| **API Key** | Your Gemini API Key from Google AI Studio |
-| **TTS Model** | Gemini model for speech synthesis (defaults work out of the box) |
-| **Fallback Model** | Backup model used if the primary model fails |
-| **Male Voice** | Voice name for the male host (e.g. `Charon`) |
-| **Female Voice** | Voice name for the female host (e.g. `Kore`) |
+| **Gemini TTS credential sets** | One or more API key + model pairs. The app tries usable sets in order |
 | **CLI** | AI CLI to use for script generation (`claude` / `gemini` / `codex` / `copilot`) |
 | **CLI Model** | Model name for the CLI (leave blank to use the CLI's default) |
 
@@ -66,17 +75,24 @@ The app cannot start without the API Key and CLI set.
 | **Default Service** | Music service selected by default on launch |
 | **Sign in to YouTube Music** | Open the embedded browser to log in to YouTube Music |
 | **Sign in to Spotify** | Open the embedded browser to log in to Spotify |
+| **User Agent** | Optional YouTube Music user agent override. Leave blank to use the WKWebView default |
 
 ### Program Info
 
 | Field | Description |
 |---|---|
-| **Overlap Mode** | Whether music and talk overlap or stay separated (see below) |
 | **Show Name** | Name of the radio show, used in script generation |
 | **Frequency / Channel** | e.g. `77.5 FM` — used to set the mood of the script |
 | **Location Name** | Optional area name used in script generation. When set, the CLI may lightly mention current weather if it can verify it |
 | **Male Host Name** | Display name for the male personality |
 | **Female Host Name** | Display name for the female personality |
+
+### Voice & Direction
+
+| Field | Description |
+|---|---|
+| **Male Voice** | Voice name for the male host (e.g. `Charon`) |
+| **Female Voice** | Voice name for the female host (e.g. `Kore`) |
 | **Scene / Direction** | Additional direction for script generation and TTS delivery (e.g. "late night, quiet tone") |
 | **Time-Based Presets** | Optional delivery directions for early morning, morning, afternoon, evening, night, and late night. The matching preset is appended to Scene / Direction during script generation and TTS |
 
@@ -88,6 +104,7 @@ Balance between music and talk. Defaults work without changes.
 
 | Field | Description |
 |---|---|
+| **Overlap Mode** | Whether music and talk overlap or stay separated (see below) |
 | **Normal Volume** | Base music volume (0–100) |
 | **Talk Volume** | Music volume while talk is playing (0–100). Lower = quieter music |
 | **Fade Duration** | Seconds to smoothly ramp volume up or down |

@@ -184,6 +184,109 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.currentSettings.defaultOverlapMode, .disabled)
     }
 
+    func testLegacySettingsMigrateToDefaultProfile() throws {
+        let suiteName = "AgentBoothTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let keychainStore = KeychainStore(serviceName: suiteName)
+
+        var legacySettings = AppSettings()
+        legacySettings.radioShowSettings.showName = "Night Radio"
+        legacySettings.voiceSettings.maleVoiceName = "Charon"
+        legacySettings.volumeSettings.talkVolume = 18
+        defaults.set(try JSONEncoder().encode(legacySettings), forKey: "app_settings")
+
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+
+        XCTAssertEqual(store.showProfiles.count, 1)
+        let profile = try XCTUnwrap(store.showProfiles.first)
+        XCTAssertEqual(profile.name, "デフォルト")
+        XCTAssertEqual(profile.radioShowSettings.showName, "Night Radio")
+        XCTAssertEqual(profile.voiceSettings.maleVoiceName, "Charon")
+        XCTAssertEqual(profile.volumeSettings.talkVolume, 18)
+        XCTAssertEqual(store.currentSettings.activeProfileId, profile.id)
+        XCTAssertEqual(store.currentSettings.radioShowSettings.showName, "Night Radio")
+        XCTAssertNotNil(defaults.data(forKey: "show_profiles"))
+    }
+
+    func testSelectingProfileComposesProfileSettingsAndKeepsGlobalSettings() throws {
+        let (_, _, store) = makeStore()
+
+        let nightProfileID = try XCTUnwrap(store.currentSettings.activeProfileId)
+        var nightSettings = store.currentSettings
+        nightSettings.radioShowSettings.showName = "深夜帯"
+        nightSettings.voiceSettings.maleVoiceName = "Charon"
+        nightSettings.volumeSettings.talkVolume = 18
+        try store.saveSettings(nightSettings)
+
+        let morningProfile = try store.createProfile(named: "朝の通勤")
+        var morningSettings = store.currentSettings
+        morningSettings.radioShowSettings.showName = "朝の通勤"
+        morningSettings.voiceSettings.maleVoiceName = "Puck"
+        morningSettings.volumeSettings.talkVolume = 32
+        morningSettings.defaultMusicService = .spotify
+        try store.saveSettings(morningSettings)
+
+        XCTAssertEqual(store.currentSettings.activeProfileId, morningProfile.id)
+        try store.selectProfile(nightProfileID)
+
+        XCTAssertEqual(store.currentSettings.radioShowSettings.showName, "深夜帯")
+        XCTAssertEqual(store.currentSettings.voiceSettings.maleVoiceName, "Charon")
+        XCTAssertEqual(store.currentSettings.volumeSettings.talkVolume, 18)
+        XCTAssertEqual(store.currentSettings.defaultMusicService, .spotify)
+    }
+
+    func testProfileStorageDoesNotContainTTSAPIKeys() throws {
+        let (defaults, _, store) = makeStore()
+
+        var settings = store.currentSettings
+        settings.ttsCredentialSets = [
+            TTSCredentialSet(label: "main", apiKey: "secret-key-1", modelName: "model-1"),
+        ]
+        settings.radioShowSettings.showName = "Profile Radio"
+        try store.saveSettings(settings)
+
+        let settingsData = try XCTUnwrap(defaults.data(forKey: "app_settings"))
+        let settingsText = String(decoding: settingsData, as: UTF8.self)
+        XCTAssertFalse(settingsText.contains("secret-key-1"))
+
+        let profilesData = try XCTUnwrap(defaults.data(forKey: "show_profiles"))
+        let profilesText = String(decoding: profilesData, as: UTF8.self)
+        XCTAssertFalse(profilesText.contains("secret-key-1"))
+
+        let profiles = try JSONDecoder().decode([ShowProfile].self, from: profilesData)
+        XCTAssertEqual(profiles.first?.radioShowSettings.showName, "Profile Radio")
+    }
+
+    func testDeletingLastProfileThrows() throws {
+        let (_, _, store) = makeStore()
+
+        let profileID = try XCTUnwrap(store.currentSettings.activeProfileId)
+        XCTAssertThrowsError(try store.deleteProfile(id: profileID)) { error in
+            XCTAssertEqual(error as? AppSettingsStoreError, .cannotDeleteLastProfile)
+        }
+    }
+
+    func testDeletingActiveProfileSelectsFirstRemainingProfile() throws {
+        let (_, _, store) = makeStore()
+
+        let firstProfileID = try XCTUnwrap(store.currentSettings.activeProfileId)
+        var firstSettings = store.currentSettings
+        firstSettings.radioShowSettings.showName = "First"
+        try store.saveSettings(firstSettings)
+
+        let secondProfile = try store.createProfile(named: "Second")
+        var secondSettings = store.currentSettings
+        secondSettings.radioShowSettings.showName = "Second"
+        try store.saveSettings(secondSettings)
+
+        XCTAssertEqual(store.currentSettings.activeProfileId, secondProfile.id)
+        try store.deleteProfile(id: secondProfile.id)
+
+        XCTAssertEqual(store.showProfiles.map(\.id), [firstProfileID])
+        XCTAssertEqual(store.currentSettings.activeProfileId, firstProfileID)
+        XCTAssertEqual(store.currentSettings.radioShowSettings.showName, "First")
+    }
+
     private func makeStore() -> (UserDefaults, KeychainStore, AppSettingsStore) {
         let suiteName = "AgentBoothTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

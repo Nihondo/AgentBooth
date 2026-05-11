@@ -85,7 +85,7 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 **`SpotifyScriptRunner`** (`Infrastructure/Spotify/`) — `callAsyncJavaScript` + `CheckedContinuation` wrapper for Spotify DOM scripts.
 
-**`AppSettingsStore`** (`Infrastructure/Settings/`) — Persists settings to UserDefaults; stores Gemini API key in Keychain under service name `com.dmng.AgentBooth`.
+**`AppSettingsStore` / `ShowProfileStore`** (`Infrastructure/Settings/`) — Persists global settings to UserDefaults under `app_settings`, show profiles to `show_profiles`, and Gemini API keys to Keychain under service name `com.dmng.AgentBooth`. `currentSettings` is always the global settings snapshot with the active `ShowProfile` applied. Profile-scoped fields are `RadioShowSettings`, `PersonalitySettings`, `DirectionSettings`, `VoiceSettings`, `VolumeSettings`, `BGMSettings`, and `defaultOverlapMode`; service login, TTS credentials, script CLI, and recording output remain global.
 
 **`NowPlayingBar`** (`Features/Main/NowPlayingBar.swift`) — SwiftUI `View`. 常時表示。`radioState.currentTrack` があればそれを、なければ `displayTracks.first`（プレイリスト読み込み後すぐ）を表示。`isAppleMusic && artworkURL == nil` の場合、`.task(id: track.id)` で `AppleMusicArtworkFetcher` を呼び出してアートワークを取得・キャッシュする。
 
@@ -93,7 +93,7 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 ### Domain models (`Domain/Models.swift`)
 
-All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings` (and its sub-structs including `RadioShowSettings`, `DirectionSettings`, `BGMSettings` / `AudioAssetSource`), `TimeBand`, `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
+All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings`, `ShowProfile` (and their sub-structs including `RadioShowSettings`, `DirectionSettings`, `BGMSettings` / `AudioAssetSource`), `TimeBand`, `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
 
 ### Script JSON format
 

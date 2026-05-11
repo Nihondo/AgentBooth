@@ -3,25 +3,43 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 private enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general
-    case music
-    case program
-    case tts
+    case profileManagement
+    case programInfo
+    case voiceDirection
+    case playbackBalance
+    case bgmJingle
+    case service
+    case generation
     case recording
     case update
 
     var id: String { rawValue }
 
+    static let profileCategories: [SettingsCategory] = [.profileManagement]
+    static let showProfileCategories: [SettingsCategory] = [
+        .programInfo,
+        .voiceDirection,
+        .playbackBalance,
+        .bgmJingle,
+    ]
+    static let appCategories: [SettingsCategory] = [.service, .generation, .recording, .update]
+
     var title: String {
         switch self {
-        case .general:
-            return String(localized: "サービス")
-        case .music:
-            return String(localized: "楽曲の再生")
-        case .program:
+        case .profileManagement:
+            return String(localized: "プロフィール管理")
+        case .programInfo:
             return String(localized: "番組情報")
-        case .tts:
-            return String(localized: "テキスト読み上げ")
+        case .voiceDirection:
+            return String(localized: "声と話し方")
+        case .playbackBalance:
+            return String(localized: "再生バランス")
+        case .bgmJingle:
+            return String(localized: "BGM・ジングル")
+        case .service:
+            return String(localized: "サービス")
+        case .generation:
+            return String(localized: "生成・TTS接続")
         case .recording:
             return String(localized: "録音")
         case .update:
@@ -31,14 +49,20 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
 
     var systemImageName: String {
         switch self {
-        case .general:
-            return "slider.horizontal.3"
-        case .music:
-            return "music.note.list"
-        case .program:
+        case .profileManagement:
+            return "person.crop.circle"
+        case .programInfo:
             return "dot.radiowaves.left.and.right"
-        case .tts:
+        case .voiceDirection:
             return "waveform"
+        case .playbackBalance:
+            return "slider.horizontal.3"
+        case .bgmJingle:
+            return "music.note.list"
+        case .service:
+            return "slider.horizontal.3"
+        case .generation:
+            return "terminal"
         case .recording:
             return "record.circle"
         case .update:
@@ -48,13 +72,19 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
 
     var descriptionText: String {
         switch self {
-        case .general:
-            return String(localized: "音楽サービスの設定を行います。")
-        case .music:
-            return String(localized: "楽曲の再生バランスを設定します。")
-        case .program:
+        case .profileManagement:
+            return String(localized: "番組プロフィールを作成、複製、切り替えます。")
+        case .programInfo:
             return String(localized: "番組名やパーソナリティ名を設定します。")
-        case .tts:
+        case .voiceDirection:
+            return String(localized: "声、話し方、時間帯別のディレクションを設定します。")
+        case .playbackBalance:
+            return String(localized: "曲とトークの重なり方や音量を設定します。")
+        case .bgmJingle:
+            return String(localized: "トーク中のBGMと番組ジングルを設定します。")
+        case .service:
+            return String(localized: "音楽サービスの設定を行います。")
+        case .generation:
             return String(localized: "Gemini TTS と台本生成 CLI の設定を行います。")
         case .recording:
             return String(localized: "番組のシステム音声キャプチャ録音の設定を行います。")
@@ -68,8 +98,9 @@ struct SettingsView: View {
     @ObservedObject var settingsStore: AppSettingsStore
 
     @State private var draftSettings = AppSettings()
-    @State private var selectedCategory: SettingsCategory? = .general
+    @State private var selectedCategory: SettingsCategory? = .profileManagement
     @State private var errorMessage: String?
+    @State private var newProfileName: String = ""
     /// カスタム CLI 引数の編集バッファ（1 行 1 引数）。draftSettings とは非同期に管理し、空行は保存時に除外。
     @State private var customArgsText: String = ""
     @State private var customModelArgsText: String = ""
@@ -78,11 +109,29 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SettingsCategory.allCases, selection: $selectedCategory) { category in
-                Label(category.title, systemImage: category.systemImageName)
-                    .tag(category)
+            List(selection: $selectedCategory) {
+                Section("プロフィール") {
+                    ForEach(SettingsCategory.profileCategories) { category in
+                        Label(category.title, systemImage: category.systemImageName)
+                            .tag(category)
+                    }
+                }
+
+                Section("番組プロフィール") {
+                    ForEach(SettingsCategory.showProfileCategories) { category in
+                        Label(category.title, systemImage: category.systemImageName)
+                            .tag(category)
+                    }
+                }
+
+                Section("アプリ設定") {
+                    ForEach(SettingsCategory.appCategories) { category in
+                        Label(category.title, systemImage: category.systemImageName)
+                            .tag(category)
+                    }
+                }
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 250)
         } detail: {
             detailView
         }
@@ -114,7 +163,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        let category = selectedCategory ?? .general
+        let category = selectedCategory ?? .profileManagement
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -124,6 +173,11 @@ struct SettingsView: View {
                     Text(category.descriptionText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                }
+
+                if let errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
                 }
 
                 contentView(for: category)
@@ -137,14 +191,20 @@ struct SettingsView: View {
     @ViewBuilder
     private func contentView(for category: SettingsCategory) -> some View {
         switch category {
-        case .general:
-            generalSettingsView
-        case .music:
-            musicSettingsView
-        case .program:
-            programSettingsView
-        case .tts:
-            ttsSettingsView
+        case .profileManagement:
+            profileManagementView
+        case .programInfo:
+            programInfoSettingsView
+        case .voiceDirection:
+            voiceDirectionSettingsView
+        case .playbackBalance:
+            playbackBalanceSettingsView
+        case .bgmJingle:
+            bgmJingleSettingsView
+        case .service:
+            serviceSettingsView
+        case .generation:
+            generationTTSSettingsView
         case .recording:
             recordingSettingsView
         case .update:
@@ -152,7 +212,275 @@ struct SettingsView: View {
         }
     }
 
-    private var generalSettingsView: some View {
+    private var profileManagementView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsGroup("アクティブプロフィール") {
+                settingsRow("現在のプロフィール") {
+                    Picker("現在のプロフィール", selection: Binding(
+                        get: { draftSettings.activeProfileId ?? settingsStore.showProfiles.first?.id },
+                        set: { profileID in
+                            if let profileID {
+                                selectProfile(profileID)
+                            }
+                        }
+                    )) {
+                        ForEach(settingsStore.showProfiles) { profile in
+                            Text(profile.name).tag(Optional(profile.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 280, alignment: .leading)
+                }
+            }
+
+            settingsGroup("プロフィール一覧") {
+                ForEach(settingsStore.showProfiles) { profile in
+                    HStack(spacing: 10) {
+                        TextField("プロフィール名", text: profileNameBinding(profile.id))
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 220)
+
+                        if profile.id == draftSettings.activeProfileId {
+                            Label("使用中", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        }
+
+                        Spacer()
+
+                        Button("複製") {
+                            duplicateProfile(profile.id)
+                        }
+
+                        Button("削除") {
+                            deleteProfile(profile.id)
+                        }
+                        .disabled(settingsStore.showProfiles.count <= 1)
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 10) {
+                    TextField("新規プロフィール名", text: $newProfileName)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 260)
+
+                    Button("新規作成") {
+                        createProfile()
+                    }
+                }
+            }
+
+            settingsGroup("含まれる設定") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("番組名、周波数、地域、パーソナリティ名", systemImage: "dot.radiowaves.left.and.right")
+                    Label("声、話し方、時間帯別ディレクション", systemImage: "waveform")
+                    Label("オーバーラップ、音量、フェード、最大再生秒数", systemImage: "slider.horizontal.3")
+                    Label("BGM、ジングル、素材ファイル、音量", systemImage: "music.note.list")
+                    Text("音楽サービス、ログイン、TTS資格情報、台本生成CLI、録音先はアプリ共通設定です。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+            }
+        }
+    }
+
+    private var programInfoSettingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsGroup("番組情報") {
+                settingsRow("番組名") {
+                    TextField("AgentBooth Radio", text: $draftSettings.radioShowSettings.showName)
+                    .textFieldStyle(.roundedBorder)
+                }
+
+                settingsRow("周波数・チャンネル名") {
+                    TextField("例: 77.5 FM", text: $draftSettings.radioShowSettings.frequency)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                settingsRow("地域名") {
+                    TextField("例: 東京", text: optionalTextBinding(\.radioShowSettings.locationName))
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+
+            settingsGroup("パーソナリティ") {
+                settingsRow("男性ホスト名") {
+                    TextField("田中", text: $draftSettings.personalitySettings.maleHostName)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                settingsRow("女性ホスト名") {
+                    TextField("佐藤", text: $draftSettings.personalitySettings.femaleHostName)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+        }
+    }
+
+    private var voiceDirectionSettingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsGroup("音声") {
+                settingsRow("男性ボイス") {
+                    TextField("Charon", text: $draftSettings.voiceSettings.maleVoiceName)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                settingsRow("女性ボイス") {
+                    TextField("Kore", text: $draftSettings.voiceSettings.femaleVoiceName)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+
+            settingsGroup("ディレクション") {
+                settingsRow("シーン・セリフの指示") {
+                    TextField("例: 深夜帯、静かに話す", text: $draftSettings.directionSettings.sceneDirection, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3...)
+                }
+            }
+
+            settingsGroup("時間帯別プリセット") {
+                ForEach(TimeBand.allCases) { timeBand in
+                    settingsRow("\(timeBand.displayName)（\(timeBand.hourRangeDescription)）") {
+                        TextField(
+                            timeBandPresetPlaceholder(timeBand),
+                            text: timeBandPresetBinding(timeBand),
+                            axis: .vertical
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(2...)
+                    }
+                }
+            }
+        }
+    }
+
+    private var playbackBalanceSettingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsGroup("再生モード") {
+                settingsRow("オーバーラップモード") {
+                    Picker("オーバーラップモード", selection: $draftSettings.defaultOverlapMode) {
+                        ForEach(OverlapMode.orderedCases) { overlapMode in
+                            Text(overlapMode.displayName).tag(overlapMode)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 220, alignment: .leading)
+                }
+            }
+
+            settingsGroup("再生バランス") {
+                settingsRow("通常音量") {
+                    playbackBalanceField(
+                        placeholder: "100",
+                        value: $draftSettings.volumeSettings.normalVolume,
+                        formatter: numberFormatter,
+                        description: "通常再生時の基準音量"
+                    )
+                }
+
+                settingsRow("トーク時音量") {
+                    playbackBalanceField(
+                        placeholder: "25",
+                        value: $draftSettings.volumeSettings.talkVolume,
+                        formatter: numberFormatter,
+                        description: "トーク重なり中の楽曲音量"
+                    )
+                }
+
+                settingsRow("フェード秒数") {
+                    playbackBalanceField(
+                        placeholder: "5.0",
+                        value: $draftSettings.volumeSettings.fadeDuration,
+                        formatter: decimalFormatter,
+                        description: "音量を滑らかに変える時間"
+                    )
+                }
+
+                settingsRow("楽曲先行開始秒数") {
+                    playbackBalanceField(
+                        placeholder: "10",
+                        value: $draftSettings.volumeSettings.musicLeadSeconds,
+                        formatter: decimalFormatter,
+                        description: "トーク終了前に次曲を重ねる秒数"
+                    )
+                }
+
+                settingsRow("曲終了前のトーク再開秒数") {
+                    playbackBalanceField(
+                        placeholder: "10",
+                        value: $draftSettings.volumeSettings.fadeEarlySeconds,
+                        formatter: numberFormatter,
+                        description: "曲終了前にトークを重ねる秒数"
+                    )
+                }
+
+                settingsRow("楽曲最大再生秒数") {
+                    playbackBalanceField(
+                        placeholder: "0（制限なし）",
+                        value: $draftSettings.volumeSettings.maxPlaybackDurationSeconds,
+                        formatter: numberFormatter,
+                        description: "1曲あたりの再生上限。0で無制限"
+                    )
+                }
+            }
+        }
+    }
+
+    private var bgmJingleSettingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsGroup("BGM・ジングル") {
+                settingsRow("") {
+                    Toggle("ベッド BGM を有効にする", isOn: $draftSettings.bgmSettings.isBedEnabled)
+                }
+
+                settingsRow("") {
+                    Toggle("オープニングでジングルを使う", isOn: $draftSettings.bgmSettings.isOpeningJingleEnabled)
+                }
+
+                settingsRow("") {
+                    Toggle("クロージングでジングルを使う", isOn: $draftSettings.bgmSettings.isClosingJingleEnabled)
+                }
+
+                audioAssetSourceRow(
+                    title: "ベッド BGM",
+                    source: $draftSettings.bgmSettings.bedAudioSource
+                )
+
+                audioAssetSourceRow(
+                    title: "オープニングジングル",
+                    source: $draftSettings.bgmSettings.openingJingleSource
+                )
+
+                audioAssetSourceRow(
+                    title: "クロージングジングル",
+                    source: $draftSettings.bgmSettings.closingJingleSource
+                )
+
+                settingsRow("ベッド音量") {
+                    volumeSlider(value: $draftSettings.bgmSettings.bedVolume)
+                }
+
+                settingsRow("ジングル音量") {
+                    volumeSlider(value: $draftSettings.bgmSettings.jingleVolume)
+                }
+
+                settingsRow("ベッドフェードアウト秒数") {
+                    playbackBalanceField(
+                        placeholder: "1.2",
+                        value: $draftSettings.bgmSettings.bedFadeOutDuration,
+                        formatter: decimalFormatter,
+                        description: "楽曲開始前やトーク終了後にBGMを止める時間"
+                    )
+                }
+            }
+        }
+    }
+
+    private var serviceSettingsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             settingsGroup("既定値") {
                 settingsRow("既定のサービス") {
@@ -173,7 +501,6 @@ struct SettingsView: View {
             settingsGroup("Spotify") {
                 spotifyLoginRow
             }
-
         }
     }
 
@@ -240,195 +567,10 @@ struct SettingsView: View {
         }
     }
 
-    private var musicSettingsView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            settingsGroup("再生バランス") {
-                settingsRow("通常音量") {
-                    playbackBalanceField(
-                        placeholder: "100",
-                        value: $draftSettings.volumeSettings.normalVolume,
-                        formatter: numberFormatter,
-                        description: "通常再生時の基準音量"
-                    )
-                }
-
-                settingsRow("トーク時音量") {
-                    playbackBalanceField(
-                        placeholder: "25",
-                        value: $draftSettings.volumeSettings.talkVolume,
-                        formatter: numberFormatter,
-                        description: "トーク重なり中の楽曲音量"
-                    )
-                }
-
-                settingsRow("フェード秒数") {
-                    playbackBalanceField(
-                        placeholder: "5.0",
-                        value: $draftSettings.volumeSettings.fadeDuration,
-                        formatter: decimalFormatter,
-                        description: "音量を滑らかに変える時間"
-                    )
-                }
-
-                settingsRow("楽曲先行開始秒数") {
-                    playbackBalanceField(
-                        placeholder: "10",
-                        value: $draftSettings.volumeSettings.musicLeadSeconds,
-                        formatter: decimalFormatter,
-                        description: "トーク終了前に次曲を重ねる秒数"
-                    )
-                }
-
-                settingsRow("曲終了前のトーク再開秒数") {
-                    playbackBalanceField(
-                        placeholder: "10",
-                        value: $draftSettings.volumeSettings.fadeEarlySeconds,
-                        formatter: numberFormatter,
-                        description: "曲終了前にトークを重ねる秒数"
-                    )
-                }
-
-                settingsRow("楽曲最大再生秒数") {
-                    playbackBalanceField(
-                        placeholder: "0（制限なし）",
-                        value: $draftSettings.volumeSettings.maxPlaybackDurationSeconds,
-                        formatter: numberFormatter,
-                        description: "1曲あたりの再生上限。0で無制限"
-                    )
-                }
-            }
-
-            settingsGroup("BGM・ジングル") {
-                settingsRow("") {
-                    Toggle("ベッド BGM を有効にする", isOn: $draftSettings.bgmSettings.isBedEnabled)
-                }
-
-                settingsRow("") {
-                    Toggle("オープニングでジングルを使う", isOn: $draftSettings.bgmSettings.isOpeningJingleEnabled)
-                }
-
-                settingsRow("") {
-                    Toggle("クロージングでジングルを使う", isOn: $draftSettings.bgmSettings.isClosingJingleEnabled)
-                }
-
-                audioAssetSourceRow(
-                    title: "ベッド BGM",
-                    source: $draftSettings.bgmSettings.bedAudioSource
-                )
-
-                audioAssetSourceRow(
-                    title: "オープニングジングル",
-                    source: $draftSettings.bgmSettings.openingJingleSource
-                )
-
-                audioAssetSourceRow(
-                    title: "クロージングジングル",
-                    source: $draftSettings.bgmSettings.closingJingleSource
-                )
-
-                settingsRow("ベッド音量") {
-                    volumeSlider(value: $draftSettings.bgmSettings.bedVolume)
-                }
-
-                settingsRow("ジングル音量") {
-                    volumeSlider(value: $draftSettings.bgmSettings.jingleVolume)
-                }
-
-                settingsRow("ベッドフェードアウト秒数") {
-                    playbackBalanceField(
-                        placeholder: "1.2",
-                        value: $draftSettings.bgmSettings.bedFadeOutDuration,
-                        formatter: decimalFormatter,
-                        description: "楽曲開始前やトーク終了後にBGMを止める時間"
-                    )
-                }
-            }
-        }
-    }
-
-    private var programSettingsView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            settingsGroup("再生モード") {
-                settingsRow("オーバーラップモード") {
-                    Picker("オーバーラップモード", selection: $draftSettings.defaultOverlapMode) {
-                        ForEach(OverlapMode.orderedCases) { overlapMode in
-                            Text(overlapMode.displayName).tag(overlapMode)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 220, alignment: .leading)
-                }
-            }
-
-            settingsGroup("番組情報") {
-                settingsRow("番組名") {
-                    TextField("AgentBooth Radio", text: $draftSettings.radioShowSettings.showName)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                settingsRow("周波数・チャンネル名") {
-                    TextField("例: 77.5 FM", text: $draftSettings.radioShowSettings.frequency)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                settingsRow("地域名") {
-                    TextField("例: 東京", text: optionalTextBinding(\.radioShowSettings.locationName))
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            settingsGroup("パーソナリティ") {
-                settingsRow("男性ホスト名") {
-                    TextField("田中", text: $draftSettings.personalitySettings.maleHostName)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                settingsRow("女性ホスト名") {
-                    TextField("佐藤", text: $draftSettings.personalitySettings.femaleHostName)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            settingsGroup("ディレクション") {
-                settingsRow("シーン・セリフの指示") {
-                    TextField("例: 深夜帯、静かに話す", text: $draftSettings.directionSettings.sceneDirection, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(3...)
-                }
-            }
-
-            settingsGroup("時間帯別プリセット") {
-                ForEach(TimeBand.allCases) { timeBand in
-                    settingsRow("\(timeBand.displayName)（\(timeBand.hourRangeDescription)）") {
-                        TextField(
-                            timeBandPresetPlaceholder(timeBand),
-                            text: timeBandPresetBinding(timeBand),
-                            axis: .vertical
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(2...)
-                    }
-                }
-            }
-        }
-    }
-
-    private var ttsSettingsView: some View {
+    private var generationTTSSettingsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             settingsGroup("Gemini TTS") {
                 TTSCredentialSetsEditor(credentialSets: $draftSettings.ttsCredentialSets)
-            }
-
-            settingsGroup("音声") {
-                settingsRow("男性ボイス") {
-                    TextField("Charon", text: $draftSettings.voiceSettings.maleVoiceName)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                settingsRow("女性ボイス") {
-                    TextField("Kore", text: $draftSettings.voiceSettings.femaleVoiceName)
-                        .textFieldStyle(.roundedBorder)
-                }
             }
 
             settingsGroup("台本生成 CLI") {
@@ -542,6 +684,59 @@ struct SettingsView: View {
 
     private func localizedString(_ key: String) -> String {
         NSLocalizedString(key, comment: "")
+    }
+
+    private func profileNameBinding(_ profileID: UUID) -> Binding<String> {
+        Binding(
+            get: {
+                settingsStore.showProfiles.first(where: { $0.id == profileID })?.name ?? ""
+            },
+            set: { newValue in
+                do {
+                    try settingsStore.renameProfile(id: profileID, name: newValue)
+                    errorMessage = nil
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        )
+    }
+
+    private func selectProfile(_ profileID: UUID) {
+        do {
+            try settingsStore.selectProfile(profileID)
+            reloadSettings()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func createProfile() {
+        do {
+            try settingsStore.createProfile(named: newProfileName)
+            newProfileName = ""
+            reloadSettings()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func duplicateProfile(_ profileID: UUID) {
+        do {
+            try settingsStore.duplicateProfile(id: profileID)
+            reloadSettings()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteProfile(_ profileID: UUID) {
+        do {
+            try settingsStore.deleteProfile(id: profileID)
+            reloadSettings()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func optionalTextBinding(_ keyPath: WritableKeyPath<AppSettings, String?>) -> Binding<String> {
@@ -661,6 +856,8 @@ struct SettingsView: View {
 
     private func reloadSettings() {
         draftSettings = settingsStore.currentSettings
+        customArgsText = draftSettings.customCLIArguments.joined(separator: "\n")
+        customModelArgsText = draftSettings.customCLIModelArguments.joined(separator: "\n")
         errorMessage = nil
     }
 

@@ -396,6 +396,19 @@ struct RadioShowSettings: Codable, Equatable, Sendable {
     var locationName: String?
 }
 
+/// 番組のトーンと再生バランスをまとめて切り替えるプロフィール。
+struct ShowProfile: Identifiable, Codable, Equatable, Sendable {
+    var id: UUID = UUID()
+    var name: String = ""
+    var radioShowSettings: RadioShowSettings = .init()
+    var personalitySettings: PersonalitySettings = .init()
+    var directionSettings: DirectionSettings = .init()
+    var voiceSettings: VoiceSettings = .init()
+    var volumeSettings: VolumeSettings = .init()
+    var bgmSettings: BGMSettings = .init()
+    var defaultOverlapMode: OverlapMode = .enabled
+}
+
 /// Gemini TTS の「API キー + モデル」1組。
 struct TTSCredentialSet: Identifiable, Codable, Equatable, Sendable {
     var id: UUID = UUID()
@@ -413,6 +426,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var scriptCLIKind: ScriptCLIKind = .claude
     var scriptCLIModel: String = ""
     var defaultMusicService: MusicServiceKind = .appleMusic
+    var activeProfileId: UUID?
     var defaultOverlapMode: OverlapMode = .enabled
     var voiceSettings: VoiceSettings = .init()
     var personalitySettings: PersonalitySettings = .init()
@@ -433,7 +447,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel, ttsCredentialSets
         case scriptCLIKind, scriptCLIModel
-        case defaultMusicService, defaultOverlapMode
+        case defaultMusicService, activeProfileId, defaultOverlapMode
         case voiceSettings, personalitySettings, directionSettings, volumeSettings, bgmSettings, radioShowSettings
         case isRecordingEnabled, recordingOutputDirectory, youtubeMusicUserAgent
         case customCLIExecutable, customCLIArguments, customCLIModelArguments
@@ -456,6 +470,7 @@ extension AppSettings {
         scriptCLIKind = try c.decodeIfPresent(ScriptCLIKind.self, forKey: .scriptCLIKind) ?? .claude
         scriptCLIModel = try c.decodeIfPresent(String.self, forKey: .scriptCLIModel) ?? ""
         defaultMusicService = try c.decodeIfPresent(MusicServiceKind.self, forKey: .defaultMusicService) ?? .appleMusic
+        activeProfileId = try c.decodeIfPresent(UUID.self, forKey: .activeProfileId)
         defaultOverlapMode = try c.decodeIfPresent(OverlapMode.self, forKey: .defaultOverlapMode) ?? .enabled
         voiceSettings = try c.decodeIfPresent(VoiceSettings.self, forKey: .voiceSettings) ?? .init()
         personalitySettings = try c.decodeIfPresent(PersonalitySettings.self, forKey: .personalitySettings) ?? .init()
@@ -469,6 +484,37 @@ extension AppSettings {
         customCLIExecutable = try c.decodeIfPresent(String.self, forKey: .customCLIExecutable) ?? ""
         customCLIArguments = try c.decodeIfPresent([String].self, forKey: .customCLIArguments) ?? []
         customCLIModelArguments = try c.decodeIfPresent([String].self, forKey: .customCLIModelArguments) ?? []
+    }
+}
+
+extension ShowProfile {
+    /// 既存の設定スナップショットからプロフィール対象フィールドだけを取り出す。
+    init(id: UUID = UUID(), name: String, settings: AppSettings) {
+        self.id = id
+        self.name = name
+        radioShowSettings = settings.radioShowSettings
+        personalitySettings = settings.personalitySettings
+        directionSettings = settings.directionSettings
+        voiceSettings = settings.voiceSettings
+        volumeSettings = settings.volumeSettings
+        bgmSettings = settings.bgmSettings
+        defaultOverlapMode = settings.defaultOverlapMode
+    }
+}
+
+extension AppSettings {
+    /// アプリ全体設定にプロフィール対象フィールドを重ねる。
+    func applyingProfile(_ profile: ShowProfile) -> AppSettings {
+        var settings = self
+        settings.activeProfileId = profile.id
+        settings.defaultOverlapMode = profile.defaultOverlapMode
+        settings.voiceSettings = profile.voiceSettings
+        settings.personalitySettings = profile.personalitySettings
+        settings.directionSettings = profile.directionSettings
+        settings.volumeSettings = profile.volumeSettings
+        settings.bgmSettings = profile.bgmSettings
+        settings.radioShowSettings = profile.radioShowSettings
+        return settings
     }
 }
 

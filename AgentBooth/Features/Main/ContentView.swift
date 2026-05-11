@@ -29,6 +29,24 @@ struct ContentView: View {
         .frame(minWidth: 820, minHeight: 620)
         .toolbar {
             ToolbarItem(placement: .automatic) {
+                Picker("プロフィール", selection: Binding(
+                    get: { viewModel.activeProfileId },
+                    set: { profileID in
+                        if let profileID {
+                            viewModel.selectProfile(profileID)
+                        }
+                    }
+                )) {
+                    ForEach(viewModel.showProfiles) { profile in
+                        Text(profile.name).tag(Optional(profile.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(viewModel.radioState.isRunning)
+                .help("プロフィール")
+            }
+
+            ToolbarItem(placement: .automatic) {
                 Button {
                     openWindow(id: WindowIdentifier.settings)
                     NSApp.activate(ignoringOtherApps: true)
