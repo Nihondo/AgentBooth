@@ -98,7 +98,7 @@ Optional BGM and jingles can add a more radio-like sound. Bed BGM loops only dur
 | **Enable Bed BGM** | Loop a selected audio file, or a random audio file from a selected folder, under standalone talk sections |
 | **Use Opening Jingle** | Play the selected opening jingle before the opening talk |
 | **Use Closing Jingle** | Play the selected closing jingle before the closing talk |
-| **Bed BGM / Opening Jingle / Closing Jingle** | Choose either a single audio file or a folder; folders are sampled randomly at playback time |
+| **Bed BGM / Opening Jingle / Closing Jingle** | Click **Select** to choose either an audio file or a folder. The dialog reopens at the previous selection location, and folders are sampled randomly at playback time |
 | **Bed Volume** | Volume for the bed BGM |
 | **Jingle Volume** | Volume for jingles |
 | **Bed Fade Out Seconds** | Fade duration used when the bed BGM stops |

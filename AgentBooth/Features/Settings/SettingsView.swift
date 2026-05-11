@@ -545,32 +545,40 @@ struct SettingsView: View {
         source: Binding<AudioAssetSource>
     ) -> some View {
         settingsRow(title) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    Picker("音源種別", selection: source.kind) {
-                        ForEach(AudioAssetSourceKind.allCases) { kind in
-                            Text(kind.displayName).tag(kind)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 130)
+            HStack(spacing: 10) {
+                audioAssetSelectionLabel(source.wrappedValue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Button("選択") {
-                        selectAudioAsset(for: source)
-                    }
-
-                    Button("クリア") {
-                        source.wrappedValue.path = ""
-                    }
-                    .disabled(source.wrappedValue.path.isEmpty)
+                Button("選択") {
+                    selectAudioAsset(for: source)
                 }
 
-                Text(source.wrappedValue.path.isEmpty ? "未選択" : source.wrappedValue.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                Button("クリア") {
+                    source.wrappedValue.path = ""
+                }
+                .disabled(source.wrappedValue.path.isEmpty)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func audioAssetSelectionLabel(_ source: AudioAssetSource) -> some View {
+        if source.path.isEmpty {
+            Text("未選択")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 6) {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: source.path))
+                    .resizable()
+                    .frame(width: 16, height: 16)
+
+                Text(URL(fileURLWithPath: source.path).lastPathComponent)
+                    .lineLimit(1)
                     .truncationMode(.middle)
             }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -615,16 +623,43 @@ struct SettingsView: View {
     private func selectAudioAsset(for source: Binding<AudioAssetSource>) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = source.wrappedValue.kind == .directory
-        panel.canChooseFiles = source.wrappedValue.kind == .file
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
         panel.canCreateDirectories = false
-        if source.wrappedValue.kind == .file {
-            panel.allowedContentTypes = [.audio]
-        }
+        panel.allowedContentTypes = [.audio]
+        panel.directoryURL = audioAssetPanelDirectory(for: source.wrappedValue)
 
         guard panel.runModal() == .OK, let url = panel.url else {
             return
         }
         source.wrappedValue.path = url.path
+        source.wrappedValue.kind = isDirectoryURL(url) ? .directory : .file
+    }
+
+    private func audioAssetPanelDirectory(for source: AudioAssetSource) -> URL? {
+        let trimmedPath = source.path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return nil
+        }
+
+        var candidateURL = URL(fileURLWithPath: trimmedPath)
+        while true {
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: candidateURL.path, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                return candidateURL
+            }
+
+            let parentURL = candidateURL.deletingLastPathComponent()
+            if parentURL.path == candidateURL.path {
+                return nil
+            }
+            candidateURL = parentURL
+        }
+    }
+
+    private func isDirectoryURL(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 }
