@@ -723,7 +723,7 @@
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = AgentBooth/Info.plist;
@@ -732,7 +732,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.9.3;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBooth;
 				PRODUCT_NAME = AgentBooth;
 				SDKROOT = macosx;
@@ -866,7 +866,7 @@
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = AgentBooth/Info.plist;
@@ -875,7 +875,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.9.3;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBooth;
 				PRODUCT_NAME = AgentBooth;
 				SDKROOT = macosx;
