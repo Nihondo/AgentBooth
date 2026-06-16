@@ -309,10 +309,13 @@ enum YouTubeMusicJSScripts {
     // MARK: - 再生制御
 
     static func playTrack(videoId: String, playlistId: String) -> String {
-        """
+        // &list= を付けないことでプレイリストキューを作成せず、
+        // 曲終了時に YouTube Music が自動で次曲へ進まないようにする。
+        // playlistId は呼び出し元の互換性のため引数として受け取るが意図的に使用しない。
+        return """
         return (async () => {
           try {
-            window.location.href = "https://music.youtube.com/watch?v=\(videoId)&list=\(playlistId)";
+            window.location.href = "https://music.youtube.com/watch?v=\(videoId)";
             return JSON.stringify({ ok: true });
           } catch (e) {
             return JSON.stringify({ "__error": e.message || String(e) });
@@ -320,6 +323,30 @@ enum YouTubeMusicJSScripts {
         })();
         """
     }
+
+    /// 自動連続再生（autonav/autoplay）を無効化する JS。
+    /// 再生開始直後に注入し、曲終了後に YouTube Music が次曲へ進まないようにする。
+    /// ページ遷移のたびに video 要素は再作成されるため、再生ごとに呼び出す必要がある。
+    static let disableAutoAdvance = """
+    return (async () => {
+      try {
+        // video 要素の loop を無効化し、ended 時に pause して次曲への自動進行を防ぐ
+        const v = document.querySelector('video');
+        if (v) {
+          v.loop = false;
+          v.addEventListener('ended', () => { v.pause(); }, { once: true });
+        }
+        // YouTube Music の autonav（自動再生キュー）を OFF にする
+        try {
+          const player = document.getElementById('movie_player');
+          if (player && typeof player.setAutonavState === 'function') {
+            player.setAutonavState(1); // 1 = autonav OFF
+          }
+        } catch (_) {}
+        return JSON.stringify({ ok: true });
+      } catch (e) { return JSON.stringify({ "__error": e.message || String(e) }); }
+    })();
+    """
 
     static let stopPlayback = """
     return (async () => {

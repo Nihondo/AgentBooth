@@ -22,6 +22,8 @@ final class YouTubeMusicPlayerController {
         _ = try? await scriptRunner.runJSONScript(script, webView: webView)
         // ナビゲーション後、目的の videoId を再生する video が利用可能になるまで最大 5 秒待機
         try await waitForPlaybackTarget(videoId: videoId, webView: webView, timeoutSeconds: 5)
+        // 再生開始直後に autonav / ended リスナーを注入し、曲終了後の自動次曲進行を防ぐ
+        _ = try? await scriptRunner.runJSONScript(YouTubeMusicJSScripts.disableAutoAdvance, webView: webView)
     }
 
     // MARK: - 再生制御

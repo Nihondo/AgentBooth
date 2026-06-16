@@ -43,7 +43,8 @@ private final class AudioStreamOutputHandler: NSObject, SCStreamOutput {
 
 // MARK: - SystemAudioCaptureService
 
-/// ScreenCaptureKit でシステム音声をキャプチャし、M4A ファイルに書き出す。
+/// ScreenCaptureKit でシステム音声をキャプチャし、非圧縮 WAV ファイルに書き出す。
+/// ノイズ切り分けのため一時的に非圧縮ルートを使用中。M4A ルートは makeM4AAssetWriter で保持。
 actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
     private var stream: SCStream?
     private var streamOutputHandler: AudioStreamOutputHandler?
@@ -68,8 +69,8 @@ actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
             withIntermediateDirectories: true
         )
 
-        // AVAssetWriter セットアップ
-        let writer = try makeAssetWriter(outputURL: outputURL)
+        // AVAssetWriter セットアップ（非圧縮WAVルート）
+        let writer = try makeWAVAssetWriter(outputURL: outputURL)
         assetWriter = writer
         sessionStarted = false
 
@@ -146,7 +147,38 @@ actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
 
     // MARK: - Private
 
-    private func makeAssetWriter(outputURL: URL) throws -> AVAssetWriter {
+    /// 非圧縮 WAV（24bit/48kHz/ステレオ）で書き出す。ノイズ切り分け用。
+    private func makeWAVAssetWriter(outputURL: URL) throws -> AVAssetWriter {
+        let writer: AVAssetWriter
+        do {
+            writer = try AVAssetWriter(outputURL: outputURL, fileType: .wav)
+        } catch {
+            throw SystemAudioCaptureError.writerSetupFailed(error.localizedDescription)
+        }
+
+        let audioSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: 48000,
+            AVNumberOfChannelsKey: 2,
+            AVLinearPCMBitDepthKey: 24,
+            AVLinearPCMIsNonInterleaved: false,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
+        ]
+        let input = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+        input.expectsMediaDataInRealTime = true
+
+        guard writer.canAdd(input) else {
+            throw SystemAudioCaptureError.writerSetupFailed(String(localized: "AVAssetWriterInput の追加に失敗しました。"))
+        }
+        writer.add(input)
+        audioWriterInput = input
+
+        return writer
+    }
+
+    /// AAC 192kbps で M4A に書き出す（ノイズ切り分け後に戻す用途で保持）。
+    private func makeM4AAssetWriter(outputURL: URL) throws -> AVAssetWriter {
         let writer: AVAssetWriter
         do {
             writer = try AVAssetWriter(outputURL: outputURL, fileType: .m4a)

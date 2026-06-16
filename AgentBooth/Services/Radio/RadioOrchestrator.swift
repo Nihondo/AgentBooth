@@ -53,6 +53,10 @@ actor RadioOrchestrator {
     private var trackStartedAt: ContinuousClock.Instant?
     private let maxSessionTopicLedgerEntries = 8
 
+    /// バックエンドの自動連続再生を抑止するため、曲の自然終了より手前で停止する安全マージン（秒）。
+    /// これにより orchestrator が明示的に stop を呼ぶ前にバックエンドが次曲へ進むレースを防ぐ。
+    private let naturalEndSafetyMarginSeconds: Double = 1.0
+
     init(
         settings: AppSettings,
         musicService: any MusicService,
@@ -294,7 +298,7 @@ actor RadioOrchestrator {
         let safeName = playlistName
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: ":", with: "_")
-        let filename = "\(timestamp)_\(safeName).m4a"
+        let filename = "\(timestamp)_\(safeName).wav"
         let outputURL = baseDir.appendingPathComponent(filename)
         updateState { $0.recordingOutputURL = outputURL }
         return outputURL
@@ -702,7 +706,13 @@ actor RadioOrchestrator {
     /// 音楽サービスから取得した実際の再生位置がアウトロ開始位置に達するまでポーリング待機
     private func waitUntilOutroPoint(track: TrackInfo) async throws {
         let effectiveDuration = effectivePlaybackDuration(trackDurationSeconds: track.durationSeconds)
-        let targetPosition = max(0, effectiveDuration - Double(settings.volumeSettings.fadeEarlySeconds))
+        // fadeEarlySeconds による早めカットオフに加え、曲が十分長い場合のみ
+        // naturalEndSafetyMarginSeconds 分の下限ガードを適用してバックエンドの自動連続再生を抑止する。
+        let fadeTarget = effectiveDuration - Double(settings.volumeSettings.fadeEarlySeconds)
+        let safetyTarget = effectiveDuration > naturalEndSafetyMarginSeconds * 2
+            ? effectiveDuration - naturalEndSafetyMarginSeconds
+            : fadeTarget
+        let targetPosition = max(0, min(fadeTarget, safetyTarget))
 
         while !isStopRequested {
             try Task.checkCancellation()
@@ -718,10 +728,19 @@ actor RadioOrchestrator {
         guard naturalDuration > 0 else {
             return
         }
+        // バックエンドの自動連続再生を抑止するため、曲が十分長い場合のみ自然終了より手前で停止する。
+        // 曲の長さが安全マージンの2倍未満（短い曲）は元の挙動を保持し、
+        // それ以外は naturalEndSafetyMarginSeconds 分手前を目標にする。
+        let targetPosition: Double
+        if naturalDuration > naturalEndSafetyMarginSeconds * 2 {
+            targetPosition = naturalDuration - naturalEndSafetyMarginSeconds
+        } else {
+            targetPosition = naturalDuration
+        }
 
         while !isStopRequested {
             try Task.checkCancellation()
-            if await hasReachedPlaybackPosition(naturalDuration) {
+            if await hasReachedPlaybackPosition(targetPosition) {
                 return
             }
             try await waitRespectingPause(seconds: 0.5)
