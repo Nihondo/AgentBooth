@@ -51,6 +51,10 @@ actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
     private var audioWriterInput: AVAssetWriterInput?
     private var sessionStarted = false
     private var isCapturing = false
+    /// エンコーダーが一時的にビジーのときに溜めるバッファキュー
+    private var pendingBuffers: [CMSampleBuffer] = []
+    /// キューの上限（48kHz/1024サンプルフレームで約420ms分）
+    private static let maxPendingBuffers = 20
 
     func startRecording(outputURL: URL) async throws {
         guard !isCapturing else { return }
@@ -126,6 +130,13 @@ actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
         streamOutputHandler = nil
 
         guard let writer = assetWriter, let input = audioWriterInput else { return }
+
+        // 停止時にキュー残りをフラッシュ
+        while !pendingBuffers.isEmpty, input.isReadyForMoreMediaData {
+            input.append(pendingBuffers.removeFirst())
+        }
+        pendingBuffers.removeAll()
+
         input.markAsFinished()
         await writer.finishWriting()
         assetWriter = nil
@@ -172,7 +183,15 @@ actor SystemAudioCaptureService: ShowRecordingServiceProtocol {
             sessionStarted = true
         }
 
-        guard input.isReadyForMoreMediaData else { return }
-        input.append(sampleBuffer)
+        pendingBuffers.append(sampleBuffer)
+
+        // 極端な遅延を防ぐため上限を超えた古いバッファは捨てる
+        if pendingBuffers.count > Self.maxPendingBuffers {
+            pendingBuffers.removeFirst(pendingBuffers.count - Self.maxPendingBuffers)
+        }
+
+        while !pendingBuffers.isEmpty, input.isReadyForMoreMediaData {
+            input.append(pendingBuffers.removeFirst())
+        }
     }
 }
