@@ -86,7 +86,7 @@ final class MainViewModel: ObservableObject {
     }
 
     /// 録音を有効にしたうえで番組を開始する
-    func startShowWithRecording() {
+    func startShowWithRecording(isTestMode: Bool = false) {
         guard CGPreflightScreenCaptureAccess() else {
             CGRequestScreenCaptureAccess()
             radioState.errorMessage = String(localized: "画面収録の権限がありません。システム設定 > プライバシーとセキュリティ > 画面収録 で AgentBooth を許可してください。")
@@ -95,7 +95,7 @@ final class MainViewModel: ObservableObject {
         shouldRecordOnNextStart = true
         isRecordingSession = true
         Task {
-            await startShow(recordingRequested: true)
+            await startShow(testMode: isTestMode, recordingRequested: true)
         }
     }
 

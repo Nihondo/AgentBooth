@@ -116,14 +116,15 @@ struct ContentView: View {
             .disabled(!viewModel.radioState.isRunning)
 
             Button {
-                viewModel.startShowWithRecording()
+                let isTestMode = NSEvent.modifierFlags.contains(.command)
+                viewModel.startShowWithRecording(isTestMode: isTestMode)
             } label: {
                 Image(systemName: viewModel.radioState.isRecording ? "record.circle.fill" : "record.circle")
                     .frame(width: 18, height: 18)
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("録音して再生")
-            .help("番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。")
+            .help("番組をシステム音声キャプチャで録音しながら開始します。録音中は他のアプリの音も混入するため、おやすみモードの使用を推奨します。Cmd+クリックでテストモードで録音開始します。")
             .disabled(!viewModel.canStart)
 
             Button {
