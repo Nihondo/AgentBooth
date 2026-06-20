@@ -578,6 +578,14 @@ extension AppSettings {
         return settings
     }
 
+    /// 保存済み設定へ、現在の実行環境が持つ TTS 秘密情報だけを戻す。
+    func applyingRuntimeSecrets(from source: AppSettings) -> AppSettings {
+        var settings = self
+        settings.geminiAPIKey = source.geminiAPIKey
+        settings.ttsCredentialSets = source.ttsCredentialSets
+        return settings
+    }
+
     /// アプリ全体設定にプロフィール対象フィールドを重ねる。
     func applyingProfile(_ profile: ShowProfile) -> AppSettings {
         var settings = self

@@ -543,13 +543,19 @@ final class RadioOrchestratorTests: XCTestCase {
         ]
         let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
         let scriptService = FakeScriptGenerationService()
+        let ttsService = FakeTTSService()
         let scriptStore = FakePreGeneratedScriptStore(session: makePersistedSession(tracks: trackList))
         let promptRecorder = LockedPreGeneratePromptRecorder()
+        var settings = makeFastPreGenerateSettings()
+        settings.ttsCredentialSets = [
+            TTSCredentialSet(label: "runtime", apiKey: "runtime-key", modelName: "runtime-model"),
+        ]
 
         let orchestrator = makeOrchestrator(
-            settings: makeFastPreGenerateSettings(),
+            settings: settings,
             musicService: musicService,
             scriptService: scriptService,
+            ttsService: ttsService,
             scriptStore: scriptStore,
             reviewDidBecomeAvailable: { items in
                 promptRecorder.appendReviewItems(items)
@@ -576,7 +582,11 @@ final class RadioOrchestratorTests: XCTestCase {
         let steps = await scriptService.recordedGenerationSteps()
         let saveCallCount = await scriptStore.saveCallCount
         let savedSession = await scriptStore.session
+        let recordedTTSSettings = await ttsService.recordedSettings
+        let firstTTSSettings = try XCTUnwrap(recordedTTSSettings.first)
         XCTAssertTrue(steps.isEmpty)
+        XCTAssertEqual(firstTTSSettings.ttsCredentialSets.map(\.apiKey), ["runtime-key"])
+        XCTAssertEqual(firstTTSSettings.ttsCredentialSets.map(\.modelName), ["runtime-model"])
         XCTAssertEqual(saveCallCount, 1)
         XCTAssertNil(savedSession)
     }

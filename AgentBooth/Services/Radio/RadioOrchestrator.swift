@@ -1257,7 +1257,7 @@ actor RadioOrchestrator {
                 }
                 return (key, CachedSegment(
                     script: segment.script,
-                    narrationSettings: segment.narrationSettings
+                    narrationSettings: segment.narrationSettings.applyingRuntimeSecrets(from: settings)
                 ))
             }
         )
