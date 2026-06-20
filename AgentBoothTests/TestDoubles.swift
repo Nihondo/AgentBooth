@@ -341,6 +341,32 @@ actor FakeRecordingService: ShowRecordingServiceProtocol {
     }
 }
 
+actor FakePreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
+    var session: PersistedScriptSession?
+    private(set) var saveCallCount = 0
+    private(set) var loadCallCount = 0
+    private(set) var clearCallCount = 0
+
+    init(session: PersistedScriptSession? = nil) {
+        self.session = session
+    }
+
+    func save(_ session: PersistedScriptSession) async {
+        saveCallCount += 1
+        self.session = session
+    }
+
+    func load() async -> PersistedScriptSession? {
+        loadCallCount += 1
+        return session
+    }
+
+    func clear() async {
+        clearCallCount += 1
+        session = nil
+    }
+}
+
 struct FakeServiceFactory: AppServiceFactory {
     let musicService: FakeMusicService
     let musicPlaybackProfile: MusicPlaybackProfile
@@ -349,6 +375,7 @@ struct FakeServiceFactory: AppServiceFactory {
     let audioPlaybackService: any AudioPlaybackServiceProtocol
     let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol
     let recordingService: (any ShowRecordingServiceProtocol)?
+    let scriptStore: any PreGeneratedScriptStoreProtocol
     let supportedServices: [MusicServiceKind]
 
     init(
@@ -359,6 +386,7 @@ struct FakeServiceFactory: AppServiceFactory {
         audioPlaybackService: any AudioPlaybackServiceProtocol = FakeAudioPlaybackService(),
         bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = FakeBedAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
+        scriptStore: any PreGeneratedScriptStoreProtocol = FakePreGeneratedScriptStore(),
         supportedServices: [MusicServiceKind] = [.appleMusic, .youtubeMusic, .spotify]
     ) {
         self.musicService = musicService
@@ -368,6 +396,7 @@ struct FakeServiceFactory: AppServiceFactory {
         self.audioPlaybackService = audioPlaybackService
         self.bedAudioPlaybackService = bedAudioPlaybackService
         self.recordingService = recordingService
+        self.scriptStore = scriptStore
         self.supportedServices = supportedServices
     }
 
@@ -386,4 +415,6 @@ struct FakeServiceFactory: AppServiceFactory {
     func makeBedAudioPlaybackService() -> any BedAudioPlaybackServiceProtocol { bedAudioPlaybackService }
 
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)? { recordingService }
+
+    func makePreGeneratedScriptStore() -> any PreGeneratedScriptStoreProtocol { scriptStore }
 }

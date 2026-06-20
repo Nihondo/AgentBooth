@@ -61,6 +61,16 @@ struct ContentView: View {
         .sheet(isPresented: $viewModel.isReviewing) {
             ScriptReviewView(viewModel: viewModel)
         }
+        .alert("事前生成台本が存在します", isPresented: $viewModel.isReusePrompting) {
+            Button("再利用") {
+                viewModel.confirmReuse()
+            }
+            Button("作り直す", role: .destructive) {
+                viewModel.declineReuse()
+            }
+        } message: {
+            Text("保存済みの台本を再利用しますか？")
+        }
     }
 
     private var controlRow: some View {

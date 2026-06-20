@@ -238,6 +238,22 @@ struct RadioScript: Codable, Equatable, Sendable {
     let track: TrackInfo?
 }
 
+/// 事前生成済み台本のディスク保存単位。
+struct PersistedScriptSession: Codable, Equatable, Sendable {
+    var playlistName: String
+    var trackFingerprint: String
+    var tracks: [TrackInfo]
+    var segments: [PersistedSegment]
+    var savedAt: Date
+}
+
+/// 事前生成済み台本の1セグメント分。
+struct PersistedSegment: Codable, Equatable, Sendable {
+    var key: String
+    var script: RadioScript
+    var narrationSettings: AppSettings
+}
+
 /// User-selected voice names.
 struct VoiceSettings: Codable, Equatable, Sendable {
     var maleVoiceName: String = "Charon"
@@ -550,6 +566,18 @@ extension ShowProfile {
 }
 
 extension AppSettings {
+    /// API キーなど、ディスク保存に不要な秘密情報を除去した設定を返す。
+    func strippingSecrets() -> AppSettings {
+        var settings = self
+        settings.geminiAPIKey = ""
+        settings.ttsCredentialSets = settings.ttsCredentialSets.map { credentialSet in
+            var strippedSet = credentialSet
+            strippedSet.apiKey = ""
+            return strippedSet
+        }
+        return settings
+    }
+
     /// アプリ全体設定にプロフィール対象フィールドを重ねる。
     func applyingProfile(_ profile: ShowProfile) -> AppSettings {
         var settings = self

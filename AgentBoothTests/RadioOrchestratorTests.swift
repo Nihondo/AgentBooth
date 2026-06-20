@@ -34,6 +34,46 @@ private final class LockedPhaseRecorder: @unchecked Sendable {
     }
 }
 
+private final class LockedPreGeneratePromptRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var reviewItemBatches: [[ReviewScriptItem]] = []
+    private var reusePromptCount = 0
+
+    func appendReviewItems(_ items: [ReviewScriptItem]) {
+        lock.lock()
+        reviewItemBatches.append(items)
+        lock.unlock()
+    }
+
+    func incrementReusePromptCount() {
+        lock.lock()
+        reusePromptCount += 1
+        lock.unlock()
+    }
+
+    func latestReviewItems() -> [ReviewScriptItem]? {
+        lock.lock()
+        defer { lock.unlock() }
+        return reviewItemBatches.last
+    }
+
+    func reviewCount() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return reviewItemBatches.count
+    }
+
+    func reuseCount() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return reusePromptCount
+    }
+}
+
+private enum TestError: Error {
+    case expectedFailure
+}
+
 final class RadioOrchestratorTests: XCTestCase {
     func testOrchestratorPublishesOpeningAndIntroPhases() async throws {
         let trackList = [
@@ -497,6 +537,130 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertTrue(messages.contains("TTS音声作成終了（セット: main / モデル: model-1）"))
     }
 
+    func testPreGeneratedScriptReuseSkipsScriptGenerationAndClearsAfterSuccess() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptService = FakeScriptGenerationService()
+        let scriptStore = FakePreGeneratedScriptStore(session: makePersistedSession(tracks: trackList))
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptService: scriptService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            reusePromptDidBecomeAvailable: {
+                promptRecorder.incrementReusePromptCount()
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            promptRecorder.reuseCount() == 1
+        }
+        await orchestrator.confirmReuse()
+        try await waitUntil {
+            promptRecorder.reviewCount() == 1
+        }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil {
+            await scriptStore.clearCallCount >= 1
+        }
+
+        let steps = await scriptService.recordedGenerationSteps()
+        let saveCallCount = await scriptStore.saveCallCount
+        let savedSession = await scriptStore.session
+        XCTAssertTrue(steps.isEmpty)
+        XCTAssertEqual(saveCallCount, 1)
+        XCTAssertNil(savedSession)
+    }
+
+    func testPreGeneratedScriptReuseDeclineClearsAndRegeneratesScripts() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptService = FakeScriptGenerationService()
+        let scriptStore = FakePreGeneratedScriptStore(session: makePersistedSession(tracks: trackList))
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptService: scriptService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            reusePromptDidBecomeAvailable: {
+                promptRecorder.incrementReusePromptCount()
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            promptRecorder.reuseCount() == 1
+        }
+        await orchestrator.declineReuse()
+        try await waitUntil {
+            promptRecorder.reviewCount() == 1
+        }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil {
+            await scriptStore.saveCallCount == 1
+        }
+
+        let steps = await scriptService.recordedGenerationSteps()
+        let clearCallCount = await scriptStore.clearCallCount
+        let saveCallCount = await scriptStore.saveCallCount
+        XCTAssertTrue(steps.contains("opening"))
+        XCTAssertTrue(steps.contains("closing"))
+        XCTAssertGreaterThanOrEqual(clearCallCount, 1)
+        XCTAssertEqual(saveCallCount, 1)
+    }
+
+    func testPreGeneratedScriptStoreKeepsSavedSessionAfterTTSError() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+        let ttsService = FailingTTSService(error: TestError.expectedFailure)
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            ttsService: ttsService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            promptRecorder.reviewCount() == 1
+        }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil {
+            await scriptStore.saveCallCount == 1
+        }
+
+        let clearCallCount = await scriptStore.clearCallCount
+        let savedSession = await scriptStore.session
+        XCTAssertEqual(clearCallCount, 0)
+        XCTAssertNotNil(savedSession)
+    }
+
     func testCueSheetRecordsTrackNarrationAndFadeEvents() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
@@ -521,7 +685,12 @@ final class RadioOrchestratorTests: XCTestCase {
 
         await orchestrator.startShow(playlistName: "Favorites")
         try await waitUntil {
-            musicService.stoppedTrackDates.count >= 1
+            guard musicService.stoppedTrackDates.count >= 1,
+                  let cueSheetText = try? await self.readCueSheetText(from: cueSheetLogger) else {
+                return false
+            }
+            return cueSheetText.contains("フェードアウト開始(")
+                && cueSheetText.contains("曲再生終了(Song A / Artist A / Album A)")
         }
 
         let cueSheetText = try await readCueSheetText(from: cueSheetLogger)
@@ -675,6 +844,42 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertEqual(ttsDirection, scriptDirection)
     }
 
+    private func makeFastPreGenerateSettings() -> AppSettings {
+        var settings = AppSettings()
+        settings.defaultScriptGenerationMode = .preGenerate
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.01
+        return settings
+    }
+
+    private func makePersistedSession(tracks: [TrackInfo]) -> PersistedScriptSession {
+        let settings = makeFastPreGenerateSettings().strippingSecrets()
+        let openingScript = RadioScript(
+            segmentType: "opening",
+            dialogues: FakeScriptGenerationService.sampleDialogues(),
+            summaryBullets: ["保存済みオープニング"],
+            track: tracks.first
+        )
+        let closingScript = RadioScript(
+            segmentType: "closing",
+            dialogues: FakeScriptGenerationService.sampleDialogues(),
+            summaryBullets: ["保存済みクロージング"],
+            track: tracks.last
+        )
+        return PersistedScriptSession(
+            playlistName: "Favorites",
+            trackFingerprint: tracks.map(\.id).joined(separator: "\n"),
+            tracks: tracks,
+            segments: [
+                PersistedSegment(key: "opening", script: openingScript, narrationSettings: settings),
+                PersistedSegment(key: "closing", script: closingScript, narrationSettings: settings),
+            ],
+            savedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
     private func makeOrchestrator(
         settings: AppSettings = AppSettings(),
         musicService: FakeMusicService,
@@ -685,7 +890,10 @@ final class RadioOrchestratorTests: XCTestCase {
         bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = FakeBedAudioPlaybackService(),
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
+        scriptStore: (any PreGeneratedScriptStoreProtocol)? = nil,
         currentDateProvider: @escaping @Sendable () -> Date = { Date() },
+        reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)? = nil,
+        reusePromptDidBecomeAvailable: (@Sendable () -> Void)? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void = { _ in }
     ) -> RadioOrchestrator {
         RadioOrchestrator(
@@ -698,7 +906,10 @@ final class RadioOrchestratorTests: XCTestCase {
             bedAudioPlaybackService: bedAudioPlaybackService,
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger,
+            scriptStore: scriptStore,
             currentDateProvider: currentDateProvider,
+            reviewDidBecomeAvailable: reviewDidBecomeAvailable,
+            reusePromptDidBecomeAvailable: reusePromptDidBecomeAvailable,
             stateDidChange: stateDidChange
         )
     }

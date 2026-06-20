@@ -70,6 +70,13 @@ protocol ShowRecordingServiceProtocol: Sendable {
     func stopRecording() async throws
 }
 
+/// 事前生成済み台本セッションを永続化するストア。
+protocol PreGeneratedScriptStoreProtocol: Sendable {
+    func save(_ session: PersistedScriptSession) async
+    func load() async -> PersistedScriptSession?
+    func clear() async
+}
+
 /// A factory that wires live or fake services together.
 protocol AppServiceFactory: Sendable {
     func availableServices() -> [MusicServiceKind]
@@ -80,4 +87,5 @@ protocol AppServiceFactory: Sendable {
     func makeAudioPlaybackService() -> any AudioPlaybackServiceProtocol
     func makeBedAudioPlaybackService() -> any BedAudioPlaybackServiceProtocol
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)?
+    func makePreGeneratedScriptStore() -> any PreGeneratedScriptStoreProtocol
 }

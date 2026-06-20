@@ -37,6 +37,33 @@ actor RadioOrchestrator {
         case opening
         case transition(fromIndex: Int)
         case closing
+
+        var persistableKey: String {
+            switch self {
+            case .opening:
+                return "opening"
+            case .transition(let fromIndex):
+                return "transition_\(fromIndex)"
+            case .closing:
+                return "closing"
+            }
+        }
+
+        init?(persistableKey: String) {
+            switch persistableKey {
+            case "opening":
+                self = .opening
+            case "closing":
+                self = .closing
+            default:
+                let prefix = "transition_"
+                guard persistableKey.hasPrefix(prefix),
+                      let fromIndex = Int(persistableKey.dropFirst(prefix.count)) else {
+                    return nil
+                }
+                self = .transition(fromIndex: fromIndex)
+            }
+        }
     }
 
     /// 事前生成した台本と確定済み TTS 設定の組。
@@ -56,10 +83,13 @@ actor RadioOrchestrator {
     private let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol
     private let recordingService: (any ShowRecordingServiceProtocol)?
     private let cueSheetLogger: ShowCueSheetLogger?
+    private let scriptStore: (any PreGeneratedScriptStoreProtocol)?
     private let currentDateProvider: @Sendable () -> Date
     private let stateDidChange: @Sendable (RadioState) -> Void
     /// 事前生成モードでレビュー対象の台本が揃った時に呼ばれるコールバック。
     private let reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)?
+    /// 保存済み事前生成台本の再利用確認が必要になった時に呼ばれるコールバック。
+    private let reusePromptDidBecomeAvailable: (@Sendable () -> Void)?
 
     // MARK: - 可変状態
 
@@ -77,6 +107,8 @@ actor RadioOrchestrator {
     private var preGeneratedSegments: [SegmentKey: CachedSegment] = [:]
     /// レビュー中断用の continuation。
     private var reviewContinuation: CheckedContinuation<[ReviewScriptItem], Error>?
+    /// 再利用確認中断用の continuation。
+    private var reuseContinuation: CheckedContinuation<Bool, Error>?
 
     /// バックエンドの自動連続再生を抑止するため、曲の自然終了より手前で停止する安全マージン（秒）。
     /// これにより orchestrator が明示的に stop を呼ぶ前にバックエンドが次曲へ進むレースを防ぐ。
@@ -92,8 +124,10 @@ actor RadioOrchestrator {
         bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol,
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
+        scriptStore: (any PreGeneratedScriptStoreProtocol)? = nil,
         currentDateProvider: @escaping @Sendable () -> Date = { Date() },
         reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)? = nil,
+        reusePromptDidBecomeAvailable: (@Sendable () -> Void)? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void
     ) {
         self.settings = settings
@@ -105,8 +139,10 @@ actor RadioOrchestrator {
         self.bedAudioPlaybackService = bedAudioPlaybackService
         self.recordingService = recordingService
         self.cueSheetLogger = cueSheetLogger
+        self.scriptStore = scriptStore
         self.currentDateProvider = currentDateProvider
         self.reviewDidBecomeAvailable = reviewDidBecomeAvailable
+        self.reusePromptDidBecomeAvailable = reusePromptDidBecomeAvailable
         self.stateDidChange = stateDidChange
     }
 
@@ -153,7 +189,7 @@ actor RadioOrchestrator {
 
     func stopShow() async {
         isStopRequested = true
-        failReviewIfPending()
+        failPendingContinuations()
         playbackTask?.cancel()
         playbackTask = nil
         stopPositionPolling()
@@ -171,6 +207,9 @@ actor RadioOrchestrator {
 
         do {
             try await performShow(playlistName: playlistName, initialTracks: initialTracks)
+            if settings.defaultScriptGenerationMode == .preGenerate, !isStopRequested {
+                await scriptStore?.clear()
+            }
             await finishRunShow(errorMessage: nil)
         } catch is CancellationError {
             await finishRunShow(errorMessage: nil)
@@ -186,11 +225,28 @@ actor RadioOrchestrator {
             indentLevel: 0
         )
 
-        // 事前生成モード: 全台本を一括生成 → レビュー → 承認後にキャッシュへ反映
+        // 事前生成モード: 保存済み台本の確認 → 必要に応じて生成 → レビュー → 承認後に保存
         if settings.defaultScriptGenerationMode == .preGenerate {
-            try await preGenerateAllScripts(tracks: tracks)
+            let trackFingerprint = makeTrackFingerprint(tracks)
+            var didRestoreSession = false
+            if let savedSession = await scriptStore?.load(),
+               savedSession.playlistName == playlistName,
+               savedSession.trackFingerprint == trackFingerprint {
+                if try await awaitReuseDecision() {
+                    restorePreGeneratedSegments(from: savedSession)
+                    didRestoreSession = true
+                    await cueSheetLogger?.append("事前生成: 保存済み台本を復元", indentLevel: 0)
+                } else {
+                    await scriptStore?.clear()
+                    await cueSheetLogger?.append("事前生成: 保存済み台本を破棄して再生成", indentLevel: 0)
+                }
+            }
+            if !didRestoreSession {
+                try await preGenerateAllScripts(tracks: tracks)
+            }
             let editedItems = try await awaitScriptReview()
             applyEditedSegments(editedItems)
+            await scriptStore?.save(makePersistedSession(playlistName: playlistName, tracks: tracks))
         }
 
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
@@ -1115,22 +1171,31 @@ actor RadioOrchestrator {
         await cueSheetLogger?.append("事前生成: 全台本生成完了(\(preGeneratedSegments.count) セグメント)", indentLevel: 0)
     }
 
+    /// 保存済み台本の再利用判断を UI に通知し、選択されるまで中断する。
+    private func awaitReuseDecision() async throws -> Bool {
+        updateState {
+            $0.phase = .reviewing
+            $0.statusMessage = String(localized: "保存済み台本の再利用確認待ち")
+            $0.isProcessing = false
+        }
+        reusePromptDidBecomeAvailable?()
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                if isStopRequested {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                self.reuseContinuation = continuation
+            }
+        } onCancel: {
+            Task { await self.failReuseIfPending() }
+        }
+    }
+
     /// レビュー対象の台本一覧を UI に通知し、承認されるまで中断する。
     private func awaitScriptReview() async throws -> [ReviewScriptItem] {
-        let sortedKeys: [SegmentKey] = {
-            var keys = Array(preGeneratedSegments.keys)
-            keys.sort { lhs, rhs in
-                func order(_ key: SegmentKey) -> Int {
-                    switch key {
-                    case .opening: return 0
-                    case .transition(let i): return 1 + i
-                    case .closing: return Int.max
-                    }
-                }
-                return order(lhs) < order(rhs)
-            }
-            return keys
-        }()
+        let sortedKeys = sortedPreGeneratedSegmentKeys()
 
         let reviewItems: [ReviewScriptItem] = sortedKeys.enumerated().map { (itemIndex, key) in
             let segment = preGeneratedSegments[key]!
@@ -1173,20 +1238,7 @@ actor RadioOrchestrator {
 
     /// 編集済み `ReviewScriptItem` のデータを `preGeneratedSegments` へ反映する。
     private func applyEditedSegments(_ editedItems: [ReviewScriptItem]) {
-        let sortedKeys: [SegmentKey] = {
-            var keys = Array(preGeneratedSegments.keys)
-            keys.sort { lhs, rhs in
-                func order(_ key: SegmentKey) -> Int {
-                    switch key {
-                    case .opening: return 0
-                    case .transition(let i): return 1 + i
-                    case .closing: return Int.max
-                    }
-                }
-                return order(lhs) < order(rhs)
-            }
-            return keys
-        }()
+        let sortedKeys = sortedPreGeneratedSegmentKeys()
 
         for (itemIndex, key) in sortedKeys.enumerated() {
             guard itemIndex < editedItems.count else { break }
@@ -1194,6 +1246,76 @@ actor RadioOrchestrator {
             preGeneratedSegments[key]?.script = edited.script
             preGeneratedSegments[key]?.narrationSettings.directionSettings.sceneDirection = edited.sceneDirection
         }
+    }
+
+    /// 保存済み台本セッションをメモリキャッシュへ復元する。
+    private func restorePreGeneratedSegments(from session: PersistedScriptSession) {
+        preGeneratedSegments = Dictionary(
+            uniqueKeysWithValues: session.segments.compactMap { segment in
+                guard let key = SegmentKey(persistableKey: segment.key) else {
+                    return nil
+                }
+                return (key, CachedSegment(
+                    script: segment.script,
+                    narrationSettings: segment.narrationSettings
+                ))
+            }
+        )
+    }
+
+    /// 現在の事前生成キャッシュからディスク保存用セッションを作る。
+    private func makePersistedSession(playlistName: String, tracks: [TrackInfo]) -> PersistedScriptSession {
+        let segments = sortedPreGeneratedSegmentKeys().compactMap { key -> PersistedSegment? in
+            guard let segment = preGeneratedSegments[key] else {
+                return nil
+            }
+            return PersistedSegment(
+                key: key.persistableKey,
+                script: segment.script,
+                narrationSettings: segment.narrationSettings.strippingSecrets()
+            )
+        }
+        return PersistedScriptSession(
+            playlistName: playlistName,
+            trackFingerprint: makeTrackFingerprint(tracks),
+            tracks: tracks,
+            segments: segments,
+            savedAt: currentDateProvider()
+        )
+    }
+
+    private func makeTrackFingerprint(_ tracks: [TrackInfo]) -> String {
+        tracks.map(\.id).joined(separator: "\n")
+    }
+
+    private func sortedPreGeneratedSegmentKeys() -> [SegmentKey] {
+        var keys = Array(preGeneratedSegments.keys)
+        keys.sort { lhs, rhs in
+            orderSegmentKey(lhs) < orderSegmentKey(rhs)
+        }
+        return keys
+    }
+
+    private func orderSegmentKey(_ key: SegmentKey) -> Int {
+        switch key {
+        case .opening: return 0
+        case .transition(let i): return 1 + i
+        case .closing: return Int.max
+        }
+    }
+
+    /// 保存済み台本の再利用を承認して処理を続行する。
+    func confirmReuse() {
+        guard let continuation = reuseContinuation else { return }
+        reuseContinuation = nil
+        continuation.resume(returning: true)
+    }
+
+    /// 保存済み台本を破棄し、台本を作り直す。
+    func declineReuse() {
+        guard let continuation = reuseContinuation else { return }
+        reuseContinuation = nil
+        continuation.resume(returning: false)
     }
 
     /// レビュー結果を承認して再生を続行する。
@@ -1217,6 +1339,19 @@ actor RadioOrchestrator {
         guard let continuation = reviewContinuation else { return }
         reviewContinuation = nil
         continuation.resume(throwing: CancellationError())
+    }
+
+    /// 中断中の再利用確認 continuation を CancellationError で失敗させる（リーク防止）。
+    private func failReuseIfPending() {
+        guard let continuation = reuseContinuation else { return }
+        reuseContinuation = nil
+        continuation.resume(throwing: CancellationError())
+    }
+
+    /// 中断中の continuation をすべて解放する（リーク防止）。
+    private func failPendingContinuations() {
+        failReviewIfPending()
+        failReuseIfPending()
     }
 
     private func resetState() {

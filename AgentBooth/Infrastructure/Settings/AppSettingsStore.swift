@@ -195,7 +195,7 @@ final class AppSettingsStore: ObservableObject {
     }
 
     private func persistSettingsSnapshot(_ settings: AppSettings) throws {
-        let data = try JSONEncoder().encode(makePersistedSettings(settings))
+        let data = try JSONEncoder().encode(settings.strippingSecrets())
         userDefaults.set(data, forKey: settingsKey)
     }
 
@@ -210,17 +210,6 @@ final class AppSettingsStore: ObservableObject {
         let bundleData = try JSONEncoder().encode(keychainBundle)
         let bundleText = String(decoding: bundleData, as: UTF8.self)
         try keychainStore.writeSecret(bundleText, accountName: apiKeyAccountName)
-    }
-
-    private func makePersistedSettings(_ settings: AppSettings) -> AppSettings {
-        var persistedSettings = settings
-        persistedSettings.geminiAPIKey = ""
-        persistedSettings.ttsCredentialSets = settings.ttsCredentialSets.map { credentialSet in
-            var persistedSet = credentialSet
-            persistedSet.apiKey = ""
-            return persistedSet
-        }
-        return persistedSettings
     }
 
     private func normalizedProfileName(_ name: String, fallback: String) -> String {

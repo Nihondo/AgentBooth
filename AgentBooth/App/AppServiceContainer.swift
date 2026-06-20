@@ -55,4 +55,8 @@ struct LiveAppServiceFactory: AppServiceFactory {
     func makeRecordingService() -> (any ShowRecordingServiceProtocol)? {
         SystemAudioCaptureService()
     }
+
+    func makePreGeneratedScriptStore() -> any PreGeneratedScriptStoreProtocol {
+        PreGeneratedScriptStore()
+    }
 }

@@ -17,6 +17,8 @@ final class MainViewModel: ObservableObject {
     @Published var reviewItems: [ReviewScriptItem] = []
     /// レビュー sheet の表示フラグ。
     @Published var isReviewing = false
+    /// 保存済み事前生成台本の再利用確認 alert の表示フラグ。
+    @Published var isReusePrompting = false
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: AppServiceFactory
@@ -208,6 +210,7 @@ final class MainViewModel: ObservableObject {
         let bedAudioPlaybackService: any BedAudioPlaybackServiceProtocol = testMode
             ? TestModeBedAudioPlaybackService()
             : serviceFactory.makeBedAudioPlaybackService()
+        let scriptStore = serviceFactory.makePreGeneratedScriptStore()
         let shouldRecord = recordingRequested || shouldRecordOnNextStart
         shouldRecordOnNextStart = false
         let recordingService = shouldRecord ? serviceFactory.makeRecordingService() : nil
@@ -222,10 +225,16 @@ final class MainViewModel: ObservableObject {
             bedAudioPlaybackService: bedAudioPlaybackService,
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger,
+            scriptStore: scriptStore,
             reviewDidBecomeAvailable: { [weak self] items in
                 Task { @MainActor [weak self] in
                     self?.reviewItems = items
                     self?.isReviewing = true
+                }
+            },
+            reusePromptDidBecomeAvailable: { [weak self] in
+                Task { @MainActor [weak self] in
+                    self?.isReusePrompting = true
                 }
             }
         ) { [weak self] nextState in
@@ -234,6 +243,7 @@ final class MainViewModel: ObservableObject {
                 if !nextState.isRunning {
                     self?.radioOrchestrator = nil
                     self?.isRecordingSession = false
+                    self?.isReusePrompting = false
                 }
             }
         }
@@ -262,5 +272,17 @@ final class MainViewModel: ObservableObject {
     func cancelScriptReview() {
         isReviewing = false
         Task { await radioOrchestrator?.cancelReview() }
+    }
+
+    /// 保存済み台本を再利用してレビューへ進む。
+    func confirmReuse() {
+        isReusePrompting = false
+        Task { await radioOrchestrator?.confirmReuse() }
+    }
+
+    /// 保存済み台本を破棄して再生成する。
+    func declineReuse() {
+        isReusePrompting = false
+        Task { await radioOrchestrator?.declineReuse() }
     }
 }
