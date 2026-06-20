@@ -58,6 +58,9 @@ struct ContentView: View {
         .task {
             await viewModel.loadPlaylists()
         }
+        .sheet(isPresented: $viewModel.isReviewing) {
+            ScriptReviewView(viewModel: viewModel)
+        }
     }
 
     private var controlRow: some View {

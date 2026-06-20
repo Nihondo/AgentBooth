@@ -105,6 +105,7 @@ Balance between music and talk. Defaults work without changes.
 | Field | Description |
 |---|---|
 | **Overlap Mode** | Whether music and talk overlap or stay separated (see below) |
+| **Script Generation Mode** | On-demand (default) or pre-generate with review (see below) |
 | **Normal Volume** | Base music volume (0–100) |
 | **Talk Volume** | Music volume while talk is playing (0–100). Lower = quieter music |
 | **Fade Duration** | Seconds to smoothly ramp volume up or down |
@@ -199,12 +200,29 @@ The **NowPlayingBar** at the bottom shows the current track (with artwork) and t
 
 ## Playback Modes
 
-Select in **Program Info** → **Overlap Mode**.
+### Overlap Mode
+
+Select in **Music Playback** → **Overlap Mode**.
 
 | Mode | Behavior |
 |---|---|
 | **Overlap talk and music** | Talk can overlap the tail of the current track and the lead-in of the next track |
 | **Separate talk and music** | Talk plays after the track stops, and the next track starts after talk ends |
+
+### Script Generation Mode
+
+Select in **Music Playback** → **Script Generation Mode**.
+
+| Mode | Behavior |
+|---|---|
+| **On-demand** | Scripts are generated one at a time while the show is playing. This is the default behavior. |
+| **Pre-generate (Review)** | All scripts (opening, transitions, closing) are generated before playback starts. A review sheet appears where you can read and edit every dialogue line and scene direction. After approving, playback begins using the reviewed scripts. TTS audio is still generated on-demand during playback. |
+
+When using **Pre-generate** mode:
+1. Press **Play** — all scripts are generated sequentially (progress shown in the status bar)
+2. A review sheet opens showing every segment with its dialogue, scene direction, and voice assignments
+3. Edit any dialogue text or scene direction as needed
+4. Press **Approve and Play** to start playback, or **Cancel** to discard and stop
 
 ---
 

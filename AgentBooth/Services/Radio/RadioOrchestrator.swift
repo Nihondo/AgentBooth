@@ -30,6 +30,23 @@ actor RadioOrchestrator {
         case naturalTrackEnd
     }
 
+    // MARK: - 事前生成モード用キャッシュ
+
+    /// 事前生成した台本のキャッシュキー。
+    private enum SegmentKey: Hashable, Sendable {
+        case opening
+        case transition(fromIndex: Int)
+        case closing
+    }
+
+    /// 事前生成した台本と確定済み TTS 設定の組。
+    private struct CachedSegment: Sendable {
+        var script: RadioScript
+        var narrationSettings: AppSettings
+    }
+
+    // MARK: - 依存
+
     private let settings: AppSettings
     private let musicService: any MusicService
     private let musicPlaybackProfile: MusicPlaybackProfile
@@ -41,6 +58,10 @@ actor RadioOrchestrator {
     private let cueSheetLogger: ShowCueSheetLogger?
     private let currentDateProvider: @Sendable () -> Date
     private let stateDidChange: @Sendable (RadioState) -> Void
+    /// 事前生成モードでレビュー対象の台本が揃った時に呼ばれるコールバック。
+    private let reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)?
+
+    // MARK: - 可変状態
 
     private var radioState = RadioState()
     private var playbackTask: Task<Void, Never>?
@@ -52,6 +73,10 @@ actor RadioOrchestrator {
     /// 曲の実再生開始時刻（再生位置が取れない場合のフォールバック用）
     private var trackStartedAt: ContinuousClock.Instant?
     private let maxSessionTopicLedgerEntries = 8
+    /// 事前生成済み台本のキャッシュ。キャッシュが空のときは従来のオンデマンド生成。
+    private var preGeneratedSegments: [SegmentKey: CachedSegment] = [:]
+    /// レビュー中断用の continuation。
+    private var reviewContinuation: CheckedContinuation<[ReviewScriptItem], Error>?
 
     /// バックエンドの自動連続再生を抑止するため、曲の自然終了より手前で停止する安全マージン（秒）。
     /// これにより orchestrator が明示的に stop を呼ぶ前にバックエンドが次曲へ進むレースを防ぐ。
@@ -68,6 +93,7 @@ actor RadioOrchestrator {
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
         currentDateProvider: @escaping @Sendable () -> Date = { Date() },
+        reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)? = nil,
         stateDidChange: @escaping @Sendable (RadioState) -> Void
     ) {
         self.settings = settings
@@ -80,6 +106,7 @@ actor RadioOrchestrator {
         self.recordingService = recordingService
         self.cueSheetLogger = cueSheetLogger
         self.currentDateProvider = currentDateProvider
+        self.reviewDidBecomeAvailable = reviewDidBecomeAvailable
         self.stateDidChange = stateDidChange
     }
 
@@ -126,6 +153,7 @@ actor RadioOrchestrator {
 
     func stopShow() async {
         isStopRequested = true
+        failReviewIfPending()
         playbackTask?.cancel()
         playbackTask = nil
         stopPositionPolling()
@@ -157,6 +185,14 @@ actor RadioOrchestrator {
             "再生セッション開始(プレイリスト: \(playlistName) / 曲数: \(tracks.count))",
             indentLevel: 0
         )
+
+        // 事前生成モード: 全台本を一括生成 → レビュー → 承認後にキャッシュへ反映
+        if settings.defaultScriptGenerationMode == .preGenerate {
+            try await preGenerateAllScripts(tracks: tracks)
+            let editedItems = try await awaitScriptReview()
+            applyEditedSegments(editedItems)
+        }
+
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
         rememberTopics(for: tracks[0], script: openingNarration.script)
 
@@ -189,7 +225,8 @@ actor RadioOrchestrator {
             let nextNarrationTask = makeNextNarrationTask(
                 currentTrack: track,
                 nextTrack: nextTrack,
-                completedTracks: completedTracks
+                completedTracks: completedTracks,
+                trackIndex: indexValue
             )
             defer { nextNarrationTask.cancel() }
 
@@ -311,14 +348,22 @@ actor RadioOrchestrator {
             indentLevel: 0
         )
         return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
-            let narrationSettings = makeDirectionAdjustedSettings()
-            updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
-            await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
-            let script = try await scriptService.generateOpening(tracks: tracks, settings: narrationSettings)
-            updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-            await cueSheetLogger?.append(
-                "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
-            )
+            let cached = preGeneratedSegments[.opening]
+            let narrationSettings = cached?.narrationSettings ?? makeDirectionAdjustedSettings()
+            let script: RadioScript
+            if let cached {
+                script = cached.script
+                updateState { $0.statusMessage = String(localized: "キャッシュ済み台本を使用（オープニング）"); $0.isProcessing = false }
+                await cueSheetLogger?.append("キャッシュ済み台本を使用(\(segmentLabel))")
+            } else {
+                updateState { $0.statusMessage = String(localized: "スクリプト作成開始（オープニング）"); $0.isProcessing = true }
+                await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
+                script = try await scriptService.generateOpening(tracks: tracks, settings: narrationSettings)
+                updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+                await cueSheetLogger?.append(
+                    "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
+                )
+            }
             let wavData = try await synthesizeNarration(
                 dialogues: script.dialogues,
                 segmentLabel: segmentLabel,
@@ -336,13 +381,15 @@ actor RadioOrchestrator {
     private func makeNextNarrationTask(
         currentTrack: TrackInfo,
         nextTrack: TrackInfo?,
-        completedTracks: [TrackInfo]
+        completedTracks: [TrackInfo],
+        trackIndex: Int
     ) -> Task<PreparedNarration, Error> {
         Task {
             if let nextTrack {
                 return try await generatePreparedTransitionNarration(
                     currentTrack: currentTrack,
-                    nextTrack: nextTrack
+                    nextTrack: nextTrack,
+                    trackIndex: trackIndex
                 )
             }
             return try await generatePreparedClosingNarration(tracks: completedTracks)
@@ -351,31 +398,43 @@ actor RadioOrchestrator {
 
     private func generatePreparedTransitionNarration(
         currentTrack: TrackInfo,
-        nextTrack: TrackInfo
+        nextTrack: TrackInfo,
+        trackIndex: Int
     ) async throws -> PreparedNarration {
-        let continuityNote = buildContinuityNote(for: nextTrack, previousTrack: currentTrack)
         let segmentLabel = String(format: String(localized: "%@ から %@ へのトランジション"), currentTrack.name, nextTrack.name)
         await cueSheetLogger?.append(
             "トランジション(\(trackShortLabel(currentTrack)) → \(trackShortLabel(nextTrack)))",
             indentLevel: 0
         )
         return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
-            let narrationSettings = makeDirectionAdjustedSettings()
-            updateState {
-                $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name)
-                $0.isProcessing = true
+            let cached = preGeneratedSegments[.transition(fromIndex: trackIndex)]
+            let narrationSettings = cached?.narrationSettings ?? makeDirectionAdjustedSettings()
+            let script: RadioScript
+            if let cached {
+                script = cached.script
+                updateState {
+                    $0.statusMessage = String(format: String(localized: "キャッシュ済み台本を使用（%@ → %@）"), currentTrack.name, nextTrack.name)
+                    $0.isProcessing = false
+                }
+                await cueSheetLogger?.append("キャッシュ済み台本を使用(\(segmentLabel))")
+            } else {
+                let continuityNote = buildContinuityNote(for: nextTrack, previousTrack: currentTrack)
+                updateState {
+                    $0.statusMessage = String(format: String(localized: "スクリプト作成開始（%@ → %@）"), currentTrack.name, nextTrack.name)
+                    $0.isProcessing = true
+                }
+                await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
+                script = try await scriptService.generateTransition(
+                    currentTrack: currentTrack,
+                    nextTrack: nextTrack,
+                    settings: narrationSettings,
+                    continuityNote: continuityNote
+                )
+                updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+                await cueSheetLogger?.append(
+                    "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
+                )
             }
-            await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
-            let script = try await scriptService.generateTransition(
-                currentTrack: currentTrack,
-                nextTrack: nextTrack,
-                settings: narrationSettings,
-                continuityNote: continuityNote
-            )
-            updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-            await cueSheetLogger?.append(
-                "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
-            )
             let wavData = try await synthesizeNarration(
                 dialogues: script.dialogues,
                 segmentLabel: segmentLabel,
@@ -394,14 +453,22 @@ actor RadioOrchestrator {
         let segmentLabel = String(localized: "クロージング")
         await cueSheetLogger?.append("\(segmentLabel)", indentLevel: 0)
         return try await CueSheetLogContext.$currentIndentLevel.withValue(1) {
-            let narrationSettings = makeDirectionAdjustedSettings()
-            updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
-            await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
-            let script = try await scriptService.generateClosing(tracks: tracks, settings: narrationSettings)
-            updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
-            await cueSheetLogger?.append(
-                "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
-            )
+            let cached = preGeneratedSegments[.closing]
+            let narrationSettings = cached?.narrationSettings ?? makeDirectionAdjustedSettings()
+            let script: RadioScript
+            if let cached {
+                script = cached.script
+                updateState { $0.statusMessage = String(localized: "キャッシュ済み台本を使用（クロージング）"); $0.isProcessing = false }
+                await cueSheetLogger?.append("キャッシュ済み台本を使用(\(segmentLabel))")
+            } else {
+                updateState { $0.statusMessage = String(localized: "スクリプト作成開始（クロージング）"); $0.isProcessing = true }
+                await cueSheetLogger?.append("スクリプト作成開始(\(segmentLabel))")
+                script = try await scriptService.generateClosing(tracks: tracks, settings: narrationSettings)
+                updateState { $0.statusMessage = String(localized: "スクリプト作成終了"); $0.isProcessing = false }
+                await cueSheetLogger?.append(
+                    "スクリプト作成終了(\(segmentLabel) / 発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))"
+                )
+            }
             let wavData = try await synthesizeNarration(
                 dialogues: script.dialogues,
                 segmentLabel: segmentLabel,
@@ -989,8 +1056,172 @@ actor RadioOrchestrator {
         stateDidChange(radioState)
     }
 
+    // MARK: - 事前生成モード
+
+    /// 全セグメントの台本を逐次生成し `preGeneratedSegments` にキャッシュする（TTSなし）。
+    private func preGenerateAllScripts(tracks: [TrackInfo]) async throws {
+        preGeneratedSegments = [:]
+
+        // オープニング
+        let openingSettings = makeDirectionAdjustedSettings()
+        updateState { $0.statusMessage = String(localized: "台本一括生成中（オープニング）"); $0.isProcessing = true }
+        await cueSheetLogger?.append("事前生成: オープニング台本作成開始", indentLevel: 0)
+        let openingScript = try await scriptService.generateOpening(tracks: tracks, settings: openingSettings)
+        await cueSheetLogger?.append("事前生成: オープニング台本作成終了(発話: \(openingScript.dialogues.count) / 要約: \(openingScript.summaryBullets.count))", indentLevel: 0)
+        rememberTopics(for: tracks[0], script: openingScript)
+        preGeneratedSegments[.opening] = CachedSegment(script: openingScript, narrationSettings: openingSettings)
+
+        // 各トランジション + クロージング
+        for index in 0..<tracks.count {
+            try Task.checkCancellation()
+            if isStopRequested { throw CancellationError() }
+
+            let current = tracks[index]
+            let next = index + 1 < tracks.count ? tracks[index + 1] : nil
+            let segmentSettings = makeDirectionAdjustedSettings()
+
+            if let next {
+                let continuityNote = buildContinuityNote(for: next, previousTrack: current)
+                updateState {
+                    $0.statusMessage = String(format: String(localized: "台本一括生成中（%@ → %@）"), current.name, next.name)
+                    $0.isProcessing = true
+                }
+                await cueSheetLogger?.append("事前生成: トランジション台本作成開始(\(trackShortLabel(current)) → \(trackShortLabel(next)))", indentLevel: 0)
+                let script = try await scriptService.generateTransition(
+                    currentTrack: current,
+                    nextTrack: next,
+                    settings: segmentSettings,
+                    continuityNote: continuityNote
+                )
+                await cueSheetLogger?.append("事前生成: トランジション台本作成終了(発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))", indentLevel: 0)
+                rememberTopics(for: next, script: script)
+                preGeneratedSegments[.transition(fromIndex: index)] = CachedSegment(script: script, narrationSettings: segmentSettings)
+            } else {
+                let completedTracks = Array(tracks.prefix(index + 1))
+                updateState { $0.statusMessage = String(localized: "台本一括生成中（クロージング）"); $0.isProcessing = true }
+                await cueSheetLogger?.append("事前生成: クロージング台本作成開始", indentLevel: 0)
+                let script = try await scriptService.generateClosing(tracks: completedTracks, settings: segmentSettings)
+                await cueSheetLogger?.append("事前生成: クロージング台本作成終了(発話: \(script.dialogues.count) / 要約: \(script.summaryBullets.count))", indentLevel: 0)
+                preGeneratedSegments[.closing] = CachedSegment(script: script, narrationSettings: segmentSettings)
+            }
+        }
+
+        // 再生ループ内の rememberTopics で二重蓄積しないようリセット
+        artistTopicHistory = [:]
+        albumTopicHistory = [:]
+        sessionTopicLedger = []
+
+        updateState { $0.statusMessage = String(localized: "台本一括生成完了"); $0.isProcessing = false }
+        await cueSheetLogger?.append("事前生成: 全台本生成完了(\(preGeneratedSegments.count) セグメント)", indentLevel: 0)
+    }
+
+    /// レビュー対象の台本一覧を UI に通知し、承認されるまで中断する。
+    private func awaitScriptReview() async throws -> [ReviewScriptItem] {
+        let sortedKeys: [SegmentKey] = {
+            var keys = Array(preGeneratedSegments.keys)
+            keys.sort { lhs, rhs in
+                func order(_ key: SegmentKey) -> Int {
+                    switch key {
+                    case .opening: return 0
+                    case .transition(let i): return 1 + i
+                    case .closing: return Int.max
+                    }
+                }
+                return order(lhs) < order(rhs)
+            }
+            return keys
+        }()
+
+        let reviewItems: [ReviewScriptItem] = sortedKeys.enumerated().map { (itemIndex, key) in
+            let segment = preGeneratedSegments[key]!
+            let label: String = {
+                switch key {
+                case .opening: return String(localized: "オープニング")
+                case .transition(let fromIndex): return String(format: String(localized: "トランジション %d"), fromIndex + 1)
+                case .closing: return String(localized: "クロージング")
+                }
+            }()
+            return ReviewScriptItem(
+                id: itemIndex,
+                segmentLabel: label,
+                script: segment.script,
+                sceneDirection: segment.narrationSettings.directionSettings.sceneDirection,
+                maleVoiceName: segment.narrationSettings.voiceSettings.maleVoiceName,
+                femaleVoiceName: segment.narrationSettings.voiceSettings.femaleVoiceName
+            )
+        }
+
+        updateState {
+            $0.phase = .reviewing
+            $0.statusMessage = String(localized: "台本のレビュー待ち")
+            $0.isProcessing = false
+        }
+        reviewDidBecomeAvailable?(reviewItems)
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                if isStopRequested {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                self.reviewContinuation = continuation
+            }
+        } onCancel: {
+            Task { await self.failReviewIfPending() }
+        }
+    }
+
+    /// 編集済み `ReviewScriptItem` のデータを `preGeneratedSegments` へ反映する。
+    private func applyEditedSegments(_ editedItems: [ReviewScriptItem]) {
+        let sortedKeys: [SegmentKey] = {
+            var keys = Array(preGeneratedSegments.keys)
+            keys.sort { lhs, rhs in
+                func order(_ key: SegmentKey) -> Int {
+                    switch key {
+                    case .opening: return 0
+                    case .transition(let i): return 1 + i
+                    case .closing: return Int.max
+                    }
+                }
+                return order(lhs) < order(rhs)
+            }
+            return keys
+        }()
+
+        for (itemIndex, key) in sortedKeys.enumerated() {
+            guard itemIndex < editedItems.count else { break }
+            let edited = editedItems[itemIndex]
+            preGeneratedSegments[key]?.script = edited.script
+            preGeneratedSegments[key]?.narrationSettings.directionSettings.sceneDirection = edited.sceneDirection
+        }
+    }
+
+    /// レビュー結果を承認して再生を続行する。
+    func approveScripts(_ editedItems: [ReviewScriptItem]) {
+        guard let continuation = reviewContinuation else { return }
+        reviewContinuation = nil
+        continuation.resume(returning: editedItems)
+    }
+
+    /// レビューをキャンセルして番組を停止する。
+    func cancelReview() async {
+        if let continuation = reviewContinuation {
+            reviewContinuation = nil
+            continuation.resume(throwing: CancellationError())
+        }
+        await stopShow()
+    }
+
+    /// 中断中のレビュー continuation を CancellationError で失敗させる（リーク防止）。
+    private func failReviewIfPending() {
+        guard let continuation = reviewContinuation else { return }
+        reviewContinuation = nil
+        continuation.resume(throwing: CancellationError())
+    }
+
     private func resetState() {
         trackStartedAt = nil
+        preGeneratedSegments = [:]
         updateState {
             $0.isRunning = false
             $0.isPaused = false

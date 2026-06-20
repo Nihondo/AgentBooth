@@ -370,6 +370,16 @@ struct SettingsView: View {
                     .labelsHidden()
                     .frame(width: 220, alignment: .leading)
                 }
+
+                settingsRow("台本生成モード") {
+                    Picker("台本生成モード", selection: $draftSettings.defaultScriptGenerationMode) {
+                        ForEach(ScriptGenerationMode.orderedCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 220, alignment: .leading)
+                }
             }
 
             settingsGroup("再生バランス") {

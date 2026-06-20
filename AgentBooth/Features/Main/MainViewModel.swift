@@ -13,6 +13,10 @@ final class MainViewModel: ObservableObject {
     @Published private(set) var previewTrackListState: TrackListState = .idle
     @Published private(set) var showProfiles: [ShowProfile]
     @Published private(set) var activeProfileId: UUID?
+    /// 事前生成モードのレビュー対象台本。
+    @Published var reviewItems: [ReviewScriptItem] = []
+    /// レビュー sheet の表示フラグ。
+    @Published var isReviewing = false
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: AppServiceFactory
@@ -217,7 +221,13 @@ final class MainViewModel: ObservableObject {
             audioPlaybackService: audioPlaybackService,
             bedAudioPlaybackService: bedAudioPlaybackService,
             recordingService: recordingService,
-            cueSheetLogger: cueSheetLogger
+            cueSheetLogger: cueSheetLogger,
+            reviewDidBecomeAvailable: { [weak self] items in
+                Task { @MainActor [weak self] in
+                    self?.reviewItems = items
+                    self?.isReviewing = true
+                }
+            }
         ) { [weak self] nextState in
             Task { @MainActor [weak self] in
                 self?.radioState = nextState
@@ -237,5 +247,20 @@ final class MainViewModel: ObservableObject {
 
         radioOrchestrator = orchestrator
         await orchestrator.startShow(playlistName: selectedPlaylistName, initialTracks: shuffledTracks)
+    }
+
+    // MARK: - 台本レビュー
+
+    /// レビュー済みの台本を承認して再生を開始する。
+    func approveScriptReview() {
+        isReviewing = false
+        let items = reviewItems
+        Task { await radioOrchestrator?.approveScripts(items) }
+    }
+
+    /// レビューをキャンセルして番組を停止する。
+    func cancelScriptReview() {
+        isReviewing = false
+        Task { await radioOrchestrator?.cancelReview() }
     }
 }

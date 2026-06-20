@@ -81,6 +81,41 @@ enum OverlapMode: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+/// 台本・TTS の生成タイミングモード。
+enum ScriptGenerationMode: String, CaseIterable, Codable, Identifiable {
+    /// 従来: 再生しながら1セグメントずつ先読み生成。
+    case onDemand
+    /// 新: 再生前に全台本を一括生成しレビュー後に再生。
+    case preGenerate
+
+    var id: String { rawValue }
+
+    static var orderedCases: [ScriptGenerationMode] {
+        [.onDemand, .preGenerate]
+    }
+
+    var displayName: String {
+        switch self {
+        case .onDemand:
+            return String(localized: "オンデマンド生成")
+        case .preGenerate:
+            return String(localized: "事前生成（レビュー）")
+        }
+    }
+
+    /// 後方互換: 未知値は `.onDemand` にフォールバック。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = (try? container.decode(String.self)) ?? Self.onDemand.rawValue
+        self = ScriptGenerationMode(rawValue: raw) ?? .onDemand
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
 /// The current radio program phase.
 enum RadioPhase: String, Codable {
     case idle
@@ -89,6 +124,8 @@ enum RadioPhase: String, Codable {
     case playing
     case outro
     case closing
+    /// 事前生成モードでレビュー待ち中。
+    case reviewing
 }
 
 /// The primary button state shown in the main window.
@@ -190,13 +227,13 @@ struct TTSResult: Sendable {
 /// One line in a generated conversation.
 struct DialogueLine: Codable, Equatable, Sendable {
     let speaker: String
-    let text: String
+    var text: String
 }
 
 /// A generated radio segment script.
 struct RadioScript: Codable, Equatable, Sendable {
     let segmentType: String
-    let dialogues: [DialogueLine]
+    var dialogues: [DialogueLine]
     let summaryBullets: [String]
     let track: TrackInfo?
 }
@@ -407,6 +444,7 @@ struct ShowProfile: Identifiable, Codable, Equatable, Sendable {
     var volumeSettings: VolumeSettings = .init()
     var bgmSettings: BGMSettings = .init()
     var defaultOverlapMode: OverlapMode = .enabled
+    var defaultScriptGenerationMode: ScriptGenerationMode = .onDemand
 }
 
 /// Gemini TTS の「API キー + モデル」1組。
@@ -428,6 +466,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var defaultMusicService: MusicServiceKind = .appleMusic
     var activeProfileId: UUID?
     var defaultOverlapMode: OverlapMode = .enabled
+    var defaultScriptGenerationMode: ScriptGenerationMode = .onDemand
     var voiceSettings: VoiceSettings = .init()
     var personalitySettings: PersonalitySettings = .init()
     var directionSettings: DirectionSettings = .init()
@@ -447,7 +486,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel, ttsCredentialSets
         case scriptCLIKind, scriptCLIModel
-        case defaultMusicService, activeProfileId, defaultOverlapMode
+        case defaultMusicService, activeProfileId, defaultOverlapMode, defaultScriptGenerationMode
         case voiceSettings, personalitySettings, directionSettings, volumeSettings, bgmSettings, radioShowSettings
         case isRecordingEnabled, recordingOutputDirectory, youtubeMusicUserAgent
         case customCLIExecutable, customCLIArguments, customCLIModelArguments
@@ -472,6 +511,7 @@ extension AppSettings {
         defaultMusicService = try c.decodeIfPresent(MusicServiceKind.self, forKey: .defaultMusicService) ?? .appleMusic
         activeProfileId = try c.decodeIfPresent(UUID.self, forKey: .activeProfileId)
         defaultOverlapMode = try c.decodeIfPresent(OverlapMode.self, forKey: .defaultOverlapMode) ?? .enabled
+        defaultScriptGenerationMode = try c.decodeIfPresent(ScriptGenerationMode.self, forKey: .defaultScriptGenerationMode) ?? .onDemand
         voiceSettings = try c.decodeIfPresent(VoiceSettings.self, forKey: .voiceSettings) ?? .init()
         personalitySettings = try c.decodeIfPresent(PersonalitySettings.self, forKey: .personalitySettings) ?? .init()
         directionSettings = try c.decodeIfPresent(DirectionSettings.self, forKey: .directionSettings) ?? .init()
@@ -499,6 +539,7 @@ extension ShowProfile {
         volumeSettings = settings.volumeSettings
         bgmSettings = settings.bgmSettings
         defaultOverlapMode = settings.defaultOverlapMode
+        defaultScriptGenerationMode = settings.defaultScriptGenerationMode
     }
 }
 
@@ -508,6 +549,7 @@ extension AppSettings {
         var settings = self
         settings.activeProfileId = profile.id
         settings.defaultOverlapMode = profile.defaultOverlapMode
+        settings.defaultScriptGenerationMode = profile.defaultScriptGenerationMode
         settings.voiceSettings = profile.voiceSettings
         settings.personalitySettings = profile.personalitySettings
         settings.directionSettings = profile.directionSettings
@@ -555,4 +597,18 @@ struct RadioState: Equatable, Sendable {
         }
         return .start
     }
+}
+
+/// 事前生成モードのレビュー画面で1セグメント分の台本と TTS 入力を提示する構造体。
+struct ReviewScriptItem: Identifiable, Equatable, Sendable {
+    let id: Int
+    let segmentLabel: String
+    /// 会話台本（編集可能）。
+    var script: RadioScript
+    /// 発話指示（time-band 合成後の実効値、編集可能）。
+    var sceneDirection: String
+    /// 男性パーソナリティの音声名（表示用・読取専用）。
+    let maleVoiceName: String
+    /// 女性パーソナリティの音声名（表示用・読取専用）。
+    let femaleVoiceName: String
 }

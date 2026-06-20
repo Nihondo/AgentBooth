@@ -41,9 +41,11 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 ### Key components
 
-**`RadioOrchestrator`** (`Services/Radio/RadioOrchestrator.swift`) — Swift `actor`. The core of the app. Drives the full radio show lifecycle: opening → intro → playing → transition/outro → closing. It keeps one active narration playback handle, prepares the next narration while music plays, waits instead of skipping delayed TTS, extends the current track up to its natural end when early cutoff would otherwise interrupt the flow, and emits cuesheet events for track, fade, and narration timing. Service-specific startup latency is injected via `MusicPlaybackProfile`, so the orchestrator no longer switches on the concrete music backend kind.
+**`RadioOrchestrator`** (`Services/Radio/RadioOrchestrator.swift`) — Swift `actor`. The core of the app. Drives the full radio show lifecycle: opening → intro → playing → transition/outro → closing. It keeps one active narration playback handle, prepares the next narration while music plays, waits instead of skipping delayed TTS, extends the current track up to its natural end when early cutoff would otherwise interrupt the flow, and emits cuesheet events for track, fade, and narration timing. Service-specific startup latency is injected via `MusicPlaybackProfile`, so the orchestrator no longer switches on the concrete music backend kind. Supports two script generation modes: on-demand (scripts are generated one at a time during playback) and pre-generate (all scripts are generated upfront, presented for review/editing, then cached for playback). In pre-generate mode, the actor suspends via `CheckedContinuation` until the user approves, and the existing playback loop picks up cached scripts transparently via `preGeneratedSegments[SegmentKey]` lookups in each prepare method.
 
-**`MainViewModel`** (`Features/Main/MainViewModel.swift`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges UI state (`RadioState`) to SwiftUI views. Does not contain radio logic.
+**`MainViewModel`** (`Features/Main/MainViewModel.swift`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges UI state (`RadioState`) to SwiftUI views. Does not contain radio logic. Exposes `reviewItems` / `isReviewing` for the pre-generate script review sheet, and `approveScriptReview()` / `cancelScriptReview()` to drive the orchestrator continuation.
+
+**`ScriptReviewView`** (`Features/Main/ScriptReviewView.swift`) — SwiftUI sheet for reviewing and editing pre-generated scripts before playback. Displays all TTS inputs: scene direction (editable), voice names (read-only), and dialogue lines (editable text). Presented as a `.sheet` on `ContentView` when `isReviewing` is true.
 
 **`AppServiceFactory` / `LiveAppServiceFactory`** — Dependency injection entry point. `AppServiceContainer.swift` wires up live services plus `MusicPlaybackProfile` values. Tests use fakes from `TestDoubles.swift`.
 
@@ -93,7 +95,7 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 ### Domain models (`Domain/Models.swift`)
 
-All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings`, `ShowProfile` (and their sub-structs including `RadioShowSettings`, `DirectionSettings`, `BGMSettings` / `AudioAssetSource`), `TimeBand`, `OverlapMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`.
+All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings`, `ShowProfile` (and their sub-structs including `RadioShowSettings`, `DirectionSettings`, `BGMSettings` / `AudioAssetSource`), `TimeBand`, `OverlapMode`, `ScriptGenerationMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`, `ReviewScriptItem`.
 
 ### Script JSON format
 
@@ -112,6 +114,19 @@ The CLI must return:
 |---|---|
 | `enabled` | Talk may overlap the tail of the current track and the lead-in of the next track |
 | `disabled` | Talk and music stay separated |
+
+### Script generation modes
+
+| Mode | Behavior |
+|---|---|
+| `onDemand` | Default. Scripts are generated one segment at a time during playback (next narration is prepared while music plays). |
+| `preGenerate` | All scripts (opening, transitions, closing) are generated sequentially before playback starts. The user reviews and can edit dialogue text and scene direction in a sheet. TTS is not pre-generated — it runs on-demand during playback using cached scripts. |
+
+Pre-generate mode uses `preGeneratedSegments: [SegmentKey: CachedSegment]` inside `RadioOrchestrator`. Each `CachedSegment` holds the script and the direction-adjusted `AppSettings` snapshot captured at generation time. The existing prepare methods check this cache first; on a hit they skip `scriptService.generateXxx` and use the cached script + settings for TTS. The playback loop itself is unchanged.
+
+The review handshake uses `CheckedContinuation<[ReviewScriptItem], Error>` — the actor suspends in `awaitScriptReview()` and resumes when `approveScripts(_:)` or `cancelReview()` is called. `stopShow()` calls `failReviewIfPending()` to prevent continuation leaks. All resume paths nil-out `reviewContinuation` before resuming to prevent double-resume crashes.
+
+`ScriptGenerationMode` is a profile-scoped setting (`AppSettings.defaultScriptGenerationMode` / `ShowProfile.defaultScriptGenerationMode`), persisted the same way as `defaultOverlapMode`.
 
 ### BGM / jingle behavior
 
