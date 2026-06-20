@@ -25,7 +25,7 @@ enum PromptBuilder {
         - 会話は6〜10ターン程度
         - 番組の開始挨拶から始める
         - 今日のプレイリストの傾向や雰囲気を自然に紹介する
-        - リスナーへの呼びかけや時間帯に合った挨拶を入れる
+        - リスナーへの呼びかけや、台本ディレクションの時間帯指定を優先した挨拶を入れる
         - 後半で1曲目の紹介に自然につなげる
         - 曲の豆知識やアーティストのエピソードを含めてもよい
         - 読みが不明な場合や、話題の検索にWeb検索を活用してもよい
@@ -187,6 +187,13 @@ enum PromptBuilder {
         let direction = settings.directionSettings.scriptDirection
         guard !direction.isEmpty else { return "" }
         return "【台本ディレクション】\n        \(direction)\n        "
+            + """
+        【台本ディレクションの優先順位】
+        - 台本ディレクションは【番組情報】より優先する
+        - 台本ディレクションに時間帯・挨拶・雰囲気の指定がある場合は、それを番組上の時間帯として扱う
+        - 【番組情報】の現在時刻と矛盾する時間帯表現は避ける
+
+        """
     }
 
     private static func showInfoBlock(settings: AppSettings) -> String {

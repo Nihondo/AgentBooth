@@ -93,11 +93,11 @@ The app cannot start without the API Key and CLI set.
 |---|---|
 | **Male Voice** | Voice name for the male host (e.g. `Charon`) |
 | **Female Voice** | Voice name for the female host (e.g. `Kore`) |
-| **Script Direction** | Content and topic guidance for script generation (e.g. "focus on new releases, mention artist background") |
+| **Script Direction** | Content and topic guidance for script generation (e.g. "focus on new releases, mention artist background"). If it specifies a time of day such as morning or night, that program time takes priority over the real local hour |
 | **Scene Direction** | Voice-acting and delivery guidance for TTS (e.g. "late night, quiet tone") |
 | **Time-Based Presets** | Optional delivery directions for early morning, morning, afternoon, evening, night, and late night. The matching preset is appended to Scene Direction for TTS |
 
-Script prompts automatically include the local hour, weekday, month, and season so generated talk can reflect the time of day. Weather is not fetched by AgentBooth itself; it is only suggested to the selected CLI when a location name is set.
+Script prompts automatically include the local hour, weekday, month, and season so generated talk can reflect the time of day. If Script Direction explicitly sets a different time of day, that instruction is treated as the show's intended time and conflicting real-time expressions are avoided. Weather is not fetched by AgentBooth itself; it is only suggested to the selected CLI when a location name is set.
 
 ### Music Playback
 

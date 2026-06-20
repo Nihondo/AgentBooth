@@ -51,6 +51,8 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 **`ProcessScriptGenerationService`** (`Services/Script/`) — Calls an external CLI subprocess (`claude`, `gemini`, `codex`, or `copilot`) to generate JSON scripts. `ScriptCommandBuilder` assembles the command per CLI type. Each script session folder also gets a `cuesheet.txt` file with CLI timing and related playback events.
 
+**`PromptBuilder`** (`Services/Script/`) — Builds the script-generation prompts. Prompt realtime context remains available as show info, but non-empty `DirectionSettings.scriptDirection` is emitted with an explicit priority block: if it specifies a time of day, greeting, or mood, that show-time direction overrides the realtime context and the CLI should avoid conflicting realtime expressions.
+
 **`RealtimeContextProvider`** (`Services/Context/`) — Builds prompt context from local `Date()` values: hour, weekday, month, season, and optional `RadioShowSettings.locationName`. AgentBooth does not call a weather API; when a location is set, prompts allow the selected CLI to mention current weather only if it can verify it.
 
 **`TimeBasedDirectionResolver`** (`Services/Context/`) — Applies `DirectionSettings.timeBasedPresets` by resolving the current `TimeBand` and appending the matching preset to `sceneDirection`. This only affects TTS voice-acting direction; `scriptDirection` (content/topic guidance for script generation) is not modified by time-band presets.
@@ -107,6 +109,8 @@ All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `App
 | `sceneDirection` | Voice-acting / delivery guidance for TTS (e.g. speak softly, excited tone) | `GeminiTTSService` only |
 
 `timeBasedPresets` are appended to `sceneDirection` only (via `TimeBasedDirectionResolver`); they do not affect `scriptDirection`. In the pre-generate review sheet, only `sceneDirection` is editable per-segment because script generation has already completed.
+
+When `scriptDirection` includes an explicit time-of-day instruction, `PromptBuilder` treats it as higher priority than the realtime hour in the show info. Keep realtime context in prompts for reference, but do not let it override user-specified show-time direction.
 
 ### Script JSON format
 

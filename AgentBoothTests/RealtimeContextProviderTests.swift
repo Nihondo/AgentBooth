@@ -41,4 +41,30 @@ final class RealtimeContextProviderTests: XCTestCase {
         XCTAssertTrue(prompt.contains("- 現在地: 東京"))
         XCTAssertTrue(prompt.contains("不確実な場合は省略する"))
     }
+
+    func testOpeningPromptPrioritizesScriptDirectionTimeBandOverRealtimeContext() {
+        var settings = AppSettings()
+        settings.directionSettings.scriptDirection = "夜の番組として、落ち着いた挨拶から始める"
+        let track = TrackInfo(name: "Song", artist: "Artist", album: "Album")
+
+        let prompt = PromptBuilder.buildOpeningPrompt(tracks: [track], settings: settings)
+
+        XCTAssertTrue(prompt.contains("【台本ディレクション】"))
+        XCTAssertTrue(prompt.contains("夜の番組として、落ち着いた挨拶から始める"))
+        XCTAssertTrue(prompt.contains("【台本ディレクションの優先順位】"))
+        XCTAssertTrue(prompt.contains("台本ディレクションは【番組情報】より優先する"))
+        XCTAssertTrue(prompt.contains("番組上の時間帯として扱う"))
+        XCTAssertTrue(prompt.contains("現在時刻と矛盾する時間帯表現は避ける"))
+        XCTAssertTrue(prompt.contains("- 現在時刻:"))
+    }
+
+    func testOpeningPromptOmitsPriorityBlockWhenScriptDirectionIsEmpty() {
+        let settings = AppSettings()
+        let track = TrackInfo(name: "Song", artist: "Artist", album: "Album")
+
+        let prompt = PromptBuilder.buildOpeningPrompt(tracks: [track], settings: settings)
+
+        XCTAssertFalse(prompt.contains("【台本ディレクションの優先順位】"))
+        XCTAssertTrue(prompt.contains("- 現在時刻:"))
+    }
 }
