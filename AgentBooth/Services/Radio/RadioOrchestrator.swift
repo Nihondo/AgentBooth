@@ -238,7 +238,7 @@ actor RadioOrchestrator {
                     await cueSheetLogger?.append("事前生成: 保存済み台本を復元", indentLevel: 0)
                 } else {
                     await scriptStore?.clear()
-                    await cueSheetLogger?.append("事前生成: 保存済み台本を破棄して再生成", indentLevel: 0)
+                    await cueSheetLogger?.append("事前生成: 保存済み台本を退避して再生成", indentLevel: 0)
                 }
             }
             if !didRestoreSession {
@@ -1311,7 +1311,7 @@ actor RadioOrchestrator {
         continuation.resume(returning: true)
     }
 
-    /// 保存済み台本を破棄し、台本を作り直す。
+    /// 保存済み台本を再利用対象から外し、台本を作り直す。
     func declineReuse() {
         guard let continuation = reuseContinuation else { return }
         reuseContinuation = nil

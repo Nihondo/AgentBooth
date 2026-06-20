@@ -280,7 +280,7 @@ final class MainViewModel: ObservableObject {
         Task { await radioOrchestrator?.confirmReuse() }
     }
 
-    /// 保存済み台本を破棄して再生成する。
+    /// 保存済み台本を再利用対象から外して再生成する。
     func declineReuse() {
         isReusePrompting = false
         Task { await radioOrchestrator?.declineReuse() }

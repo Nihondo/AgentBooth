@@ -57,6 +57,7 @@
 		A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */; };
 		ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58975426E0097C0CFE155B8E /* CoreMedia.framework */; };
 		AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */; };
+		B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */; };
 		B670E7A19D095C07893A8C12 /* YouTubeMusicScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A725F59DE59B73646C65CC43 /* YouTubeMusicScriptRunner.swift */; };
 		B966B23DE6091F03D321800B /* TimeBasedDirectionResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A39FD0648FD0B0AB8FD77A6C /* TimeBasedDirectionResolver.swift */; };
 		C2BA66ACF0124BA3C94EA297 /* AppleMusicArtworkFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EF3A71B2437BB5FED77AE05 /* AppleMusicArtworkFetcher.swift */; };
@@ -133,6 +134,7 @@
 		72B5DFC2A2ADC86E8A3717B7 /* TimeBasedDirectionResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeBasedDirectionResolverTests.swift; sourceTree = "<group>"; };
 		73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSettingsView.swift; sourceTree = "<group>"; };
 		79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSServiceTests.swift; sourceTree = "<group>"; };
+		7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreGeneratedScriptStoreTests.swift; sourceTree = "<group>"; };
 		850ED65A096909F8BB2135BB /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		8EDB07082B0F31540781BF85 /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
 		90DC87C1D86CB6DF936207C1 /* SystemBedAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBedAudioPlaybackService.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 				F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */,
 				79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */,
 				04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */,
+				7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */,
 				9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */,
 				6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */,
 				27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */,
@@ -591,6 +594,7 @@
 				AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */,
 				D1DC639BE636543B5F2105E7 /* GeminiTTSServiceTests.swift in Sources */,
 				1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */,
+				B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */,
 				294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */,
 				8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */,
 				3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */,

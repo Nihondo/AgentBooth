@@ -6,8 +6,15 @@ actor PreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
     private let fileURL: URL
 
     init(fileManager: FileManager = .default) {
+        self.init(
+            fileURL: PreGeneratedScriptStore.makeDefaultFileURL(fileManager: fileManager),
+            fileManager: fileManager
+        )
+    }
+
+    init(fileURL: URL, fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        self.fileURL = PreGeneratedScriptStore.makeDefaultFileURL(fileManager: fileManager)
+        self.fileURL = fileURL
     }
 
     func save(_ session: PersistedScriptSession) async {
@@ -37,7 +44,34 @@ actor PreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
         guard fileManager.fileExists(atPath: fileURL.path) else {
             return
         }
-        try? fileManager.removeItem(at: fileURL)
+        do {
+            let archiveURL = makeArchiveFileURL()
+            try fileManager.moveItem(at: fileURL, to: archiveURL)
+        } catch {
+            // active キャッシュが残ると次回も再利用候補になるため、退避失敗時だけ削除へフォールバックする。
+            try? fileManager.removeItem(at: fileURL)
+        }
+    }
+
+    private func makeArchiveFileURL() -> URL {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd_HHmmss_SSS"
+
+        let directoryURL = fileURL.deletingLastPathComponent()
+        let baseName = fileURL.deletingPathExtension().lastPathComponent
+        let fileExtension = fileURL.pathExtension
+        var candidateURL = directoryURL.appendingPathComponent(
+            "\(baseName)_\(formatter.string(from: Date())).\(fileExtension)"
+        )
+        var suffix = 1
+        while fileManager.fileExists(atPath: candidateURL.path) {
+            candidateURL = directoryURL.appendingPathComponent(
+                "\(baseName)_\(formatter.string(from: Date()))_\(suffix).\(fileExtension)"
+            )
+            suffix += 1
+        }
+        return candidateURL
     }
 
     private static func makeDefaultFileURL(fileManager: FileManager) -> URL {

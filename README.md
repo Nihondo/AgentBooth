@@ -225,7 +225,7 @@ When using **Pre-generate** mode:
 3. Edit any dialogue text or TTS scene direction as needed
 4. Press **Approve and Play** to start playback, or **Cancel** to discard and stop
 
-Approved pre-generated scripts are saved locally while playback is in progress. If playback is stopped or fails before the show finishes, starting again with the same playlist and track order shows a reuse prompt. Choosing **Reuse** skips script generation and opens the review sheet again; choosing **Regenerate** discards the saved scripts and creates a new set. Saved scripts are cleared automatically only after the show completes normally.
+Approved pre-generated scripts are saved locally while playback is in progress. If playback is stopped or fails before the show finishes, starting again with the same playlist and track order shows a reuse prompt. Choosing **Reuse** skips script generation and opens the review sheet again; choosing **Regenerate** archives the active cache and creates a new set. After the show completes normally, the active cache is also archived so it is no longer offered for reuse, while the JSON file remains in the cache folder as history.
 
 ---
 

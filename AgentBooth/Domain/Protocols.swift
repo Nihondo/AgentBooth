@@ -74,6 +74,7 @@ protocol ShowRecordingServiceProtocol: Sendable {
 protocol PreGeneratedScriptStoreProtocol: Sendable {
     func save(_ session: PersistedScriptSession) async
     func load() async -> PersistedScriptSession?
+    /// active cache を再利用対象から外す。ライブ実装では削除せずアーカイブ名へ退避する。
     func clear() async
 }
 
