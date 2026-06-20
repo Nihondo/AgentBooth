@@ -52,7 +52,7 @@ Profiles save the show experience as reusable presets. Use **Profile Management*
 Profiles include:
 
 - Show name, frequency/channel, location, and host names
-- Voice names, scene direction, and time-based presets
+- Voice names, script direction, scene direction, and time-based presets
 - Overlap mode, music/talk volume, fades, and maximum track duration
 - Bed BGM, jingles, selected audio assets, and BGM/jingle volume
 
@@ -93,8 +93,9 @@ The app cannot start without the API Key and CLI set.
 |---|---|
 | **Male Voice** | Voice name for the male host (e.g. `Charon`) |
 | **Female Voice** | Voice name for the female host (e.g. `Kore`) |
-| **Scene / Direction** | Additional direction for script generation and TTS delivery (e.g. "late night, quiet tone") |
-| **Time-Based Presets** | Optional delivery directions for early morning, morning, afternoon, evening, night, and late night. The matching preset is appended to Scene / Direction during script generation and TTS |
+| **Script Direction** | Content and topic guidance for script generation (e.g. "focus on new releases, mention artist background") |
+| **Scene Direction** | Voice-acting and delivery guidance for TTS (e.g. "late night, quiet tone") |
+| **Time-Based Presets** | Optional delivery directions for early morning, morning, afternoon, evening, night, and late night. The matching preset is appended to Scene Direction for TTS |
 
 Script prompts automatically include the local hour, weekday, month, and season so generated talk can reflect the time of day. Weather is not fetched by AgentBooth itself; it is only suggested to the selected CLI when a location name is set.
 
@@ -216,12 +217,12 @@ Select in **Music Playback** → **Script Generation Mode**.
 | Mode | Behavior |
 |---|---|
 | **On-demand** | Scripts are generated one at a time while the show is playing. This is the default behavior. |
-| **Pre-generate (Review)** | All scripts (opening, transitions, closing) are generated before playback starts. A review sheet appears where you can read and edit every dialogue line and scene direction. After approving, playback begins using the reviewed scripts. TTS audio is still generated on-demand during playback. |
+| **Pre-generate (Review)** | All scripts (opening, transitions, closing) are generated before playback starts. A review sheet appears where you can read and edit every dialogue line and TTS scene direction. After approving, playback begins using the reviewed scripts. TTS audio is still generated on-demand during playback. |
 
 When using **Pre-generate** mode:
 1. Press **Play** — all scripts are generated sequentially (progress shown in the status bar)
-2. A review sheet opens showing every segment with its dialogue, scene direction, and voice assignments
-3. Edit any dialogue text or scene direction as needed
+2. A review sheet opens showing every segment with its dialogue, TTS scene direction, and voice assignments
+3. Edit any dialogue text or TTS scene direction as needed
 4. Press **Approve and Play** to start playback, or **Cancel** to discard and stop
 
 ---

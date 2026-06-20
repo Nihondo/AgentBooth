@@ -184,9 +184,9 @@ enum PromptBuilder {
     }
 
     private static func directionBlock(settings: AppSettings) -> String {
-        let direction = settings.directionSettings.sceneDirection
+        let direction = settings.directionSettings.scriptDirection
         guard !direction.isEmpty else { return "" }
-        return "【シーン・話し方などのディレクション】\n        \(direction)\n        "
+        return "【台本ディレクション】\n        \(direction)\n        "
     }
 
     private static func showInfoBlock(settings: AppSettings) -> String {

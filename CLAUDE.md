@@ -45,7 +45,7 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 **`MainViewModel`** (`Features/Main/MainViewModel.swift`) — `@MainActor ObservableObject`. Owns `RadioOrchestrator` and bridges UI state (`RadioState`) to SwiftUI views. Does not contain radio logic. Exposes `reviewItems` / `isReviewing` for the pre-generate script review sheet, and `approveScriptReview()` / `cancelScriptReview()` to drive the orchestrator continuation.
 
-**`ScriptReviewView`** (`Features/Main/ScriptReviewView.swift`) — SwiftUI sheet for reviewing and editing pre-generated scripts before playback. Displays all TTS inputs: scene direction (editable), voice names (read-only), and dialogue lines (editable text). Presented as a `.sheet` on `ContentView` when `isReviewing` is true.
+**`ScriptReviewView`** (`Features/Main/ScriptReviewView.swift`) — SwiftUI sheet for reviewing and editing pre-generated scripts before playback. Displays all TTS inputs: scene direction (TTS voice-acting guidance, editable), voice names (read-only), and dialogue lines (editable text). Presented as a `.sheet` on `ContentView` when `isReviewing` is true.
 
 **`AppServiceFactory` / `LiveAppServiceFactory`** — Dependency injection entry point. `AppServiceContainer.swift` wires up live services plus `MusicPlaybackProfile` values. Tests use fakes from `TestDoubles.swift`.
 
@@ -53,7 +53,7 @@ AgentBoothTests/  - Unit tests + TestDoubles.swift (fakes for all protocols)
 
 **`RealtimeContextProvider`** (`Services/Context/`) — Builds prompt context from local `Date()` values: hour, weekday, month, season, and optional `RadioShowSettings.locationName`. AgentBooth does not call a weather API; when a location is set, prompts allow the selected CLI to mention current weather only if it can verify it.
 
-**`TimeBasedDirectionResolver`** (`Services/Context/`) — Applies `DirectionSettings.timeBasedPresets` by resolving the current `TimeBand` and appending the matching preset to `sceneDirection`. `RadioOrchestrator` calls this for each prepared narration so both script generation and Gemini TTS receive the same effective direction.
+**`TimeBasedDirectionResolver`** (`Services/Context/`) — Applies `DirectionSettings.timeBasedPresets` by resolving the current `TimeBand` and appending the matching preset to `sceneDirection`. This only affects TTS voice-acting direction; `scriptDirection` (content/topic guidance for script generation) is not modified by time-band presets.
 
 **`GeminiTTSService`** (`Services/TTS/`) — Calls Gemini REST API directly to produce WAV audio. Includes retry/fallback model logic and writes per-attempt status/fallback details to the session cuesheet.
 
@@ -97,6 +97,17 @@ Key detail: `setupOffscreenWindow()` is called via `DispatchQueue.main.async` in
 
 All shared value types live here: `TrackInfo`, `RadioScript`, `RadioState`, `AppSettings`, `ShowProfile` (and their sub-structs including `RadioShowSettings`, `DirectionSettings`, `BGMSettings` / `AudioAssetSource`), `TimeBand`, `OverlapMode`, `ScriptGenerationMode`, `RadioPhase`, `PrimaryControlState`, `ScriptCLIKind`, `ReviewScriptItem`.
 
+### Direction settings
+
+`DirectionSettings` holds two independent direction fields:
+
+| Field | Purpose | Consumed by |
+|---|---|---|
+| `scriptDirection` | Content/topic guidance for the CLI script generator (e.g. themes, talking points, tone of dialogue) | `PromptBuilder` only |
+| `sceneDirection` | Voice-acting / delivery guidance for TTS (e.g. speak softly, excited tone) | `GeminiTTSService` only |
+
+`timeBasedPresets` are appended to `sceneDirection` only (via `TimeBasedDirectionResolver`); they do not affect `scriptDirection`. In the pre-generate review sheet, only `sceneDirection` is editable per-segment because script generation has already completed.
+
 ### Script JSON format
 
 The CLI must return:
@@ -120,7 +131,7 @@ The CLI must return:
 | Mode | Behavior |
 |---|---|
 | `onDemand` | Default. Scripts are generated one segment at a time during playback (next narration is prepared while music plays). |
-| `preGenerate` | All scripts (opening, transitions, closing) are generated sequentially before playback starts. The user reviews and can edit dialogue text and scene direction in a sheet. TTS is not pre-generated — it runs on-demand during playback using cached scripts. |
+| `preGenerate` | All scripts (opening, transitions, closing) are generated sequentially before playback starts. The user reviews and can edit dialogue text and TTS scene direction in a sheet. TTS is not pre-generated — it runs on-demand during playback using cached scripts. |
 
 Pre-generate mode uses `preGeneratedSegments: [SegmentKey: CachedSegment]` inside `RadioOrchestrator`. Each `CachedSegment` holds the script and the direction-adjusted `AppSettings` snapshot captured at generation time. The existing prepare methods check this cache first; on a hit they skip `scriptService.generateXxx` and use the cached script + settings for TTS. The playback loop itself is unchanged.
 

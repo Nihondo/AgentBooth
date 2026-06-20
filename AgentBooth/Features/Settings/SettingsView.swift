@@ -335,7 +335,13 @@ struct SettingsView: View {
             }
 
             settingsGroup("ディレクション") {
-                settingsRow("シーン・セリフの指示") {
+                settingsRow("台本ディレクション") {
+                    TextField("例: 新譜特集で、アーティストの経歴にも触れて", text: $draftSettings.directionSettings.scriptDirection, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3...)
+                }
+
+                settingsRow("演技ディレクション") {
                     TextField("例: 深夜帯、静かに話す", text: $draftSettings.directionSettings.sceneDirection, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(3...)

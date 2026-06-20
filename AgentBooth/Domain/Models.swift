@@ -325,25 +325,31 @@ enum TimeBand: String, Codable, CaseIterable, Identifiable, Sendable {
 
 /// シーン・話し方などのディレクション設定。
 struct DirectionSettings: Codable, Equatable, Sendable {
+    /// TTS 向け演技指示（声のトーン・話し方）。
     var sceneDirection: String = ""
+    /// スクリプト生成向けコンテンツ指示（話題・テーマ・内容の方向性）。
+    var scriptDirection: String = ""
     var timeBasedPresets: [TimeBand: String] = [:]
 
     enum CodingKeys: String, CodingKey {
-        case sceneDirection, timeBasedPresets
+        case sceneDirection, scriptDirection, timeBasedPresets
     }
 
     init(
         sceneDirection: String = "",
+        scriptDirection: String = "",
         timeBasedPresets: [TimeBand: String] = [:]
     ) {
         self.sceneDirection = sceneDirection
+        self.scriptDirection = scriptDirection
         self.timeBasedPresets = timeBasedPresets
     }
 
-    /// 旧バージョンの設定JSONに時間帯プリセットがなくても既定値で復元する。
+    /// 旧バージョンの設定JSONに新フィールドがなくても既定値で復元する。
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         sceneDirection = try c.decodeIfPresent(String.self, forKey: .sceneDirection) ?? ""
+        scriptDirection = try c.decodeIfPresent(String.self, forKey: .scriptDirection) ?? ""
         timeBasedPresets = try c.decodeIfPresent([TimeBand: String].self, forKey: .timeBasedPresets) ?? [:]
     }
 }
