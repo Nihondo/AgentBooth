@@ -110,8 +110,9 @@ jinglePlacement: JinglePlacement?
 `startNarration()` 内部の順序:
 
 ```text
+ジングル音源を prepare（policy で指定がある場合。選択URLを保持し、duration を取得）
 waitWhilePaused()
-  → ジングル再生（policy で指定がある場合）
+  → 準備済みジングルURLを1回だけ消費して再生（policy で指定がある場合）
   → ベッド BGM 開始（allowsBedAudio の場合）
   → TTS 再生開始
   → TTS 完了後にベッド BGM をフェードアウト停止
@@ -160,6 +161,8 @@ activeNarration の再生完了まで待つ
   - `play(track:)` の契約として「指定トラックを先頭から再生開始する」を保証する
 - `trackStartedAt` を記録
 - `startPositionPolling()` を開始
+
+音楽フェードは、バックエンド呼び出し回数ではなく pause を除いた実経過時間から進捗率を計算する。`setVolume` が遅い場合は過ぎたステップを飛ばし、最後に必ず target 音量を設定する。`fetchVolume()` が失敗して `nil` を返した場合は、`RadioOrchestrator` が直近に設定した音量を開始値として使う。
 
 ---
 
@@ -252,7 +255,8 @@ resolveNextNarration()
 #### オーバーラップなし
 
 ```text
-現在曲を停止
+現在曲が自然終了前ならフェードアウトして停止
+  → 自然終了済みなら即停止
   → 次ナレーションを開始 (`allowsBedAudio=true`, `jinglePlacement=nil`)
 ```
 
@@ -330,12 +334,12 @@ audioPlaybackService.resumePlayback()
 bedAudioPlaybackService.resumePlayback()
 ```
 
-`waitRespectingPause()` を使う箇所は、一時停止中に進行しない。
+`waitRespectingPause()` を使う待機処理に加え、音楽フェードは pause 開始時刻と累積 pause 時間を差し引いて進捗を計算する。ベッド BGM のフェードも pause 中は次の音量ステップへ進まない。
 
 - ナレーション残り時間待ち
 - アウトロ位置待ち
 - TTS 遅延時のポーリング待ち
-- フェード中のスリープ
+- 音楽・ベッド BGM のフェード進捗
 
 ---
 

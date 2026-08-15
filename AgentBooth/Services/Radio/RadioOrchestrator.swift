@@ -102,6 +102,12 @@ actor RadioOrchestrator {
     private var positionPollingTask: Task<Void, Never>?
     /// 曲の実再生開始時刻（再生位置が取れない場合のフォールバック用）
     private var trackStartedAt: ContinuousClock.Instant?
+    /// オーケストレーターが直近に音楽バックエンドへ設定した音量。
+    private var lastSetMusicVolume: Int?
+    /// pause 中をフェードの経過時間から除外するための開始時刻。
+    private var pauseStartedAt: ContinuousClock.Instant?
+    /// この番組再生中に完了した pause の累積秒数。
+    private var accumulatedPausedSeconds: Double = 0
     private let maxSessionTopicLedgerEntries = 8
     /// 事前生成済み台本のキャッシュ。キャッシュが空のときは従来のオンデマンド生成。
     private var preGeneratedSegments: [SegmentKey: CachedSegment] = [:]
@@ -151,6 +157,9 @@ actor RadioOrchestrator {
             return
         }
         isStopRequested = false
+        lastSetMusicVolume = nil
+        pauseStartedAt = nil
+        accumulatedPausedSeconds = 0
         updateState {
             $0.isRunning = true
             $0.isPaused = false
@@ -171,6 +180,7 @@ actor RadioOrchestrator {
         guard radioState.isRunning, !radioState.isPaused else {
             return
         }
+        pauseStartedAt = ContinuousClock.now
         updateState { $0.isPaused = true }
         await musicService.pausePlayback()
         await audioPlaybackService.pausePlayback()
@@ -180,6 +190,10 @@ actor RadioOrchestrator {
     func resumeShow() async {
         guard radioState.isRunning, radioState.isPaused else {
             return
+        }
+        if let pauseStartedAt {
+            accumulatedPausedSeconds += durationSeconds(from: pauseStartedAt, to: ContinuousClock.now)
+            self.pauseStartedAt = nil
         }
         updateState { $0.isPaused = false }
         await musicService.resumePlayback()
@@ -591,7 +605,7 @@ actor RadioOrchestrator {
     ) async -> ActiveNarration {
         let estimatedJingleDuration: Double
         if let jinglePlacement = audioPolicy.jinglePlacement {
-            estimatedJingleDuration = await bedAudioPlaybackService.estimateJingleDuration(
+            estimatedJingleDuration = await bedAudioPlaybackService.prepareJingle(
                 settings: settings.bgmSettings,
                 placement: jinglePlacement
             )
@@ -737,7 +751,11 @@ actor RadioOrchestrator {
             return activeNarration
         }
 
-        await stopTrackImmediately()
+        if resolvedNarration.didTrackReachNaturalEnd {
+            await stopTrackImmediately()
+        } else {
+            await fadeOutAndStopTrack(durationSeconds: calculateFadeOutDuration())
+        }
         return await startNarration(
             resolvedNarration.prepared,
             audioPolicy: NarrationAudioPolicy(allowsBedAudio: true, jinglePlacement: nil)
@@ -763,6 +781,7 @@ actor RadioOrchestrator {
 
     private func setMusicVolume(level: Int) async {
         await musicService.setVolume(level: level)
+        lastSetMusicVolume = level
         updateState { $0.volume = level }
     }
 
@@ -908,8 +927,9 @@ actor RadioOrchestrator {
         eventLabel: String,
         indentLevel: Int
     ) async {
-        let currentVolume = await musicService.fetchVolume()
-        guard currentVolume != targetVolume else {
+        let fetchedVolume = await musicService.fetchVolume()
+        guard let currentVolume = fetchedVolume ?? lastSetMusicVolume,
+              currentVolume != targetVolume else {
             return
         }
         await cueSheetLogger?.append(
@@ -917,20 +937,85 @@ actor RadioOrchestrator {
             indentLevel: indentLevel
         )
 
-        let steps = 20
-        let stepSize = Double(targetVolume - currentVolume) / Double(steps)
-        let stepInterval = durationSeconds / Double(steps)
+        guard durationSeconds > 0 else {
+            await setMusicVolume(level: targetVolume)
+            await cueSheetLogger?.append("\(eventLabel)終了(\(targetVolume)%)", indentLevel: indentLevel)
+            return
+        }
 
-        for indexValue in 1...steps {
+        let steps = 20
+        let fadeStartedAt = ContinuousClock.now
+        let pausedSecondsAtStart = currentTotalPausedSeconds(at: fadeStartedAt)
+        var nextStep = 1
+
+        while nextStep <= steps {
+            do {
+                try await waitWhilePaused()
+                try Task.checkCancellation()
+            } catch {
+                return
+            }
             if isStopRequested {
                 return
             }
-            let nextVolume = Int(Double(currentVolume) + stepSize * Double(indexValue))
-            await musicService.setVolume(level: nextVolume)
-            updateState { $0.volume = nextVolume }
-            try? await Task.sleep(nanoseconds: UInt64(max(0, stepInterval) * 1_000_000_000))
+
+            let elapsedSeconds = activeElapsedSeconds(
+                since: fadeStartedAt,
+                pausedSecondsAtStart: pausedSecondsAtStart
+            )
+            let elapsedStep = Int(ceil(min(1, elapsedSeconds / durationSeconds) * Double(steps)))
+            let currentStep = min(steps, max(nextStep, elapsedStep))
+            let progress = Double(currentStep) / Double(steps)
+            let nextVolume = Int(
+                (Double(currentVolume) + Double(targetVolume - currentVolume) * progress).rounded()
+            )
+            await setMusicVolume(level: nextVolume)
+            nextStep = currentStep + 1
+
+            guard nextStep <= steps else {
+                break
+            }
+            let elapsedAfterUpdate = activeElapsedSeconds(
+                since: fadeStartedAt,
+                pausedSecondsAtStart: pausedSecondsAtStart
+            )
+            let nextStepTime = durationSeconds * Double(nextStep) / Double(steps)
+            let sleepSeconds = max(0, nextStepTime - elapsedAfterUpdate)
+            if sleepSeconds > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(sleepSeconds * 1_000_000_000))
+            }
         }
+        if isStopRequested || Task.isCancelled {
+            return
+        }
+        await setMusicVolume(level: targetVolume)
         await cueSheetLogger?.append("\(eventLabel)終了(\(targetVolume)%)", indentLevel: indentLevel)
+    }
+
+    private func activeElapsedSeconds(
+        since startedAt: ContinuousClock.Instant,
+        pausedSecondsAtStart: Double
+    ) -> Double {
+        let now = ContinuousClock.now
+        let wallClockSeconds = durationSeconds(from: startedAt, to: now)
+        let pausedSeconds = max(0, currentTotalPausedSeconds(at: now) - pausedSecondsAtStart)
+        return max(0, wallClockSeconds - pausedSeconds)
+    }
+
+    private func currentTotalPausedSeconds(at instant: ContinuousClock.Instant) -> Double {
+        guard let pauseStartedAt else {
+            return accumulatedPausedSeconds
+        }
+        return accumulatedPausedSeconds + durationSeconds(from: pauseStartedAt, to: instant)
+    }
+
+    private func durationSeconds(
+        from start: ContinuousClock.Instant,
+        to end: ContinuousClock.Instant
+    ) -> Double {
+        let duration = end - start
+        return Double(duration.components.seconds)
+            + Double(duration.components.attoseconds) / 1_000_000_000_000_000_000
     }
 
     private func waitRespectingPause(seconds: Double) async throws {
@@ -1364,6 +1449,9 @@ actor RadioOrchestrator {
 
     private func resetState() {
         trackStartedAt = nil
+        lastSetMusicVolume = nil
+        pauseStartedAt = nil
+        accumulatedPausedSeconds = 0
         preGeneratedSegments = [:]
         updateState {
             $0.isRunning = false

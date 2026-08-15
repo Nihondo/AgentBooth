@@ -116,7 +116,7 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
     }
 
     /// Spotify 音量を返す。
-    func fetchVolume() async -> Int {
+    func fetchVolume() async -> Int? {
         struct VolumeResponse: Decodable {
             let level: Int
         }
@@ -126,7 +126,7 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
             script: SpotifyDOMScripts.fetchVolume,
             webView: store.playbackWebView
         ) else {
-            return 0
+            return nil
         }
         return response.level
     }

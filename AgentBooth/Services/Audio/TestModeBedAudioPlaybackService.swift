@@ -2,7 +2,7 @@ import Foundation
 
 /// テストモード用の BGM / ジングル再生サービス。
 actor TestModeBedAudioPlaybackService: BedAudioPlaybackServiceProtocol {
-    func estimateJingleDuration(settings: BGMSettings, placement: JinglePlacement) async -> Double { 0 }
+    func prepareJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double { 0 }
 
     func playJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double { 0 }
 

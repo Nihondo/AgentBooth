@@ -253,6 +253,127 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertEqual(musicService.volumeHistory.first, 80)
     }
 
+    func testDisabledOverlapFadesOutBeforeStoppingTrack() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+            TrackInfo(name: "Song B", artist: "Artist B", album: "Album B", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.fadeEarlySeconds = 1
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.1
+
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.stoppedTrackDates.count >= 1
+        }
+
+        let firstStopDate = try XCTUnwrap(musicService.stoppedTrackDates.first)
+        let volumesBeforeStop = zip(musicService.volumeHistory, musicService.volumeChangeDates)
+            .filter { $0.1 <= firstStopDate }
+            .map(\.0)
+        XCTAssertTrue(volumesBeforeStop.contains { $0 > 0 && $0 < 80 })
+        XCTAssertEqual(volumesBeforeStop.last, 0)
+    }
+
+    func testFadeOutUsesLastSetVolumeWhenFetchVolumeFails() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        musicService.isVolumeFetchAvailable = false
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.fadeEarlySeconds = 1
+        settings.volumeSettings.musicLeadSeconds = 0
+        settings.volumeSettings.fadeDuration = 0.1
+
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.stoppedTrackDates.count >= 1
+        }
+
+        let firstStopDate = try XCTUnwrap(musicService.stoppedTrackDates.first)
+        let volumesBeforeStop = zip(musicService.volumeHistory, musicService.volumeChangeDates)
+            .filter { $0.1 <= firstStopDate }
+            .map(\.0)
+        XCTAssertTrue(volumesBeforeStop.contains { $0 > 0 && $0 < 80 })
+        XCTAssertEqual(volumesBeforeStop.last, 0)
+    }
+
+    func testFadeTracksElapsedTimeDespiteSetVolumeLatencyAndEndsAtExactTarget() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        musicService.setVolumeDelayNanoseconds = 40_000_000
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0.05
+        settings.volumeSettings.fadeDuration = 0.2
+
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.volumeHistory.contains(80)
+        }
+
+        let history = musicService.volumeHistory
+        let dates = musicService.volumeChangeDates
+        let fadeStartIndex = try XCTUnwrap(history.firstIndex { $0 > 20 })
+        let targetIndex = try XCTUnwrap(history[fadeStartIndex...].firstIndex(of: 80))
+        XCTAssertEqual(history[targetIndex], 80)
+        XCTAssertLessThan(
+            dates[targetIndex].timeIntervalSince(dates[fadeStartIndex]),
+            0.5,
+            "setVolume の遅延を20ステップ分累積させないこと"
+        )
+    }
+
+    func testPauseSuspendsFadeProgressUntilResume() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 2, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .enabled
+        settings.volumeSettings.normalVolume = 80
+        settings.volumeSettings.talkVolume = 20
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0.05
+        settings.volumeSettings.fadeDuration = 0.4
+
+        let orchestrator = makeOrchestrator(settings: settings, musicService: musicService)
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            musicService.volumeHistory.contains { $0 > 20 && $0 < 80 }
+        }
+        await orchestrator.pauseShow()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        let pausedHistoryCount = musicService.volumeHistory.count
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        XCTAssertEqual(musicService.volumeHistory.count, pausedHistoryCount)
+
+        await orchestrator.resumeShow()
+        try await waitUntil {
+            musicService.volumeHistory.contains(80)
+        }
+    }
+
     func testSpotifyOverlapStartsTrackBeforeNarrationEndsToCompensateStartupDelay() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),
@@ -937,8 +1058,12 @@ final class RadioOrchestratorTests: XCTestCase {
         }
 
         let lastJinglePlacement = await bedAudioPlaybackService.lastJinglePlacement
+        let prepareJingleCallCount = await bedAudioPlaybackService.prepareJingleCallCount
+        let playJingleCallCount = await bedAudioPlaybackService.playJingleCallCount
         let fadeOutAndStopBedCallCount = await bedAudioPlaybackService.fadeOutAndStopBedCallCount
         XCTAssertEqual(lastJinglePlacement, .opening)
+        XCTAssertEqual(prepareJingleCallCount, 1)
+        XCTAssertEqual(playJingleCallCount, 1)
         XCTAssertGreaterThanOrEqual(fadeOutAndStopBedCallCount, 1)
     }
 

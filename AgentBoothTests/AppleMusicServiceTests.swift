@@ -2,6 +2,15 @@ import XCTest
 @testable import AgentBooth
 
 final class AppleMusicServiceTests: XCTestCase {
+    func testFetchVolumeReturnsNilWhenAppleScriptDoesNotReturnANumber() async {
+        let executor = ScriptRecordingAppleScriptExecutor()
+        let service = AppleMusicService(appleScriptExecutor: executor)
+
+        let volume = await service.fetchVolume()
+
+        XCTAssertNil(volume)
+    }
+
     func testPlayStopsBeforePlayingTrackAndDoesNotSetPlayerPositionDirectly() async throws {
         let executor = ScriptRecordingAppleScriptExecutor()
         let service = AppleMusicService(appleScriptExecutor: executor)

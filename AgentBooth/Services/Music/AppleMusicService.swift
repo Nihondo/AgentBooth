@@ -113,9 +113,9 @@ final class AppleMusicService: @unchecked Sendable, MusicService {
         _ = try? appleScriptExecutor.run(script: "tell application \"Music\" to set sound volume to \(clampedLevel)")
     }
 
-    func fetchVolume() async -> Int {
+    func fetchVolume() async -> Int? {
         let rawValue = try? appleScriptExecutor.run(script: "tell application \"Music\" to get sound volume")
-        return Int(rawValue ?? "") ?? 0
+        return rawValue.flatMap(Int.init)
     }
 
     func fetchCurrentTrack() async throws -> TrackInfo? {

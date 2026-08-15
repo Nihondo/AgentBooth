@@ -9,6 +9,9 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     var stoppedTrackDates: [Date] = []
     var currentVolume: Int = 100
     var volumeHistory: [Int] = []
+    var volumeChangeDates: [Date] = []
+    var isVolumeFetchAvailable = true
+    var setVolumeDelayNanoseconds: UInt64 = 0
     var isPlaying = false
     var currentPosition: Double = 0
 
@@ -46,11 +49,17 @@ final class FakeMusicService: @unchecked Sendable, MusicService {
     }
 
     func setVolume(level: Int) async {
+        if setVolumeDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: setVolumeDelayNanoseconds)
+        }
         currentVolume = level
         volumeHistory.append(level)
+        volumeChangeDates.append(Date())
     }
 
-    func fetchVolume() async -> Int { currentVolume }
+    func fetchVolume() async -> Int? {
+        isVolumeFetchAvailable ? currentVolume : nil
+    }
 
     func fetchCurrentTrack() async throws -> TrackInfo? { playedTracks.last }
 
@@ -270,7 +279,7 @@ actor FakeAudioPlaybackService: AudioPlaybackServiceProtocol {
 }
 
 actor FakeBedAudioPlaybackService: BedAudioPlaybackServiceProtocol {
-    private(set) var estimateJingleCallCount = 0
+    private(set) var prepareJingleCallCount = 0
     private(set) var playJingleCallCount = 0
     private(set) var startBedCallCount = 0
     private(set) var startBedDates: [Date] = []
@@ -287,8 +296,8 @@ actor FakeBedAudioPlaybackService: BedAudioPlaybackServiceProtocol {
         jingleDurationToReturn = duration
     }
 
-    func estimateJingleDuration(settings: BGMSettings, placement: JinglePlacement) async -> Double {
-        estimateJingleCallCount += 1
+    func prepareJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double {
+        prepareJingleCallCount += 1
         lastSettings = settings
         lastJinglePlacement = placement
         return jingleDurationToReturn

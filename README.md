@@ -114,6 +114,8 @@ Balance between music and talk. Defaults work without changes.
 | **Talk Start Before End Seconds** | Seconds before a track ends to start outro talk |
 | **Max Playback Duration** | Maximum seconds per track (0 = unlimited) |
 
+Music fades also apply when overlap mode is off and a track is stopped before its natural end. Pausing the show pauses an in-progress fade at its current level and resumes it without counting the paused time.
+
 Optional BGM and jingles can add a more radio-like sound. Bed BGM loops only during talk sections where no external track is playing, and fades out before a music track starts. Jingles play only before the opening and/or closing when enabled.
 
 | Field | Description |

@@ -10,7 +10,8 @@ protocol MusicService: Sendable {
     func pausePlayback() async
     func resumePlayback() async
     func setVolume(level: Int) async
-    func fetchVolume() async -> Int
+    /// 現在音量を返す。バックエンドから取得できない場合は `nil` を返す。
+    func fetchVolume() async -> Int?
     /// 現在再生中のトラック情報を返す。UI や診断用途のため維持している。
     func fetchCurrentTrack() async throws -> TrackInfo?
     /// 現在再生中かを返す。UI や診断用途のため維持している。
@@ -55,7 +56,8 @@ enum JinglePlacement: Equatable, Sendable {
 
 /// ナレーションに重ねるベッド BGM とジングルを制御するサービス。
 protocol BedAudioPlaybackServiceProtocol: Sendable {
-    func estimateJingleDuration(settings: BGMSettings, placement: JinglePlacement) async -> Double
+    /// ジングル音源を1回選択し、後続再生用に保持して再生時間を返す。
+    func prepareJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double
     func playJingle(settings: BGMSettings, placement: JinglePlacement) async -> Double
     func startBed(settings: BGMSettings) async
     func fadeOutAndStopBed(settings: BGMSettings) async

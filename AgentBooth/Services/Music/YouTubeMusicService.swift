@@ -108,7 +108,7 @@ final class YouTubeMusicService: MusicService, @unchecked Sendable {
         await playerController.setVolume(level, using: store.playbackWebView)
     }
 
-    func fetchVolume() async -> Int {
+    func fetchVolume() async -> Int? {
         await playerController.fetchVolume(using: store.playbackWebView)
     }
 

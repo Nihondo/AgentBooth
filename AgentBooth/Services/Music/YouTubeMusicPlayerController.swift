@@ -63,13 +63,13 @@ final class YouTubeMusicPlayerController {
     }
 
     @MainActor
-    func fetchVolume(using webView: WKWebView) async -> Int {
+    func fetchVolume(using webView: WKWebView) async -> Int? {
         struct VolumeResponse: Decodable { let level: Int }
         guard let response = try? await scriptRunner.decodeJSONScript(
             VolumeResponse.self,
             script: YouTubeMusicJSScripts.fetchVolume,
             webView: webView
-        ) else { return 0 }
+        ) else { return nil }
         return response.level
     }
 
