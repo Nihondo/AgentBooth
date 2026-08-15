@@ -17,6 +17,23 @@ private actor StatusRecorder {
     }
 }
 
+private final class LockedRadioStateRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var states: [RadioState] = []
+
+    func append(_ state: RadioState) {
+        lock.lock()
+        states.append(state)
+        lock.unlock()
+    }
+
+    func latest() -> RadioState? {
+        lock.lock()
+        defer { lock.unlock() }
+        return states.last
+    }
+}
+
 private final class LockedPhaseRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var phases: [RadioPhase] = []
@@ -1027,6 +1044,37 @@ final class RadioOrchestratorTests: XCTestCase {
 
         let phases = await phaseRecorder.phases
         XCTAssertTrue(phases.contains(.opening))
+    }
+
+    func testCompletedRecordingKeepsOutputURLInFinalState() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let recordingService = FakeRecordingService()
+        let stateRecorder = LockedRadioStateRecorder()
+        var settings = AppSettings()
+        settings.defaultOverlapMode = .disabled
+        settings.volumeSettings.fadeEarlySeconds = 0
+        settings.volumeSettings.musicLeadSeconds = 0
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            recordingService: recordingService,
+            stateDidChange: { stateRecorder.append($0) }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            let state = stateRecorder.latest()
+            return state?.isRunning == false && state?.recordingOutputURL != nil
+        }
+
+        let expectedURL = await recordingService.lastOutputURL
+        let stopCallCount = await recordingService.stopCallCount
+        XCTAssertEqual(stateRecorder.latest()?.recordingOutputURL, expectedURL)
+        XCTAssertEqual(stopCallCount, 1)
     }
 
     func testOpeningJingleAndBedAreStartedWhenEnabled() async throws {

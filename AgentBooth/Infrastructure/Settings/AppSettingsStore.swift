@@ -187,9 +187,12 @@ final class AppSettingsStore: ObservableObject {
         var nextSettings = settings
         let activeProfile = resolveActiveProfile(settings: &nextSettings, profiles: profiles)
         let composedSettings = nextSettings.applyingProfile(activeProfile)
+        let didCredentialsChange = settings.ttsCredentialSets != currentSettings.ttsCredentialSets
         try showProfileStore.saveProfiles(profiles)
         try persistSettingsSnapshot(composedSettings)
-        try persistKeychainBundle(settings.ttsCredentialSets)
+        if didCredentialsChange {
+            try persistKeychainBundle(settings.ttsCredentialSets)
+        }
         showProfiles = profiles
         currentSettings = composedSettings
     }

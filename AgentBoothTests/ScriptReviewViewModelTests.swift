@@ -205,31 +205,6 @@ final class ScriptReviewViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.segments[0].lines[0].speaker, .male)
     }
 
-    func testMoveLineSwapsAdjacentLines() {
-        let viewModel = makeViewModel(items: [makeItem(segmentKey: "opening", label: "オープニング")])
-        let segment = viewModel.segments[0]
-        let firstLineID = segment.lines[0].id
-        let secondLineID = segment.lines[1].id
-
-        viewModel.moveLine(firstLineID, in: segment.id, offset: 1)
-
-        let updated = viewModel.segments[0]
-        XCTAssertEqual(updated.lines[0].id, secondLineID)
-        XCTAssertEqual(updated.lines[1].id, firstLineID)
-    }
-
-    func testMoveLineOutOfBoundsIsNoOp() {
-        let viewModel = makeViewModel(items: [makeItem(segmentKey: "opening", label: "オープニング")])
-        let segment = viewModel.segments[0]
-        let firstLineID = segment.lines[0].id
-        let beforeRevision = viewModel.structureRevision
-
-        viewModel.moveLine(firstLineID, in: segment.id, offset: -1)
-
-        XCTAssertEqual(viewModel.segments[0].lines[0].id, firstLineID)
-        XCTAssertEqual(viewModel.structureRevision, beforeRevision)
-    }
-
     // MARK: - undo
 
     func testUndoLastStructuralChangeRevertsAppendLine() {
@@ -369,6 +344,66 @@ final class ScriptReviewViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.pendingPreviewConfirmationSegmentID, segmentID)
         XCTAssertNil(viewModel.previewStates[segmentID])
+    }
+
+    func testRequestLinePreviewShowsConfirmationDialogFirstTime() {
+        let (viewModel, _, _) = makeViewModelWithFakes(
+            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            isTestMode: false
+        )
+        let segment = viewModel.segments[0]
+        let lineID = segment.lines[1].id
+
+        viewModel.requestLinePreview(lineID, in: segment.id)
+
+        XCTAssertEqual(
+            viewModel.pendingLinePreviewConfirmation,
+            LinePreviewRequest(segmentID: segment.id, lineID: lineID)
+        )
+        XCTAssertNil(viewModel.linePreviewStates[lineID])
+    }
+
+    func testConfirmLinePreviewSynthesizesOnlySelectedLine() async throws {
+        let (viewModel, ttsService, audioService) = makeViewModelWithFakes(
+            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            isTestMode: false
+        )
+        let segment = viewModel.segments[0]
+        let selectedLine = segment.lines[1]
+
+        viewModel.requestLinePreview(selectedLine.id, in: segment.id)
+        viewModel.confirmLinePreview(skipFutureConfirmations: false)
+
+        XCTAssertNil(viewModel.pendingLinePreviewConfirmation)
+        try await waitUntil { viewModel.linePreviewStates[selectedLine.id] == .ready }
+
+        let recordedDialogues = await ttsService.recordedDialogues
+        let playCount = await audioService.playCount
+        XCTAssertEqual(recordedDialogues, [[selectedLine.asDialogueLine]])
+        XCTAssertEqual(playCount, 1)
+    }
+
+    func testRequestLinePreviewReusesCacheWithoutCallingTTSAgain() async throws {
+        let (viewModel, ttsService, audioService) = makeViewModelWithFakes(
+            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            isTestMode: false
+        )
+        let segment = viewModel.segments[0]
+        let lineID = segment.lines[0].id
+
+        viewModel.requestLinePreview(lineID, in: segment.id)
+        viewModel.confirmLinePreview(skipFutureConfirmations: false)
+        try await waitUntil { viewModel.linePreviewStates[lineID] == .ready }
+
+        viewModel.requestLinePreview(lineID, in: segment.id)
+
+        XCTAssertNil(viewModel.pendingLinePreviewConfirmation, "キャッシュ済みの発話は確認ダイアログを出さない")
+        try await waitUntil { viewModel.linePreviewStates[lineID] == .ready }
+
+        let synthesisCount = await ttsService.recordedDialogues.count
+        let playCount = await audioService.playCount
+        XCTAssertEqual(synthesisCount, 1, "同じ発話内容は TTS を再度呼ばない")
+        XCTAssertEqual(playCount, 2, "キャッシュ音声も再生する")
     }
 
     func testConfirmSegmentPreviewSynthesizesAndPlaysThenBecomesReady() async throws {

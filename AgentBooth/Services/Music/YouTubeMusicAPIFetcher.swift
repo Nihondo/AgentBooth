@@ -61,8 +61,10 @@ final class YouTubeMusicAPIFetcher {
     /// ユーザーのプレイリスト一覧を取得する
     @MainActor
     func fetchPlaylists(using webView: WKWebView) async throws -> [YouTubeMusicPlaylistItem] {
+        #if DEBUG
         let dump = await debugDumpPlaylists(using: webView)
         print("🎵 [YTM] structure dump:", dump)
+        #endif
         do {
             return try await scriptRunner.decodeJSONScript(
                 [YouTubeMusicPlaylistItem].self,
@@ -84,9 +86,11 @@ final class YouTubeMusicAPIFetcher {
         playlistId: String,
         using webView: WKWebView
     ) async throws -> [YouTubeMusicTrackItem] {
+        #if DEBUG
         let dumpScript = YouTubeMusicJSScripts.debugDumpTracks(playlistId: playlistId)
         let dump = (try? await scriptRunner.runJSONScript(dumpScript, webView: webView)) ?? "nil"
         print("🎵 [YTM] tracks structure dump (playlistId=\(playlistId)):", dump)
+        #endif
 
         let script = YouTubeMusicJSScripts.fetchTracks(playlistId: playlistId)
         do {

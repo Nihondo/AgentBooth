@@ -169,7 +169,7 @@ private struct ScriptLogSession {
 }
 
 /// Generates radio scripts by shelling out to an external CLI tool.
-final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGenerationService {
+actor ProcessScriptGenerationService: ScriptGenerationService {
     private let commandBuilder = ScriptCommandBuilder()
     private let environmentBuilder = ScriptProcessEnvironmentBuilder()
     private let launchBuilder = ScriptProcessLaunchBuilder()
@@ -284,9 +284,17 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
             process.currentDirectoryURL = session.directoryURL
         }
 
+        let terminationStream = AsyncStream<Int32> { continuation in
+            process.terminationHandler = { terminatedProcess in
+                continuation.yield(terminatedProcess.terminationStatus)
+                continuation.finish()
+            }
+        }
+
         do {
             try process.run()
         } catch {
+            process.terminationHandler = nil
             await cueSheetLogger?.append(
                 "CLI実行終了(\(executableName) / 起動失敗: \(error.localizedDescription))",
                 indentOffset: 1
@@ -294,15 +302,25 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
             throw ScriptGenerationError.processFailed(String(format: String(localized: "%@ CLI を起動できませんでした: %@"), executableName, error.localizedDescription))
         }
 
-        process.waitUntilExit()
-        let outputText = String(decoding: outputPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        let errorText = String(decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        let outputHandle = outputPipe.fileHandleForReading
+        let errorHandle = errorPipe.fileHandleForReading
+        let outputTask = Task.detached(priority: .utility) {
+            outputHandle.readDataToEndOfFile()
+        }
+        let errorTask = Task.detached(priority: .utility) {
+            errorHandle.readDataToEndOfFile()
+        }
+        var terminationIterator = terminationStream.makeAsyncIterator()
+        let terminationStatus = await terminationIterator.next() ?? process.terminationStatus
+        let outputText = String(decoding: await outputTask.value, as: UTF8.self)
+        let errorText = String(decoding: await errorTask.value, as: UTF8.self)
+        process.terminationHandler = nil
         await cueSheetLogger?.append(
-            "CLI実行終了(\(executableName) / exit: \(process.terminationStatus))",
+            "CLI実行終了(\(executableName) / exit: \(terminationStatus))",
             indentOffset: 1
         )
 
-        guard process.terminationStatus == 0 else {
+        guard terminationStatus == 0 else {
             let detail = errorText.trimmingCharacters(in: .whitespacesAndNewlines)
             throw ScriptGenerationError.processFailed(detail.isEmpty ? String(format: String(localized: "%@ CLI の実行に失敗しました。"), executableName) : detail)
         }
@@ -316,17 +334,17 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
 
         if let envelope = try? JSONDecoder().decode(ScriptEnvelope.self, from: payloadData) {
             return (
-                dialogues: validate(dialogues: envelope.dialogues),
+                dialogues: envelope.dialogues,
                 summaryBullets: normalizeSummaryBullets(envelope.summaryBullets ?? [])
             )
         }
 
         if let envelope = try? JSONDecoder().decode(DialogueEnvelope.self, from: payloadData) {
-            return (dialogues: validate(dialogues: envelope.dialogues), summaryBullets: [])
+            return (dialogues: envelope.dialogues, summaryBullets: [])
         }
 
         if let dialogues = try? JSONDecoder().decode([DialogueLine].self, from: payloadData) {
-            return (dialogues: validate(dialogues: dialogues), summaryBullets: [])
+            return (dialogues: dialogues, summaryBullets: [])
         }
 
         throw ScriptGenerationError.invalidOutput
@@ -360,14 +378,6 @@ final class ProcessScriptGenerationService: @unchecked Sendable, ScriptGeneratio
         }
 
         return rawOutput.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func validate(dialogues: [DialogueLine]) -> [DialogueLine] {
-        let speakers = Set(dialogues.map(\.speaker))
-        guard speakers == Set(["male", "female"]) else {
-            return dialogues
-        }
-        return dialogues
     }
 
     private func normalizeSummaryBullets(_ summaryBullets: [String]) -> [String] {

@@ -21,6 +21,12 @@ enum SegmentPreviewState: Equatable, Sendable {
     case failed(String)
 }
 
+/// 行単位の TTS 試聴で確認待ちになっている対象。
+struct LinePreviewRequest: Equatable, Sendable {
+    let segmentID: UUID
+    let lineID: UUID
+}
+
 /// 検索ナビゲーションによるフォーカス移動リクエスト。`ScriptReviewSegmentEditor` がこれを observe し、
 /// 対象セグメント表示中であれば `@FocusState` を該当エディタへ移す。
 struct FocusRequest: Equatable {
@@ -61,8 +67,12 @@ final class ScriptReviewViewModel: ObservableObject {
     @Published private(set) var focusRequest: FocusRequest?
     /// セグメント単位の TTS 試聴状態。
     @Published private(set) var previewStates: [ReviewSegmentDraft.ID: SegmentPreviewState] = [:]
+    /// 発話行単位の TTS 試聴状態。
+    @Published private(set) var linePreviewStates: [ReviewLineDraft.ID: SegmentPreviewState] = [:]
     /// 「API を1回消費します」の確認待ちセグメント（nil なら確認ダイアログは非表示）。
     @Published var pendingPreviewConfirmationSegmentID: ReviewSegmentDraft.ID?
+    /// 「API を1回消費します」の確認待ち発話行（nil なら確認ダイアログは非表示）。
+    @Published private(set) var pendingLinePreviewConfirmation: LinePreviewRequest?
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: any AppServiceFactory
@@ -75,8 +85,13 @@ final class ScriptReviewViewModel: ObservableObject {
 
     /// 「このセッションでは確認しない」が選ばれた後は true になり、以降は確認ダイアログを出さない。
     private var skipsPreviewConfirmation = false
-    /// 直近に合成した音声のキャッシュ。テキスト・発話指示・発音辞書のハッシュが一致すれば API を叩かず再生のみ行う。
-    private var previewCache: [ReviewSegmentDraft.ID: (contentHash: Int, wavData: Data)] = [:]
+    private enum PreviewTarget: Hashable, Sendable {
+        case segment(ReviewSegmentDraft.ID)
+        case line(ReviewLineDraft.ID)
+    }
+
+    /// 直近に合成した音声のキャッシュ。対象ごとの入力ハッシュが一致すれば API を叩かず再生のみ行う。
+    private var previewCache: [PreviewTarget: (contentHash: Int, wavData: Data)] = [:]
     private var previewTask: Task<Void, Never>?
     private var activePreviewAudioService: (any AudioPlaybackServiceProtocol)?
 
@@ -208,18 +223,6 @@ final class ScriptReviewViewModel: ObservableObject {
               let lineIndex = segments[segmentIndex].lines.firstIndex(where: { $0.id == lineID }) else { return }
         pushUndoSnapshot()
         segments[segmentIndex].lines[lineIndex].speaker = transform(segments[segmentIndex].lines[lineIndex].speaker)
-        structureRevision += 1
-    }
-
-    /// ↑↓ ボタンによる並べ替え。1回のボタン操作 = 1 undo ステップ。
-    func moveLine(_ lineID: UUID, in segmentID: UUID, offset: Int) {
-        guard let segmentIndex = segments.firstIndex(where: { $0.id == segmentID }),
-              let fromIndex = segments[segmentIndex].lines.firstIndex(where: { $0.id == lineID }) else { return }
-        let toIndex = fromIndex + offset
-        guard segments[segmentIndex].lines.indices.contains(toIndex) else { return }
-        pushUndoSnapshot()
-        let line = segments[segmentIndex].lines.remove(at: fromIndex)
-        segments[segmentIndex].lines.insert(line, at: toIndex)
         structureRevision += 1
     }
 
@@ -374,9 +377,11 @@ final class ScriptReviewViewModel: ObservableObject {
     /// （API を消費しないため、確認を挟む理由がない）。
     func requestSegmentPreview(_ segmentID: UUID) {
         guard let segment = segment(withID: segmentID) else { return }
+        let target = PreviewTarget.segment(segmentID)
+        let contentHash = previewContentHash(dialogues: segment.dialogueLines, segment: segment)
 
-        if let cached = previewCache[segmentID], cached.contentHash == previewContentHash(for: segment) {
-            playCachedPreview(segmentID: segmentID, wavData: cached.wavData)
+        if let cached = previewCache[target], cached.contentHash == contentHash {
+            playCachedPreview(target: target, wavData: cached.wavData)
             return
         }
 
@@ -385,6 +390,27 @@ final class ScriptReviewViewModel: ObservableObject {
             performSegmentPreview(segmentID)
         } else {
             pendingPreviewConfirmationSegmentID = segmentID
+        }
+    }
+
+    /// 指定した1発話だけを試聴する。空行は TTS へ送信しない。
+    func requestLinePreview(_ lineID: UUID, in segmentID: UUID) {
+        guard let segment = segment(withID: segmentID),
+              let line = segment.lines.first(where: { $0.id == lineID }),
+              !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let target = PreviewTarget.line(lineID)
+        let dialogues = [line.asDialogueLine]
+        let contentHash = previewContentHash(dialogues: dialogues, segment: segment)
+
+        if let cached = previewCache[target], cached.contentHash == contentHash {
+            playCachedPreview(target: target, wavData: cached.wavData)
+            return
+        }
+
+        if skipsPreviewConfirmation || isTestMode {
+            performLinePreview(LinePreviewRequest(segmentID: segmentID, lineID: lineID))
+        } else {
+            pendingLinePreviewConfirmation = LinePreviewRequest(segmentID: segmentID, lineID: lineID)
         }
     }
 
@@ -402,20 +428,52 @@ final class ScriptReviewViewModel: ObservableObject {
         pendingPreviewConfirmationSegmentID = nil
     }
 
-    func stopSegmentPreview() {
-        previewTask?.cancel()
-        previewTask = nil
-        let audioService = activePreviewAudioService
-        Task { await audioService?.stopPlayback() }
-        for (segmentID, state) in previewStates where state == .playing || state == .synthesizing {
-            previewStates[segmentID] = previewCache[segmentID] != nil ? .ready : .idle
+    /// 行試聴の確認ダイアログでの応答。
+    func confirmLinePreview(skipFutureConfirmations: Bool) {
+        guard let request = pendingLinePreviewConfirmation else { return }
+        pendingLinePreviewConfirmation = nil
+        if skipFutureConfirmations {
+            skipsPreviewConfirmation = true
         }
+        performLinePreview(request)
+    }
+
+    /// 行試聴の確認ダイアログを閉じる。
+    func cancelPendingLinePreviewConfirmation() {
+        pendingLinePreviewConfirmation = nil
+    }
+
+    func stopSegmentPreview() {
+        let audioService = interruptActivePreview()
+        Task { await audioService?.stopPlayback() }
     }
 
     private func performSegmentPreview(_ segmentID: UUID) {
         guard let segment = segment(withID: segmentID) else { return }
+        performPreview(
+            target: .segment(segmentID),
+            dialogues: segment.dialogueLines,
+            segment: segment
+        )
+    }
 
-        previewTask?.cancel()
+    private func performLinePreview(_ request: LinePreviewRequest) {
+        guard let segment = segment(withID: request.segmentID),
+              let line = segment.lines.first(where: { $0.id == request.lineID }),
+              !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        performPreview(
+            target: .line(request.lineID),
+            dialogues: [line.asDialogueLine],
+            segment: segment
+        )
+    }
+
+    private func performPreview(
+        target: PreviewTarget,
+        dialogues: [DialogueLine],
+        segment: ReviewSegmentDraft
+    ) {
+        let previousAudioService = interruptActivePreview()
         let audioService: any AudioPlaybackServiceProtocol = isTestMode
             ? TestModeAudioPlaybackService()
             : serviceFactory.makeAudioPlaybackService()
@@ -424,59 +482,62 @@ final class ScriptReviewViewModel: ObservableObject {
             : serviceFactory.makeTTSService(settings: settingsStore.currentSettings, cueSheetLogger: nil)
         activePreviewAudioService = audioService
 
-        let dialogues = segment.dialogueLines
         var narrationSettings = settingsStore.currentSettings
         narrationSettings.directionSettings.sceneDirection = segment.sceneDirection
         narrationSettings.directionSettings.pronunciationEntries = segment.pronunciationEntries
         narrationSettings.globalPronunciationEntries = []
-        let contentHash = previewContentHash(for: segment)
+        let contentHash = previewContentHash(dialogues: dialogues, segment: segment)
 
-        previewStates[segmentID] = .synthesizing
+        setPreviewState(.synthesizing, for: target)
         previewTask = Task { [weak self] in
             guard let self else { return }
+            await previousAudioService?.stopPlayback()
+            guard !Task.isCancelled else { return }
             do {
                 let result = try await ttsService.synthesize(dialogues: dialogues, settings: narrationSettings)
                 guard !Task.isCancelled else { return }
-                self.previewCache[segmentID] = (contentHash, result.wavData)
-                self.previewStates[segmentID] = .playing
+                self.previewCache[target] = (contentHash, result.wavData)
+                self.setPreviewState(.playing, for: target)
                 try await audioService.play(wavData: result.wavData)
                 guard !Task.isCancelled else { return }
-                self.previewStates[segmentID] = .ready
+                self.setPreviewState(.ready, for: target)
             } catch {
                 guard !Task.isCancelled else { return }
-                self.previewStates[segmentID] = .failed(error.localizedDescription)
+                self.setPreviewState(.failed(error.localizedDescription), for: target)
             }
         }
     }
 
-    private func playCachedPreview(segmentID: UUID, wavData: Data) {
-        previewTask?.cancel()
+    private func playCachedPreview(target: PreviewTarget, wavData: Data) {
+        let previousAudioService = interruptActivePreview()
         let audioService: any AudioPlaybackServiceProtocol = isTestMode
             ? TestModeAudioPlaybackService()
             : serviceFactory.makeAudioPlaybackService()
         activePreviewAudioService = audioService
 
-        previewStates[segmentID] = .playing
+        setPreviewState(.playing, for: target)
         previewTask = Task { [weak self] in
             guard let self else { return }
+            await previousAudioService?.stopPlayback()
+            guard !Task.isCancelled else { return }
             do {
                 try await audioService.play(wavData: wavData)
                 guard !Task.isCancelled else { return }
-                self.previewStates[segmentID] = .ready
+                self.setPreviewState(.ready, for: target)
             } catch {
                 guard !Task.isCancelled else { return }
-                self.previewStates[segmentID] = .failed(error.localizedDescription)
+                self.setPreviewState(.failed(error.localizedDescription), for: target)
             }
         }
     }
 
     /// 発話指示・発話テキスト・発音辞書のいずれかが変わればキャッシュを無効化するためのハッシュ。
-    private func previewContentHash(for segment: ReviewSegmentDraft) -> Int {
+    private func previewContentHash(dialogues: [DialogueLine], segment: ReviewSegmentDraft) -> Int {
         var hasher = Hasher()
         hasher.combine(segment.sceneDirection)
-        for line in segment.lines {
-            hasher.combine(line.speaker)
-            hasher.combine(line.text)
+        for dialogue in dialogues {
+            hasher.combine(dialogue.speaker)
+            hasher.combine(dialogue.text)
         }
         for entry in segment.pronunciationEntries {
             hasher.combine(entry.source)
@@ -484,6 +545,35 @@ final class ScriptReviewViewModel: ObservableObject {
             hasher.combine(entry.isEnabled)
         }
         return hasher.finalize()
+    }
+
+    private func interruptActivePreview() -> (any AudioPlaybackServiceProtocol)? {
+        previewTask?.cancel()
+        previewTask = nil
+        let audioService = activePreviewAudioService
+        activePreviewAudioService = nil
+        resetActivePreviewStates()
+        return audioService
+    }
+
+    private func resetActivePreviewStates() {
+        for segmentID in Array(previewStates.keys) {
+            guard previewStates[segmentID] == .playing || previewStates[segmentID] == .synthesizing else { continue }
+            previewStates[segmentID] = previewCache[.segment(segmentID)] == nil ? .idle : .ready
+        }
+        for lineID in Array(linePreviewStates.keys) {
+            guard linePreviewStates[lineID] == .playing || linePreviewStates[lineID] == .synthesizing else { continue }
+            linePreviewStates[lineID] = previewCache[.line(lineID)] == nil ? .idle : .ready
+        }
+    }
+
+    private func setPreviewState(_ state: SegmentPreviewState, for target: PreviewTarget) {
+        switch target {
+        case .segment(let segmentID):
+            previewStates[segmentID] = state
+        case .line(let lineID):
+            linePreviewStates[lineID] = state
+        }
     }
 
     // MARK: - 承認

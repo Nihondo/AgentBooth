@@ -108,6 +108,8 @@ actor RadioOrchestrator {
     private var pauseStartedAt: ContinuousClock.Instant?
     /// この番組再生中に完了した pause の累積秒数。
     private var accumulatedPausedSeconds: Double = 0
+    /// 現在の録音が完了した際に UI へ渡す出力先。
+    private var activeRecordingOutputURL: URL?
     private let maxSessionTopicLedgerEntries = 8
     /// 事前生成済み台本のキャッシュ。キャッシュが空のときは従来のオンデマンド生成。
     private var preGeneratedSegments: [SegmentKey: CachedSegment] = [:]
@@ -160,6 +162,7 @@ actor RadioOrchestrator {
         lastSetMusicVolume = nil
         pauseStartedAt = nil
         accumulatedPausedSeconds = 0
+        activeRecordingOutputURL = nil
         updateState {
             $0.isRunning = true
             $0.isPaused = false
@@ -350,6 +353,7 @@ actor RadioOrchestrator {
         let outputURL = makeRecordingOutputURL(playlistName: playlistName)
         do {
             try await recordingService.startRecording(outputURL: outputURL)
+            activeRecordingOutputURL = outputURL
             updateState {
                 $0.isRecording = true
                 $0.recordingOutputURL = nil
@@ -376,13 +380,14 @@ actor RadioOrchestrator {
     }
 
     private func finalizeRecording() async {
-        guard let recordingService else { return }
+        guard let recordingService, radioState.isRecording else { return }
         do {
             try await recordingService.stopRecording()
         } catch {
             updateState { $0.errorMessage = String(format: String(localized: "録音の保存に失敗しました: %@"), error.localizedDescription) }
         }
-        let outputURL = radioState.recordingOutputURL
+        let outputURL = activeRecordingOutputURL
+        activeRecordingOutputURL = nil
         updateState {
             $0.isRecording = false
             $0.recordingOutputURL = outputURL
@@ -406,9 +411,7 @@ actor RadioOrchestrator {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: ":", with: "_")
         let filename = "\(timestamp)_\(safeName).wav"
-        let outputURL = baseDir.appendingPathComponent(filename)
-        updateState { $0.recordingOutputURL = outputURL }
-        return outputURL
+        return baseDir.appendingPathComponent(filename)
     }
 
     private func prepareOpeningNarration(tracks: [TrackInfo]) async throws -> PreparedNarration {

@@ -8,7 +8,6 @@ final class SpotifyLoginViewModel: ObservableObject {
     @Published var statusMessage = String(localized: "Spotify にログインしてください。")
 
     private let store: SpotifyWebViewStore
-    private var cancellables = Set<AnyCancellable>()
 
     /// Spotify WebViewStore をバインドする。
     init(store: SpotifyWebViewStore) {

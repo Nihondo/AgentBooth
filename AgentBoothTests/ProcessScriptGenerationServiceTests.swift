@@ -96,6 +96,28 @@ final class ProcessScriptGenerationServiceTests: XCTestCase {
         XCTAssertTrue(cueSheetText.contains("CLI実行終了(claude / exit: 0)"))
     }
 
+    func testGenerateOpeningDrainsLargeCLIOutputWithoutDeadlock() async throws {
+        let largeDialogue = String(repeating: "大きな出力", count: 20_000)
+        let rawOutput = """
+        {
+          "dialogues": [
+            { "speaker": "male", "text": "\(largeDialogue)" },
+            { "speaker": "female", "text": "完了" }
+          ]
+        }
+        """
+        let service = try makeService(rawOutput: rawOutput)
+        var settings = AppSettings()
+        settings.scriptCLIKind = .claude
+
+        let script = try await service.generateOpening(
+            tracks: [TrackInfo(name: "Song A", artist: "Artist A", album: "Album A")],
+            settings: settings
+        )
+
+        XCTAssertEqual(script.dialogues.first?.text, largeDialogue)
+    }
+
     private func makeService(
         rawOutput: String,
         cueSheetLogger: ShowCueSheetLogger? = nil

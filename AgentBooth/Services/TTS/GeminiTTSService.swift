@@ -47,6 +47,7 @@ struct GeminiRetryPolicy {
 
 enum GeminiTTSServiceError: LocalizedError, Equatable {
     case missingAPIKey
+    case invalidRequestURL
     case invalidResponse(String)
     case httpError(Int, String)
     case dailyQuotaExceeded
@@ -55,6 +56,8 @@ enum GeminiTTSServiceError: LocalizedError, Equatable {
         switch self {
         case .missingAPIKey:
             return String(localized: "Gemini API Key が未設定です。")
+        case .invalidRequestURL:
+            return String(localized: "Gemini TTS のリクエスト URL を作成できませんでした。")
         case .invalidResponse(let detail):
             return String(format: String(localized: "Gemini TTS の応答を解釈できませんでした。%@"), detail)
         case .httpError(let statusCode, let bodyText):
@@ -267,7 +270,14 @@ actor GeminiTTSService: TTSService {
             )
         )
 
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelName):generateContent?key=\(apiKey)")!
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "generativelanguage.googleapis.com"
+        urlComponents.path = "/v1beta/models/\(modelName):generateContent"
+        urlComponents.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+        guard let url = urlComponents.url else {
+            throw GeminiTTSServiceError.invalidRequestURL
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -317,6 +327,8 @@ actor GeminiTTSService: TTSService {
             return "ステータス: daily-quota-exceeded / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし")"
         case .missingAPIKey:
             return "ステータス: missing-api-key / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし")"
+        case .invalidRequestURL:
+            return "ステータス: invalid-request-url / セット: \(credentialLabel) / モデル: \(modelName) / 次セット: \(willRetryFallback ? "あり" : "なし")"
         }
     }
 

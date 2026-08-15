@@ -12,7 +12,6 @@ final class YouTubeMusicLoginViewModel: ObservableObject {
     @Published var statusMessage = String(localized: "YouTube Music にログインしてください。")
 
     private let store: YouTubeMusicWebViewStore
-    private var cancellables = Set<AnyCancellable>()
 
     init(store: YouTubeMusicWebViewStore) {
         self.store = store

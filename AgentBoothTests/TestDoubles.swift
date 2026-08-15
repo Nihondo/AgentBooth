@@ -179,9 +179,11 @@ private actor ScriptSettingsRecorder {
 
 actor FakeTTSService: TTSService {
     private(set) var recordedSettings: [AppSettings] = []
+    private(set) var recordedDialogues: [[DialogueLine]] = []
 
     func synthesize(dialogues: [DialogueLine], settings: AppSettings) async throws -> TTSResult {
         recordedSettings.append(settings)
+        recordedDialogues.append(dialogues)
         var wavData = Data(repeating: 0, count: 44)
         wavData.append(Data(repeating: 1, count: 4_800))
         let credentialLabel = settings.activeTTSCredentialSets.first?.label ?? ""

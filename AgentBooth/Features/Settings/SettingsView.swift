@@ -112,6 +112,7 @@ struct SettingsView: View {
     /// カスタム CLI 引数の編集バッファ（1 行 1 引数）。draftSettings とは非同期に管理し、空行は保存時に除外。
     @State private var customArgsText: String = ""
     @State private var customModelArgsText: String = ""
+    @State private var settingsSaveTask: Task<Void, Never>?
     @ObservedObject private var ytStore = LiveAppServiceFactory.sharedYouTubeMusicStore
     @ObservedObject private var spotifyStore = LiveAppServiceFactory.sharedSpotifyStore
 
@@ -155,7 +156,7 @@ struct SettingsView: View {
             }
         }
         .onChange(of: draftSettings) {
-            saveSettings()
+            scheduleSettingsSave()
         }
         .onChange(of: customArgsText) {
             draftSettings.customCLIArguments = customArgsText
@@ -166,6 +167,10 @@ struct SettingsView: View {
             draftSettings.customCLIModelArguments = customModelArgsText
                 .components(separatedBy: "\n")
                 .filter { !$0.isEmpty }
+        }
+        .onDisappear {
+            settingsSaveTask?.cancel()
+            saveSettings()
         }
     }
 
@@ -924,6 +929,7 @@ struct SettingsView: View {
     }
 
     private func reloadSettings() {
+        settingsSaveTask?.cancel()
         draftSettings = settingsStore.currentSettings
         customArgsText = draftSettings.customCLIArguments.joined(separator: "\n")
         customModelArgsText = draftSettings.customCLIModelArguments.joined(separator: "\n")
@@ -937,6 +943,21 @@ struct SettingsView: View {
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func scheduleSettingsSave() {
+        settingsSaveTask?.cancel()
+        settingsSaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 500_000_000)
+                try Task.checkCancellation()
+                saveSettings()
+            } catch is CancellationError {
+                return
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

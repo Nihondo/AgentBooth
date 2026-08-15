@@ -45,7 +45,9 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
         try await navigatePlaybackWebView(to: SpotifyWebViewStore.libraryURL)
         let items = try await fetchSidebarPlaylistsWithScroll()
         let filteredItems = items.filter { !$0.title.isEmpty && !$0.href.isEmpty }
+        #if DEBUG
         print("🎵 [Spotify] fetched playlists:", filteredItems.count)
+        #endif
         playlistByName = Dictionary(uniqueKeysWithValues: filteredItems.map { ($0.title, $0) })
         return filteredItems.map(\.title)
     }
@@ -61,7 +63,9 @@ final class SpotifyMusicService: MusicService, @unchecked Sendable {
             script: SpotifyDOMScripts.fetchPlaylistTracks(playlistName: playlist.title),
             webView: store.playbackWebView
         )
+        #if DEBUG
         print("🎵 [Spotify] fetched track rows:", items.count)
+        #endif
         currentPlaylist = playlist
         return items.compactMap { $0.toTrackInfo(playlistName: playlistName) }
     }

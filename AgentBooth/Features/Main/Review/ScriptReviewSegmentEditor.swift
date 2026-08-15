@@ -33,6 +33,19 @@ struct ScriptReviewSegmentEditor: View {
                 guard let newValue, newValue.segmentID == segment.id else { return }
                 focusedTarget = newValue.target
             }
+            .alert("この発話を試聴しますか？", isPresented: linePreviewConfirmationBinding) {
+                Button("キャンセル", role: .cancel) {
+                    viewModel.cancelPendingLinePreviewConfirmation()
+                }
+                Button("試聴する") {
+                    viewModel.confirmLinePreview(skipFutureConfirmations: false)
+                }
+                Button("試聴する（以後確認しない）") {
+                    viewModel.confirmLinePreview(skipFutureConfirmations: true)
+                }
+            } message: {
+                Text("Gemini TTS API を1回消費します。")
+            }
         } else {
             ContentUnavailableView(
                 "セグメントが見つかりません",
@@ -111,23 +124,23 @@ struct ScriptReviewSegmentEditor: View {
             VStack(spacing: 0) {
                 ForEach(Array(segment.lines.enumerated()), id: \.element.id) { index, line in
                     DialogueLineRow(
-                        segmentID: segment.id,
                         line: line,
                         seedToken: viewModel.seedToken(for: line.id),
-                        canMoveUp: index > 0,
-                        canMoveDown: index < segment.lines.count - 1,
                         canDelete: segment.lines.count > 1,
+                        previewState: viewModel.linePreviewStates[line.id] ?? .idle,
+                        canPreview: canPreview(line: line),
+                        previewHelpText: previewHelpText(line: line),
                         onCommitText: { newValue in
                             viewModel.updateLineText(segmentID: segment.id, lineID: line.id, text: newValue)
                         },
                         onSelectSpeaker: { speaker in
                             viewModel.setSpeaker(speaker, of: line.id, in: segment.id)
                         },
-                        onMoveUp: {
-                            viewModel.moveLine(line.id, in: segment.id, offset: -1)
+                        onPreview: {
+                            viewModel.requestLinePreview(line.id, in: segment.id)
                         },
-                        onMoveDown: {
-                            viewModel.moveLine(line.id, in: segment.id, offset: 1)
+                        onStopPreview: {
+                            viewModel.stopSegmentPreview()
                         },
                         onDelete: {
                             viewModel.removeLine(line.id, in: segment.id)
@@ -159,6 +172,32 @@ struct ScriptReviewSegmentEditor: View {
                 }
             }
         }
+    }
+
+    private var linePreviewConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.pendingLinePreviewConfirmation != nil },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.cancelPendingLinePreviewConfirmation()
+                }
+            }
+        )
+    }
+
+    private func canPreview(line: ReviewLineDraft) -> Bool {
+        viewModel.canPreviewSegments
+            && !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func previewHelpText(line: ReviewLineDraft) -> String {
+        if line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return String(localized: "発話テキストを入力してください")
+        }
+        if !viewModel.canPreviewSegments {
+            return String(localized: "有効な TTS 資格情報がありません")
+        }
+        return String(localized: "この発話だけを試聴します（TTS API を1回消費します）")
     }
 
     // MARK: - TTS 入力プレビュー / 発音辞書クイック登録

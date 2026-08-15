@@ -6,6 +6,6 @@ DerivedData/
 *.xcuserstate
 *.xcodeproj/project.xcworkspace/xcuserdata/
 xcuserdata/
-default.profraw
+*.profraw
 .DS_Store
 DevelopmentTeam.local.xcconfig

@@ -224,7 +224,7 @@ Select in **Music Playback** → **Script Generation Mode**.
 When using **Pre-generate** mode:
 1. Press **Play** — all scripts are generated sequentially (progress shown in the status bar)
 2. A review window opens showing every segment with its dialogue, TTS scene direction, and voice assignments. It's a normal window, so you can resize or maximize it, and closing it (⌘W) does not lose your edits or stop the show — reopen it from the "Open review" link on the main window or the Window menu.
-3. Edit any dialogue text or TTS scene direction as needed — add, delete, reorder (drag or the ↑/↓ buttons), or switch the speaker of any dialogue line, and undo any of these changes with **Undo** (⌥⌘Z)
+3. Edit any dialogue text or TTS scene direction as needed — add or delete lines, reorder them by dragging the handle, or switch speakers. Use a row's ▶︎ button to preview only that line (one TTS API call unless that line is unchanged since its last preview), and undo structural changes with **Undo** (⌥⌘Z)
 4. Press ⌘F to search and replace text across every segment at once
 5. Expand **TTS Input** on a segment to see exactly what will be sent to TTS, and press **Preview** to hear that segment before committing (uses one TTS API call unless the segment is unchanged since the last preview)
 6. Press **Approve and Play** to start playback, or **Cancel (Stop Show)** to discard and stop
