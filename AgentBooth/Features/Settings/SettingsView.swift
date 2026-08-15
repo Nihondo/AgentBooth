@@ -387,9 +387,27 @@ struct SettingsView: View {
         let effectiveEntries = PronunciationDictionaryResolver.resolve(settings: draftSettings)
 
         return VStack(alignment: .leading, spacing: 16) {
-            Text("固有名詞の読み方を TTS プロンプトにのみ伝えます。台本本文（文字表記）は変更されません。同じ表記が両方に登録されている場合は「この番組」側が優先されます。")
+            Text("固有名詞の読み方を TTS 入力にのみ適用します。画面上および保存済みの台本本文は変更されません。同じ表記が両方に登録されている場合は「この番組」側が優先されます。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            settingsGroup("TTS への適用") {
+                settingsRow("適用方法") {
+                    Picker("適用方法", selection: $draftSettings.directionSettings.pronunciationApplicationMode) {
+                        ForEach(PronunciationApplicationMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 240)
+                }
+
+                settingsRow("動作") {
+                    Text(pronunciationModeDescription(draftSettings.directionSettings.pronunciationApplicationMode))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             settingsGroup("共通（全番組）") {
                 PronunciationDictionaryEditor(
@@ -419,6 +437,15 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func pronunciationModeDescription(_ mode: PronunciationApplicationMode) -> String {
+        switch mode {
+        case .instruction:
+            return String(localized: "台本の表記を保ち、発音ルールを指示として TTS へ追加します。")
+        case .replaceTranscript:
+            return String(localized: "TTS へ渡す台詞だけ、辞書の表記を読みに置換します。")
         }
     }
 

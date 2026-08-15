@@ -69,6 +69,7 @@ struct ReviewSegmentDraft: Identifiable, Equatable, Sendable {
     var sceneDirection: String
     var lines: [ReviewLineDraft]
     var pronunciationEntries: [PronunciationEntry]
+    let pronunciationApplicationMode: PronunciationApplicationMode
 
     init(item: ReviewScriptItem) {
         self.id = UUID()
@@ -80,6 +81,7 @@ struct ReviewSegmentDraft: Identifiable, Equatable, Sendable {
         self.sceneDirection = item.sceneDirection
         self.lines = item.script.dialogues.map { ReviewLineDraft(dialogue: $0) }
         self.pronunciationEntries = item.pronunciationEntries
+        self.pronunciationApplicationMode = item.pronunciationApplicationMode
     }
 
     /// 承認時に呼び出し元 index を割り当てて `ReviewScriptItem` へ変換する。
@@ -103,6 +105,7 @@ struct ReviewSegmentDraft: Identifiable, Equatable, Sendable {
             script: updatedScript,
             sceneDirection: sceneDirection,
             pronunciationEntries: pronunciationEntries,
+            pronunciationApplicationMode: pronunciationApplicationMode,
             maleVoiceName: maleVoiceName,
             femaleVoiceName: femaleVoiceName
         )

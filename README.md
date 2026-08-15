@@ -233,7 +233,7 @@ Approved pre-generated scripts are saved locally while playback is in progress. 
 
 ### Pronunciation dictionary
 
-Settings → **Pronunciation Dictionary** lets you correct how TTS reads proper nouns (game titles, artist names, etc.) without changing the script text itself. Each entry maps a piece of text to how it should be read; entries can be **Common (All Shows)** or **This Show Only** — when the same text is registered in both, the show-specific reading wins. The dictionary only affects the TTS voice, never the script generation prompt, so the transcript you read stays exactly as generated.
+Settings → **Pronunciation Dictionary** lets you correct how TTS reads proper nouns (game titles, artist names, etc.) without changing the script shown or saved by AgentBooth. Each entry maps a piece of text to how it should be read; entries can be **Common (All Shows)** or **This Show Only** — when the same text is registered in both, the show-specific reading wins. For each show, **Apply as pronunciation instructions** (the default) keeps the original wording and adds pronunciation rules, while **Replace script text with readings** replaces matching text only in the input sent to TTS. The TTS Input preview shows the exact result. The dictionary never affects the script generation prompt.
 
 ---
 

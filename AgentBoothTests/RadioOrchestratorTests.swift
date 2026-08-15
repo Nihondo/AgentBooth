@@ -821,6 +821,7 @@ final class RadioOrchestratorTests: XCTestCase {
         var settings = makeFastPreGenerateSettings()
         settings.globalPronunciationEntries = [PronunciationEntry(source: "共通語", reading: "きょうつうご")]
         settings.directionSettings.pronunciationEntries = [PronunciationEntry(source: "番組語", reading: "ばんぐみご")]
+        settings.directionSettings.pronunciationApplicationMode = .replaceTranscript
 
         let orchestrator = makeOrchestrator(
             settings: settings,
@@ -841,6 +842,7 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertEqual(Set(reviewItems.map(\.segmentKey)), ["opening", "closing"])
         for item in reviewItems {
             XCTAssertEqual(Set(item.pronunciationEntries.map(\.source)), ["共通語", "番組語"])
+            XCTAssertEqual(item.pronunciationApplicationMode, .replaceTranscript)
         }
 
         await orchestrator.approveScripts(reviewItems)
@@ -851,6 +853,7 @@ final class RadioOrchestratorTests: XCTestCase {
         let recordedSettings = await ttsService.recordedSettings
         for recorded in recordedSettings {
             XCTAssertEqual(Set(recorded.directionSettings.pronunciationEntries.map(\.source)), ["共通語", "番組語"])
+            XCTAssertEqual(recorded.directionSettings.pronunciationApplicationMode, .replaceTranscript)
             XCTAssertTrue(recorded.globalPronunciationEntries.isEmpty, "二重適用防止のため、解決済み辞書はプロフィール枠へ格納しグローバル枠は空にする")
         }
     }
@@ -918,6 +921,7 @@ final class RadioOrchestratorTests: XCTestCase {
 
         var savedNarrationSettings = makeFastPreGenerateSettings().strippingSecrets()
         savedNarrationSettings.globalPronunciationEntries = [PronunciationEntry(source: "旧語", reading: "きゅうご")]
+        savedNarrationSettings.directionSettings.pronunciationApplicationMode = .instruction
         let openingScript = RadioScript(
             segmentType: "opening",
             dialogues: FakeScriptGenerationService.sampleDialogues(),
@@ -945,6 +949,7 @@ final class RadioOrchestratorTests: XCTestCase {
 
         var currentSettings = makeFastPreGenerateSettings()
         currentSettings.globalPronunciationEntries = [PronunciationEntry(source: "新語", reading: "しんご")]
+        currentSettings.directionSettings.pronunciationApplicationMode = .replaceTranscript
 
         let orchestrator = makeOrchestrator(
             settings: currentSettings,
@@ -970,6 +975,7 @@ final class RadioOrchestratorTests: XCTestCase {
         let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
         for item in reviewItems {
             XCTAssertEqual(item.pronunciationEntries.map(\.source), ["新語"], "復元時は保存値ではなく現在の辞書が適用される")
+            XCTAssertEqual(item.pronunciationApplicationMode, .replaceTranscript, "復元時は現在の適用方法が反映される")
         }
     }
 

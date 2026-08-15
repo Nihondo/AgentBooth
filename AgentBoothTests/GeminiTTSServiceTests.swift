@@ -128,6 +128,34 @@ final class GeminiTTSServiceTests: XCTestCase {
         _ = try await service.synthesize(dialogues: dialogues, settings: settings)
     }
 
+    func testSynthesizeReplacesTranscriptWhenPronunciationReplacementIsEnabled() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        var settings = makeSettings(
+            sceneDirection: "静かに話す",
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")]
+        )
+        settings.globalPronunciationEntries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ")]
+        settings.directionSettings.pronunciationApplicationMode = .replaceTranscript
+        let dialogues = [DialogueLine(speaker: "male", text: "女神転生を紹介します")]
+
+        MockURLProtocol.requestHandler = { request in
+            let requestBody = try XCTUnwrap(Self.extractBody(from: request))
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: requestBody) as? [String: Any])
+            let contents = try XCTUnwrap(payload["contents"] as? [[String: Any]])
+            let firstContent = try XCTUnwrap(contents.first)
+            let parts = try XCTUnwrap(firstContent["parts"] as? [[String: Any]])
+            let firstPart = try XCTUnwrap(parts.first)
+            let text = try XCTUnwrap(firstPart["text"] as? String)
+
+            XCTAssertEqual(text, "Direction:\n静かに話す\n\nMale: メガミテンセイを紹介します")
+            XCTAssertFalse(text.contains("Pronunciation dictionary"))
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
     func testSynthesizeMergesGlobalAndProfilePronunciationDictionaries() async throws {
         let session = makeSession()
         let service = GeminiTTSService(session: session)

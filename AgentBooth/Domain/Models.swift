@@ -339,6 +339,25 @@ enum TimeBand: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// 発音辞書を TTS 入力へ適用する方法。
+enum PronunciationApplicationMode: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
+    /// 原表記を維持し、発音ルールを指示ブロックとして TTS へ追加する。
+    case instruction
+    /// TTS へ渡すトランスクリプト内の原表記を読みへ置換する。
+    case replaceTranscript
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .instruction:
+            return String(localized: "発音指示として追加")
+        case .replaceTranscript:
+            return String(localized: "台本表記を読みへ置換")
+        }
+    }
+}
+
 /// シーン・話し方などのディレクション設定。
 struct DirectionSettings: Codable, Equatable, Sendable {
     /// TTS 向け演技指示（声のトーン・話し方）。
@@ -347,23 +366,27 @@ struct DirectionSettings: Codable, Equatable, Sendable {
     var scriptDirection: String = ""
     var timeBasedPresets: [TimeBand: String] = [:]
     /// この番組固有の発音辞書。`AppSettings.globalPronunciationEntries`（全番組共通）とマージされ、
-    /// 衝突時はこちらが優先される。TTS プロンプトにのみ作用し、台本生成プロンプトには渡さない。
+    /// 衝突時はこちらが優先される。TTS 入力にのみ作用し、台本生成プロンプトには渡さない。
     var pronunciationEntries: [PronunciationEntry] = []
+    /// この番組で発音辞書を TTS 入力へ適用する方法。
+    var pronunciationApplicationMode: PronunciationApplicationMode = .instruction
 
     enum CodingKeys: String, CodingKey {
-        case sceneDirection, scriptDirection, timeBasedPresets, pronunciationEntries
+        case sceneDirection, scriptDirection, timeBasedPresets, pronunciationEntries, pronunciationApplicationMode
     }
 
     init(
         sceneDirection: String = "",
         scriptDirection: String = "",
         timeBasedPresets: [TimeBand: String] = [:],
-        pronunciationEntries: [PronunciationEntry] = []
+        pronunciationEntries: [PronunciationEntry] = [],
+        pronunciationApplicationMode: PronunciationApplicationMode = .instruction
     ) {
         self.sceneDirection = sceneDirection
         self.scriptDirection = scriptDirection
         self.timeBasedPresets = timeBasedPresets
         self.pronunciationEntries = pronunciationEntries
+        self.pronunciationApplicationMode = pronunciationApplicationMode
     }
 
     /// 旧バージョンの設定JSONに新フィールドがなくても既定値で復元する。
@@ -373,6 +396,10 @@ struct DirectionSettings: Codable, Equatable, Sendable {
         scriptDirection = try c.decodeIfPresent(String.self, forKey: .scriptDirection) ?? ""
         timeBasedPresets = try c.decodeIfPresent([TimeBand: String].self, forKey: .timeBasedPresets) ?? [:]
         pronunciationEntries = try c.decodeIfPresent([PronunciationEntry].self, forKey: .pronunciationEntries) ?? []
+        pronunciationApplicationMode = try c.decodeIfPresent(
+            PronunciationApplicationMode.self,
+            forKey: .pronunciationApplicationMode
+        ) ?? .instruction
     }
 }
 
@@ -597,13 +624,14 @@ extension AppSettings {
         return settings
     }
 
-    /// 保存済み台本セッションのスナップショットへ、現在の実行環境が持つ発音辞書を上書きする。
-    /// 発音辞書は「読み間違いの修正」であり、生成時点の値に固定せず後から直したものを
+    /// 保存済み台本セッションのスナップショットへ、現在の実行環境が持つ発音辞書設定を上書きする。
+    /// 発音辞書と適用方法は「読み間違いの修正」であり、生成時点の値に固定せず後から直したものを
     /// 常に反映したいため、`applyingRuntimeSecrets(from:)` と同様に復元時は現在値で上書きする。
     func applyingCurrentPronunciationDictionary(from source: AppSettings) -> AppSettings {
         var settings = self
         settings.globalPronunciationEntries = source.globalPronunciationEntries
         settings.directionSettings.pronunciationEntries = source.directionSettings.pronunciationEntries
+        settings.directionSettings.pronunciationApplicationMode = source.directionSettings.pronunciationApplicationMode
         return settings
     }
 
@@ -662,8 +690,8 @@ struct RadioState: Equatable, Sendable {
     }
 }
 
-/// 固有名詞の読みを TTS プロンプトにのみ伝える発音辞書の1エントリ。
-/// `PromptBuilder`（台本生成）へは渡さない。台本本文は変更せず、読みだけを補正する。
+/// 固有名詞の読みを TTS 入力にのみ適用する発音辞書の1エントリ。
+/// `PromptBuilder`（台本生成）へは渡さず、画面表示・保存用の台本本文も変更しない。
 struct PronunciationEntry: Identifiable, Codable, Equatable, Sendable {
     var id: UUID = UUID()
     /// 台詞中に現れる表記。
@@ -723,8 +751,10 @@ struct ReviewScriptItem: Identifiable, Equatable, Sendable {
     var script: RadioScript
     /// 発話指示（time-band 合成後の実効値、編集可能）。
     var sceneDirection: String
-    /// 発音辞書の実効値（グローバル＋プロフィールのマージ結果）。TTS プロンプトにのみ作用する。
+    /// 発音辞書の実効値（グローバル＋プロフィールのマージ結果）。TTS 入力にのみ作用する。
     var pronunciationEntries: [PronunciationEntry] = []
+    /// 発音辞書を TTS 入力へ適用する方法。
+    var pronunciationApplicationMode: PronunciationApplicationMode = .instruction
     /// 男性パーソナリティの音声名（表示用・読取専用）。
     let maleVoiceName: String
     /// 女性パーソナリティの音声名（表示用・読取専用）。

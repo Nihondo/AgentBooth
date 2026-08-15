@@ -5,7 +5,8 @@ import Foundation
 /// `GeminiTTSService` と台本レビュー画面の入力プレビューが同じ関数を共有することで、
 /// 「レビュー画面に表示されているもの」と「実際に TTS へ送信されるもの」が常に一致することを保証する。
 ///
-/// 出力順は `Direction:` → `Pronunciation:` → 発話トランスクリプト（`Male:` / `Female:`）。
+/// 指示モードの出力順は `Direction:` → `Pronunciation:` → 発話トランスクリプト（`Male:` / `Female:`）。
+/// 置換モードでは `Pronunciation:` を省略し、トランスクリプト内の該当表記だけを読みへ置換する。
 /// トランスクリプトは常に末尾に置く（モデルは末尾のコンテンツに強く反応するため、既存の挙動を保つ）。
 enum TTSInputComposer {
     static func makeInput(
@@ -13,12 +14,17 @@ enum TTSInputComposer {
         directionSettings: DirectionSettings,
         pronunciationEntries: [PronunciationEntry] = []
     ) -> String {
-        let blocks = [
-            makeDirectionBlock(directionSettings: directionSettings),
-            makePronunciationBlock(entries: pronunciationEntries, appearingIn: dialogues),
-        ].filter { !$0.isEmpty }
+        var blocks = [makeDirectionBlock(directionSettings: directionSettings)]
+        if directionSettings.pronunciationApplicationMode == .instruction {
+            blocks.append(makePronunciationBlock(entries: pronunciationEntries, appearingIn: dialogues))
+        }
+        blocks = blocks.filter { !$0.isEmpty }
 
-        let transcript = makeTranscript(dialogues: dialogues)
+        let transcript = makeTranscript(
+            dialogues: dialogues,
+            pronunciationEntries: pronunciationEntries,
+            applicationMode: directionSettings.pronunciationApplicationMode
+        )
         guard !blocks.isEmpty else {
             return transcript
         }
@@ -58,11 +64,56 @@ enum TTSInputComposer {
         """
     }
 
-    static func makeTranscript(dialogues: [DialogueLine]) -> String {
+    static func makeTranscript(
+        dialogues: [DialogueLine],
+        pronunciationEntries: [PronunciationEntry] = [],
+        applicationMode: PronunciationApplicationMode = .instruction
+    ) -> String {
         dialogues.map { dialogue in
             let speaker = dialogue.speaker == "male" ? "Male" : "Female"
-            return "\(speaker): \(dialogue.text)"
+            let text = applicationMode == .replaceTranscript
+                ? replacePronunciations(in: dialogue.text, entries: pronunciationEntries)
+                : dialogue.text
+            return "\(speaker): \(text)"
         }.joined(separator: "\n")
+    }
+
+    /// 原文を左から1回だけ走査し、同じ位置で複数の表記が一致する場合は最長の表記を採用する。
+    /// 挿入した読みは再走査しないため、辞書エントリ同士による連鎖置換は発生しない。
+    static func replacePronunciations(in text: String, entries: [PronunciationEntry]) -> String {
+        let rules = replacementRules(from: entries)
+        guard !rules.isEmpty else { return text }
+
+        let normalizedText = text.precomposedStringWithCanonicalMapping
+        var result = ""
+        var cursor = normalizedText.startIndex
+
+        while cursor < normalizedText.endIndex {
+            let suffix = normalizedText[cursor...]
+            if let rule = rules.first(where: { suffix.hasPrefix($0.source) }) {
+                result.append(rule.reading)
+                cursor = normalizedText.index(cursor, offsetBy: rule.source.count)
+            } else {
+                let nextIndex = normalizedText.index(after: cursor)
+                result.append(contentsOf: normalizedText[cursor..<nextIndex])
+                cursor = nextIndex
+            }
+        }
+        return result
+    }
+
+    private static func replacementRules(from entries: [PronunciationEntry]) -> [(source: String, reading: String)] {
+        PronunciationDictionaryResolver.merge(global: entries, profile: [])
+            .map {
+                (
+                    source: PronunciationDictionaryResolver.normalizedSource($0.source),
+                    reading: $0.reading.trimmingCharacters(in: .whitespacesAndNewlines)
+                        .precomposedStringWithCanonicalMapping
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.source.count > rhs.source.count
+            }
     }
 
     /// 指定エントリの `source` が、いずれかの台詞テキストに実際に出現するか。

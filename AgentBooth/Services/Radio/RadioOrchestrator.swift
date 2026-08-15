@@ -1301,6 +1301,7 @@ actor RadioOrchestrator {
                 script: segment.script,
                 sceneDirection: segment.narrationSettings.directionSettings.sceneDirection,
                 pronunciationEntries: PronunciationDictionaryResolver.resolve(settings: segment.narrationSettings),
+                pronunciationApplicationMode: segment.narrationSettings.directionSettings.pronunciationApplicationMode,
                 maleVoiceName: segment.narrationSettings.voiceSettings.maleVoiceName,
                 femaleVoiceName: segment.narrationSettings.voiceSettings.femaleVoiceName
             )
@@ -1338,6 +1339,7 @@ actor RadioOrchestrator {
             // レビューで確認した内容と実際に TTS へ渡る内容がずれる（sceneDirection の time-band
             // 合成値の書き戻しと同じ理由）。
             preGeneratedSegments[key]?.narrationSettings.directionSettings.pronunciationEntries = edited.pronunciationEntries
+            preGeneratedSegments[key]?.narrationSettings.directionSettings.pronunciationApplicationMode = edited.pronunciationApplicationMode
             preGeneratedSegments[key]?.narrationSettings.globalPronunciationEntries = []
         }
     }

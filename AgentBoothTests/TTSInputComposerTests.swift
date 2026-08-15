@@ -69,6 +69,77 @@ final class TTSInputComposerTests: XCTestCase {
         XCTAssertFalse(result.contains("存在しない語"))
     }
 
+    func testReplacementModeReplacesEveryOccurrenceAndKeepsDirection() {
+        let dialogues = [DialogueLine(speaker: "male", text: "女神転生から女神転生へ")]
+        let directionSettings = DirectionSettings(
+            sceneDirection: "静かに話す",
+            pronunciationApplicationMode: .replaceTranscript
+        )
+        let entries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ")]
+
+        let result = TTSInputComposer.makeInput(
+            dialogues: dialogues,
+            directionSettings: directionSettings,
+            pronunciationEntries: entries
+        )
+
+        XCTAssertEqual(result, "Direction:\n静かに話す\n\nMale: メガミテンセイからメガミテンセイへ")
+        XCTAssertFalse(result.contains("Pronunciation dictionary"))
+    }
+
+    func testReplacementModeUsesLongestMatchAtSamePosition() {
+        let entries = [
+            PronunciationEntry(source: "女神", reading: "めがみ"),
+            PronunciationEntry(source: "女神転生", reading: "メガテン"),
+        ]
+
+        let result = TTSInputComposer.replacePronunciations(in: "女神転生", entries: entries)
+
+        XCTAssertEqual(result, "メガテン")
+    }
+
+    func testReplacementModeDoesNotRecursivelyReplaceInsertedReading() {
+        let entries = [
+            PronunciationEntry(source: "A", reading: "B"),
+            PronunciationEntry(source: "B", reading: "C"),
+        ]
+
+        let result = TTSInputComposer.replacePronunciations(in: "A", entries: entries)
+
+        XCTAssertEqual(result, "B")
+    }
+
+    func testReplacementModeUsesLastDuplicateEntry() {
+        let entries = [
+            PronunciationEntry(source: "Ys", reading: "ワイエス"),
+            PronunciationEntry(source: "Ys", reading: "イース"),
+        ]
+
+        let result = TTSInputComposer.replacePronunciations(in: "Ys", entries: entries)
+
+        XCTAssertEqual(result, "イース")
+    }
+
+    func testReplacementModeMatchesCanonicallyEquivalentText() {
+        let entries = [PronunciationEntry(source: "Café", reading: "カフェ")]
+
+        let result = TTSInputComposer.replacePronunciations(in: "Cafe\u{301}です", entries: entries)
+
+        XCTAssertEqual(result, "カフェです")
+    }
+
+    func testReplacementModeIgnoresDisabledAndEmptyEntries() {
+        let entries = [
+            PronunciationEntry(source: "女神転生", reading: "メガテン", isEnabled: false),
+            PronunciationEntry(source: "", reading: "から"),
+            PronunciationEntry(source: "女神転生", reading: ""),
+        ]
+
+        let result = TTSInputComposer.replacePronunciations(in: "女神転生", entries: entries)
+
+        XCTAssertEqual(result, "女神転生")
+    }
+
     func testMakeInputExcludesDisabledEntries() {
         let entries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ", isEnabled: false)]
         let result = TTSInputComposer.makeInput(dialogues: dialogues, directionSettings: DirectionSettings(), pronunciationEntries: entries)

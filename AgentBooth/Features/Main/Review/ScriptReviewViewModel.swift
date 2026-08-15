@@ -330,7 +330,10 @@ final class ScriptReviewViewModel: ObservableObject {
         guard let segment = segment(withID: segmentID) else { return "" }
         return TTSInputComposer.makeInput(
             dialogues: segment.dialogueLines,
-            directionSettings: DirectionSettings(sceneDirection: segment.sceneDirection),
+            directionSettings: DirectionSettings(
+                sceneDirection: segment.sceneDirection,
+                pronunciationApplicationMode: segment.pronunciationApplicationMode
+            ),
             pronunciationEntries: segment.pronunciationEntries
         )
     }
@@ -485,6 +488,7 @@ final class ScriptReviewViewModel: ObservableObject {
         var narrationSettings = settingsStore.currentSettings
         narrationSettings.directionSettings.sceneDirection = segment.sceneDirection
         narrationSettings.directionSettings.pronunciationEntries = segment.pronunciationEntries
+        narrationSettings.directionSettings.pronunciationApplicationMode = segment.pronunciationApplicationMode
         narrationSettings.globalPronunciationEntries = []
         let contentHash = previewContentHash(dialogues: dialogues, segment: segment)
 
@@ -535,6 +539,7 @@ final class ScriptReviewViewModel: ObservableObject {
     private func previewContentHash(dialogues: [DialogueLine], segment: ReviewSegmentDraft) -> Int {
         var hasher = Hasher()
         hasher.combine(segment.sceneDirection)
+        hasher.combine(segment.pronunciationApplicationMode)
         for dialogue in dialogues {
             hasher.combine(dialogue.speaker)
             hasher.combine(dialogue.text)

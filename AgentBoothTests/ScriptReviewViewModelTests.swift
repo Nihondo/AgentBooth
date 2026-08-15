@@ -364,8 +364,11 @@ final class ScriptReviewViewModelTests: XCTestCase {
     }
 
     func testConfirmLinePreviewSynthesizesOnlySelectedLine() async throws {
+        var item = makeItem(segmentKey: "opening", label: "オープニング")
+        item.pronunciationEntries = [PronunciationEntry(source: "よろしく", reading: "ヨロシク")]
+        item.pronunciationApplicationMode = .replaceTranscript
         let (viewModel, ttsService, audioService) = makeViewModelWithFakes(
-            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            items: [item],
             isTestMode: false
         )
         let segment = viewModel.segments[0]
@@ -378,8 +381,17 @@ final class ScriptReviewViewModelTests: XCTestCase {
         try await waitUntil { viewModel.linePreviewStates[selectedLine.id] == .ready }
 
         let recordedDialogues = await ttsService.recordedDialogues
+        let recordedSettings = await ttsService.recordedSettings
         let playCount = await audioService.playCount
         XCTAssertEqual(recordedDialogues, [[selectedLine.asDialogueLine]])
+        XCTAssertEqual(recordedSettings.first?.directionSettings.pronunciationApplicationMode, .replaceTranscript)
+        let input = TTSInputComposer.makeInput(
+            dialogues: try XCTUnwrap(recordedDialogues.first),
+            directionSettings: try XCTUnwrap(recordedSettings.first?.directionSettings),
+            pronunciationEntries: try XCTUnwrap(recordedSettings.first?.directionSettings.pronunciationEntries)
+        )
+        XCTAssertTrue(input.contains("Female: ヨロシクお願いします"))
+        XCTAssertFalse(input.contains("Pronunciation dictionary"))
         XCTAssertEqual(playCount, 1)
     }
 
@@ -537,6 +549,20 @@ final class ScriptReviewViewModelTests: XCTestCase {
         viewModel.updateLineText(segmentID: segment.id, lineID: segment.lines[0].id, text: "書き換え後のテキスト")
 
         XCTAssertTrue(viewModel.ttsInputPreview(for: segment.id).contains("書き換え後のテキスト"))
+    }
+
+    func testTTSInputPreviewUsesPronunciationReplacementMode() {
+        var item = makeItem(segmentKey: "opening", label: "オープニング")
+        item.pronunciationEntries = [PronunciationEntry(source: "こんばんは", reading: "コンバンワ")]
+        item.pronunciationApplicationMode = .replaceTranscript
+        let viewModel = makeViewModel(items: [item])
+        let segment = viewModel.segments[0]
+
+        let preview = viewModel.ttsInputPreview(for: segment.id)
+
+        XCTAssertTrue(preview.contains("Male: コンバンワ、今夜も始まりました"))
+        XCTAssertFalse(preview.contains("Pronunciation dictionary"))
+        XCTAssertTrue(segment.lines[0].text.contains("こんばんは"), "レビュー画面の原文は置換しない")
     }
 
     func testRegisterPronunciationPersistsToProfileScopeAndUpdatesPreview() throws {
