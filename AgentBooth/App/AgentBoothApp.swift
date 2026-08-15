@@ -4,6 +4,7 @@ import SwiftUI
 enum WindowIdentifier {
     static let main = "main"
     static let settings = "settings"
+    static let scriptReview = "scriptReview"
 }
 
 /// アプリケーションデリゲート。メインウィンドウを閉じたらアプリを終了する。
@@ -67,6 +68,15 @@ private struct AgentBoothCommands: Commands {
         }
 
         CommandGroup(after: .newItem) {
+            Divider()
+            // 台本事前生成のレビューウィンドウを開く（レビュー対象があるときのみ有効）
+            Button {
+                openWindow(id: WindowIdentifier.scriptReview)
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Label("台本レビューを開く", systemImage: "doc.text.magnifyingglass")
+            }
+            .disabled(viewModel.reviewViewModel == nil)
             Divider()
             // ウィンドウの再生/一時停止ボタンと同一の条件・動作
             Button {
@@ -171,5 +181,23 @@ struct AgentBoothApp: App {
         }
         .defaultSize(width: 920, height: 680)
         .windowResizability(.contentSize)
+
+        Window("台本レビュー", id: WindowIdentifier.scriptReview) {
+            if let reviewViewModel = mainViewModel.reviewViewModel {
+                ScriptReviewView(
+                    viewModel: reviewViewModel,
+                    onApprove: { mainViewModel.approveScriptReview() },
+                    onCancel: { mainViewModel.cancelScriptReview() }
+                )
+            } else {
+                ContentUnavailableView(
+                    "レビュー対象の台本がありません",
+                    systemImage: "doc.text.magnifyingglass"
+                )
+                .frame(minWidth: 900, minHeight: 640)
+            }
+        }
+        .defaultSize(width: 1120, height: 760)
+        .windowResizability(.contentMinSize)
     }
 }

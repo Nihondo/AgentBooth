@@ -14,9 +14,12 @@
 		10F5AD8C23DB9371013CE4DD /* YouTubeMusicBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */; };
 		1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */; };
 		159EE53DC9F4EEB114081297 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 923FC1F620B94EA9A239D1F8 /* InfoPlist.strings */; };
+		178D06F11DA04BD699AE74CD /* ScriptReviewViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F6CE64F857317CF7D69D76 /* ScriptReviewViewModelTests.swift */; };
 		1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */; };
 		1BEA39718509A107655F29FE /* YouTubeMusicPlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */; };
+		1CBC4D28E763117AE9D351D6 /* ReviewSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8CCF4DB2AED62F8921C18DB /* ReviewSearchEngine.swift */; };
 		1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99C0CE2E53E9B0F7EAE4EDE /* TestModeScriptGenerationService.swift */; };
+		2380CE427BFCE080C1102215 /* ReviewSearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 245F0A196203C693EC3B6B30 /* ReviewSearchBar.swift */; };
 		2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3695314D2707876818736936 /* agentbooth.icon */; };
 		24B146DB329FC4B4AFB410F6 /* TTSCredentialSetsEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB05E2F5F6192C615B028634 /* TTSCredentialSetsEditor.swift */; };
 		28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */; };
@@ -30,22 +33,28 @@
 		36886C24FB87BE1FD7B36049 /* SystemBedAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DC87C1D86CB6DF936207C1 /* SystemBedAudioPlaybackService.swift */; };
 		3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */; };
 		3EFE8DA04411390A5860523A /* AgentBoothApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495016F14804CDB1C59A40E /* AgentBoothApp.swift */; };
+		44BEEB1D46D77AA4AD987C94 /* ScriptReviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE4511E53995D4DF9908C82A /* ScriptReviewViewModel.swift */; };
 		4522F62CB093FF281D651C07 /* AppServiceContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */; };
 		4692DE91A11C64755EEF0A3A /* AppleScriptExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0034334CB53C3E7CE0213C8 /* AppleScriptExecutor.swift */; };
 		483EF38C595DEDECE64A292A /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */; };
+		4B80E86DCA103D45EF947E99 /* ScriptReviewSegmentEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE7D7EA0FBFB3DB19B160C80 /* ScriptReviewSegmentEditor.swift */; };
 		4DE0C98DB4D7BE5B439462BB /* TimeBasedDirectionResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72B5DFC2A2ADC86E8A3717B7 /* TimeBasedDirectionResolverTests.swift */; };
+		4F6AE59EB5E3292A176BB4D5 /* PronunciationDictionaryEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8F500CE6A2B88AD668B6723 /* PronunciationDictionaryEditor.swift */; };
 		53B398DE31C40A8892A018FB /* SpotifyDOMModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2139F826E9784613C9F829D7 /* SpotifyDOMModelsTests.swift */; };
 		57918480D551301E9AC01429 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */; };
 		60F641F5B882326551B806D8 /* SpotifyDOMScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429B24A26CC85B5FE930CC56 /* SpotifyDOMScripts.swift */; };
 		6265F6EB3A4258876E0719C1 /* UpdateSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */; };
-		65387689F816F95E1E93A0D2 /* ScriptReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E88A730C8F5A3297DA9A087 /* ScriptReviewView.swift */; };
 		67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */; };
 		6A03426E5CBD3D577F1B2A7E /* YouTubeMusicLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0006EEE51C46F3CE4BB4DB9 /* YouTubeMusicLoginViewModel.swift */; };
 		6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */; };
+		6D5CDEA99E3B1C55D5711F3C /* TTSInputComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96EC8F3AF3B985ED80660D60 /* TTSInputComposerTests.swift */; };
 		7B9878514411E69C830359AB /* PreGeneratedScriptStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EFD152C7EAB48D8175EB18 /* PreGeneratedScriptStore.swift */; };
 		7D84E7A8CF330A6F91EA20AB /* PromptBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3581E582CF14B056EA04E774 /* PromptBuilder.swift */; };
+		80DB291BAE6E5FAC1ACE4F0F /* DialogueLineRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F19292BD6989A8E5E7DC6D1 /* DialogueLineRow.swift */; };
+		8311FFC9CCB0E69CFD4CA88C /* PronunciationDictionaryResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C0623FF7E6CAEF1BF90F75 /* PronunciationDictionaryResolverTests.swift */; };
 		8A6038B407586D01EF43AF69 /* AppleMusicServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24BDCA94B7E16E800972E0F /* AppleMusicServiceTests.swift */; };
 		8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */; };
+		8E35AB59D4ED3C3BB993BD19 /* TTSInputComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2CFBBED6B0B18EB3B201DE /* TTSInputComposer.swift */; };
 		8FA602632063039B3ABC3639 /* AppUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24461C0D2642ACEB80CF7AB1 /* AppUpdateController.swift */; };
 		905708471A8F991C459FEE98 /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */; };
 		93C17D9F6CBADB0C5048B313 /* SpotifyMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3F43408FD0E46636FFFE94 /* SpotifyMusicService.swift */; };
@@ -60,11 +69,13 @@
 		B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */; };
 		B670E7A19D095C07893A8C12 /* YouTubeMusicScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A725F59DE59B73646C65CC43 /* YouTubeMusicScriptRunner.swift */; };
 		B966B23DE6091F03D321800B /* TimeBasedDirectionResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A39FD0648FD0B0AB8FD77A6C /* TimeBasedDirectionResolver.swift */; };
+		BBE6908D8F2C50C8E9ED466D /* ReviewDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A8FD46842A77E2D859ACCD7 /* ReviewDrafts.swift */; };
 		C2BA66ACF0124BA3C94EA297 /* AppleMusicArtworkFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EF3A71B2437BB5FED77AE05 /* AppleMusicArtworkFetcher.swift */; };
 		C2E203168E6B66F11C887BE9 /* ScriptCommandBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */; };
 		C3C62647B02BF4B636812DA3 /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDB07082B0F31540781BF85 /* AppleMusicService.swift */; };
 		C8252FC427DA51EE920971EA /* TestModeBedAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BFDB827A6B64D37437B055 /* TestModeBedAudioPlaybackService.swift */; };
 		CC726DE4D6A1B58CDA421BDE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A10060D47AD1B4B46BF389 /* AVFoundation.framework */; };
+		CC8CF825700ACE042369071A /* PronunciationDictionaryResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95DA44A7F8BAF791D5CB0E38 /* PronunciationDictionaryResolver.swift */; };
 		CEF08F738F2B68570DFDB571 /* TestModeTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */; };
 		CF0D5E1367928F78F888ACE7 /* TrackListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */; };
 		D1DC639BE636543B5F2105E7 /* GeminiTTSServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */; };
@@ -74,11 +85,14 @@
 		DDD6D76DE783A43D072FC600 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */; };
 		E01A194D757B60EF31AEA51A /* AppSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */; };
 		E0FAE1567D838876CF736668 /* ProcessScriptGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69967660B4C14A8BFACF20F7 /* ProcessScriptGenerationService.swift */; };
+		E3E99D6074A4BC11AE73DC60 /* DraftTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4684DCC572AD06C1260DE717 /* DraftTextEditor.swift */; };
 		E775DC31CAE1490B7FC27BE4 /* AudioAssetPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8BE8633F1BFB94AC77D0A4 /* AudioAssetPicker.swift */; };
 		E79C9EEA74E219FEBB943867 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6660A0E06C3D5BB0B6620C55 /* ContentView.swift */; };
+		EB430328139EC6FE82B312DD /* ScriptReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB5DC470F1D45AD18F25B05 /* ScriptReviewView.swift */; };
 		F37E12CFACEBFF2BB4783BF0 /* RealtimeContextProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649ED37AA4E407B73D0F1C7E /* RealtimeContextProvider.swift */; };
 		F417194D93CF0362E6816279 /* SpotifyBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1805E0CA7CF453148013870 /* SpotifyBrowserView.swift */; };
 		F6AB525CD75A66D466A8B0E6 /* TestModeAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03AA8D4295F6E5709444B93C /* TestModeAudioPlaybackService.swift */; };
+		F8AAD279AECB43CDE6227427 /* ReviewSearchEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97FBDF6CD821454B74348A40 /* ReviewSearchEngineTests.swift */; };
 		FC8D9E4AA5BF1D81F914D33E /* SpotifyBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4091AEFDEC8ED74F20F35BC1 /* SpotifyBrowserWindow.swift */; };
 		FEA15DE2AF1F6243A67D730A /* RealtimeContextProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265A50D323675BA84DFFED68 /* RealtimeContextProviderTests.swift */; };
 /* End PBXBuildFile section */
@@ -97,16 +111,20 @@
 		03AA8D4295F6E5709444B93C /* TestModeAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestModeAudioPlaybackService.swift; sourceTree = "<group>"; };
 		04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModelTests.swift; sourceTree = "<group>"; };
 		0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSService.swift; sourceTree = "<group>"; };
+		0B2CFBBED6B0B18EB3B201DE /* TTSInputComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSInputComposer.swift; sourceTree = "<group>"; };
+		0F19292BD6989A8E5E7DC6D1 /* DialogueLineRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogueLineRow.swift; sourceTree = "<group>"; };
 		0F8BE8633F1BFB94AC77D0A4 /* AudioAssetPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAssetPicker.swift; sourceTree = "<group>"; };
 		0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		104070FBBB93EEAC85364C92 /* AudioAssetPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAssetPickerTests.swift; sourceTree = "<group>"; };
 		14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioPlaybackService.swift; sourceTree = "<group>"; };
+		20F6CE64F857317CF7D69D76 /* ScriptReviewViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReviewViewModelTests.swift; sourceTree = "<group>"; };
 		2139F826E9784613C9F829D7 /* SpotifyDOMModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyDOMModelsTests.swift; sourceTree = "<group>"; };
 		217B8B55154291EFF70A5181 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		24461C0D2642ACEB80CF7AB1 /* AppUpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateController.swift; sourceTree = "<group>"; };
+		245F0A196203C693EC3B6B30 /* ReviewSearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSearchBar.swift; sourceTree = "<group>"; };
 		265A50D323675BA84DFFED68 /* RealtimeContextProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeContextProviderTests.swift; sourceTree = "<group>"; };
 		27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestratorTests.swift; sourceTree = "<group>"; };
-		2E88A730C8F5A3297DA9A087 /* ScriptReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReviewView.swift; sourceTree = "<group>"; };
+		2EB5DC470F1D45AD18F25B05 /* ScriptReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReviewView.swift; sourceTree = "<group>"; };
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
 		3695314D2707876818736936 /* agentbooth.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = agentbooth.icon; sourceTree = "<group>"; };
@@ -116,6 +134,7 @@
 		3EF3A71B2437BB5FED77AE05 /* AppleMusicArtworkFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicArtworkFetcher.swift; sourceTree = "<group>"; };
 		4091AEFDEC8ED74F20F35BC1 /* SpotifyBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyBrowserWindow.swift; sourceTree = "<group>"; };
 		429B24A26CC85B5FE930CC56 /* SpotifyDOMScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyDOMScripts.swift; sourceTree = "<group>"; };
+		4684DCC572AD06C1260DE717 /* DraftTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftTextEditor.swift; sourceTree = "<group>"; };
 		505448C147DCED5EAB760ABA /* YouTubeMusicPlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicPlayerController.swift; sourceTree = "<group>"; };
 		53A10060D47AD1B4B46BF389 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		53C3B84DC9810AA270ECA415 /* YouTubeMusicWebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicWebViewStore.swift; sourceTree = "<group>"; };
@@ -128,6 +147,7 @@
 		65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicAPIFetcher.swift; sourceTree = "<group>"; };
 		6660A0E06C3D5BB0B6620C55 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		69967660B4C14A8BFACF20F7 /* ProcessScriptGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationService.swift; sourceTree = "<group>"; };
+		6A8FD46842A77E2D859ACCD7 /* ReviewDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewDrafts.swift; sourceTree = "<group>"; };
 		6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessScriptGenerationServiceTests.swift; sourceTree = "<group>"; };
 		6E3C230852B2B4EF5DC77156 /* SpotifyWebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyWebViewStore.swift; sourceTree = "<group>"; };
 		6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptCommandBuilderTests.swift; sourceTree = "<group>"; };
@@ -139,6 +159,9 @@
 		8EDB07082B0F31540781BF85 /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
 		90DC87C1D86CB6DF936207C1 /* SystemBedAudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBedAudioPlaybackService.swift; sourceTree = "<group>"; };
 		943AD41DD032953E321C5B2E /* TestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDoubles.swift; sourceTree = "<group>"; };
+		95DA44A7F8BAF791D5CB0E38 /* PronunciationDictionaryResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationDictionaryResolver.swift; sourceTree = "<group>"; };
+		96EC8F3AF3B985ED80660D60 /* TTSInputComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSInputComposerTests.swift; sourceTree = "<group>"; };
+		97FBDF6CD821454B74348A40 /* ReviewSearchEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSearchEngineTests.swift; sourceTree = "<group>"; };
 		99EFD152C7EAB48D8175EB18 /* PreGeneratedScriptStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreGeneratedScriptStore.swift; sourceTree = "<group>"; };
 		9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServiceContainer.swift; sourceTree = "<group>"; };
 		9DBA837DA52D39360545C07F /* ShowProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowProfileStore.swift; sourceTree = "<group>"; };
@@ -155,6 +178,8 @@
 		B8A3EC2F5B06B360F429E4CC /* NowPlayingBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingBar.swift; sourceTree = "<group>"; };
 		C24BDCA94B7E16E800972E0F /* AppleMusicServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicServiceTests.swift; sourceTree = "<group>"; };
 		C2C4A6657B19A76099CE0808 /* SpotifyScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyScriptRunner.swift; sourceTree = "<group>"; };
+		C8CCF4DB2AED62F8921C18DB /* ReviewSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSearchEngine.swift; sourceTree = "<group>"; };
+		D0C0623FF7E6CAEF1BF90F75 /* PronunciationDictionaryResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationDictionaryResolverTests.swift; sourceTree = "<group>"; };
 		D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStore.swift; sourceTree = "<group>"; };
 		D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		D499D54135ECCF1B538D617F /* DevelopmentTeam.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DevelopmentTeam.xcconfig; sourceTree = "<group>"; };
@@ -168,11 +193,14 @@
 		E8950BBEDA233AFFA12AC842 /* AgentBooth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentBooth.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB05E2F5F6192C615B028634 /* TTSCredentialSetsEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSCredentialSetsEditor.swift; sourceTree = "<group>"; };
 		EC957A36F44C6B98396DC947 /* YouTubeMusicBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserView.swift; sourceTree = "<group>"; };
+		EE4511E53995D4DF9908C82A /* ScriptReviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReviewViewModel.swift; sourceTree = "<group>"; };
 		EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListView.swift; sourceTree = "<group>"; };
 		F3266323576B5D4457482566 /* ShowCueSheetLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowCueSheetLogger.swift; sourceTree = "<group>"; };
 		F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiRetryPolicyTests.swift; sourceTree = "<group>"; };
 		F495016F14804CDB1C59A40E /* AgentBoothApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBoothApp.swift; sourceTree = "<group>"; };
 		F7C39922A308CE75BF0D1D5E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		F8F500CE6A2B88AD668B6723 /* PronunciationDictionaryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationDictionaryEditor.swift; sourceTree = "<group>"; };
+		FE7D7EA0FBFB3DB19B160C80 /* ScriptReviewSegmentEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReviewSegmentEditor.swift; sourceTree = "<group>"; };
 		FEA355C20325E27B5D2555F3 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -206,8 +234,23 @@
 			children = (
 				F7C39922A308CE75BF0D1D5E /* Models.swift */,
 				B7702F727F0D28028A7BA9A3 /* Protocols.swift */,
+				6A8FD46842A77E2D859ACCD7 /* ReviewDrafts.swift */,
 			);
 			path = Domain;
+			sourceTree = "<group>";
+		};
+		11F68B225BFBCE7EBBA5A665 /* Review */ = {
+			isa = PBXGroup;
+			children = (
+				0F19292BD6989A8E5E7DC6D1 /* DialogueLineRow.swift */,
+				4684DCC572AD06C1260DE717 /* DraftTextEditor.swift */,
+				245F0A196203C693EC3B6B30 /* ReviewSearchBar.swift */,
+				C8CCF4DB2AED62F8921C18DB /* ReviewSearchEngine.swift */,
+				FE7D7EA0FBFB3DB19B160C80 /* ScriptReviewSegmentEditor.swift */,
+				2EB5DC470F1D45AD18F25B05 /* ScriptReviewView.swift */,
+				EE4511E53995D4DF9908C82A /* ScriptReviewViewModel.swift */,
+			);
+			path = Review;
 			sourceTree = "<group>";
 		};
 		15B5B9AA1D679FBA5E5BEF1E /* Logging */ = {
@@ -291,12 +334,16 @@
 				7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */,
 				9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */,
 				6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */,
+				D0C0623FF7E6CAEF1BF90F75 /* PronunciationDictionaryResolverTests.swift */,
 				27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */,
 				265A50D323675BA84DFFED68 /* RealtimeContextProviderTests.swift */,
+				97FBDF6CD821454B74348A40 /* ReviewSearchEngineTests.swift */,
 				6F5D52E2FA62950A58A1322C /* ScriptCommandBuilderTests.swift */,
+				20F6CE64F857317CF7D69D76 /* ScriptReviewViewModelTests.swift */,
 				2139F826E9784613C9F829D7 /* SpotifyDOMModelsTests.swift */,
 				943AD41DD032953E321C5B2E /* TestDoubles.swift */,
 				72B5DFC2A2ADC86E8A3717B7 /* TimeBasedDirectionResolverTests.swift */,
+				96EC8F3AF3B985ED80660D60 /* TTSInputComposerTests.swift */,
 			);
 			path = AgentBoothTests;
 			sourceTree = "<group>";
@@ -426,8 +473,8 @@
 				6660A0E06C3D5BB0B6620C55 /* ContentView.swift */,
 				3D295064BBE2EC05B0F44A82 /* MainViewModel.swift */,
 				B8A3EC2F5B06B360F429E4CC /* NowPlayingBar.swift */,
-				2E88A730C8F5A3297DA9A087 /* ScriptReviewView.swift */,
 				EF8FF523BCB76DB850B6E7E2 /* TrackListView.swift */,
+				11F68B225BFBCE7EBBA5A665 /* Review */,
 			);
 			path = Main;
 			sourceTree = "<group>";
@@ -435,6 +482,7 @@
 		DB02D37BACB109646CCFC7AB /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				F8F500CE6A2B88AD668B6723 /* PronunciationDictionaryEditor.swift */,
 				0F8CB3678DB8059939D9C8C5 /* SettingsView.swift */,
 				EB05E2F5F6192C615B028634 /* TTSCredentialSetsEditor.swift */,
 				73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */,
@@ -486,7 +534,9 @@
 			isa = PBXGroup;
 			children = (
 				0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */,
+				95DA44A7F8BAF791D5CB0E38 /* PronunciationDictionaryResolver.swift */,
 				5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */,
+				0B2CFBBED6B0B18EB3B201DE /* TTSInputComposer.swift */,
 			);
 			path = TTS;
 			sourceTree = "<group>";
@@ -539,7 +589,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					6E51503FBC971898DEDB9525 = {
 						ProvisioningStyle = Automatic;
@@ -597,10 +647,14 @@
 				B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */,
 				294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */,
 				8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */,
+				8311FFC9CCB0E69CFD4CA88C /* PronunciationDictionaryResolverTests.swift in Sources */,
 				3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */,
 				FEA15DE2AF1F6243A67D730A /* RealtimeContextProviderTests.swift in Sources */,
+				F8AAD279AECB43CDE6227427 /* ReviewSearchEngineTests.swift in Sources */,
 				C2E203168E6B66F11C887BE9 /* ScriptCommandBuilderTests.swift in Sources */,
+				178D06F11DA04BD699AE74CD /* ScriptReviewViewModelTests.swift in Sources */,
 				53B398DE31C40A8892A018FB /* SpotifyDOMModelsTests.swift in Sources */,
+				6D5CDEA99E3B1C55D5711F3C /* TTSInputComposerTests.swift in Sources */,
 				DCE0F83758699C7A9C3CD6E7 /* TestDoubles.swift in Sources */,
 				4DE0C98DB4D7BE5B439462BB /* TimeBasedDirectionResolverTests.swift in Sources */,
 			);
@@ -619,6 +673,8 @@
 				4692DE91A11C64755EEF0A3A /* AppleScriptExecutor.swift in Sources */,
 				E775DC31CAE1490B7FC27BE4 /* AudioAssetPicker.swift in Sources */,
 				E79C9EEA74E219FEBB943867 /* ContentView.swift in Sources */,
+				80DB291BAE6E5FAC1ACE4F0F /* DialogueLineRow.swift in Sources */,
+				E3E99D6074A4BC11AE73DC60 /* DraftTextEditor.swift in Sources */,
 				9792D589885A62488DC945DC /* GeminiTTSService.swift in Sources */,
 				6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */,
 				483EF38C595DEDECE64A292A /* MainViewModel.swift in Sources */,
@@ -627,10 +683,17 @@
 				7B9878514411E69C830359AB /* PreGeneratedScriptStore.swift in Sources */,
 				E0FAE1567D838876CF736668 /* ProcessScriptGenerationService.swift in Sources */,
 				7D84E7A8CF330A6F91EA20AB /* PromptBuilder.swift in Sources */,
+				4F6AE59EB5E3292A176BB4D5 /* PronunciationDictionaryEditor.swift in Sources */,
+				CC8CF825700ACE042369071A /* PronunciationDictionaryResolver.swift in Sources */,
 				317EB41280CA3DC0D5B8EEE7 /* Protocols.swift in Sources */,
 				1B36E1DDDCCC04D2FE2498D5 /* RadioOrchestrator.swift in Sources */,
 				F37E12CFACEBFF2BB4783BF0 /* RealtimeContextProvider.swift in Sources */,
-				65387689F816F95E1E93A0D2 /* ScriptReviewView.swift in Sources */,
+				BBE6908D8F2C50C8E9ED466D /* ReviewDrafts.swift in Sources */,
+				2380CE427BFCE080C1102215 /* ReviewSearchBar.swift in Sources */,
+				1CBC4D28E763117AE9D351D6 /* ReviewSearchEngine.swift in Sources */,
+				4B80E86DCA103D45EF947E99 /* ScriptReviewSegmentEditor.swift in Sources */,
+				EB430328139EC6FE82B312DD /* ScriptReviewView.swift in Sources */,
+				44BEEB1D46D77AA4AD987C94 /* ScriptReviewViewModel.swift in Sources */,
 				DDD6D76DE783A43D072FC600 /* SettingsView.swift in Sources */,
 				096EC3BAAD470BB723A16AB1 /* ShowCueSheetLogger.swift in Sources */,
 				964784E44F5E025027A73B04 /* ShowProfileStore.swift in Sources */,
@@ -646,6 +709,7 @@
 				07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */,
 				36886C24FB87BE1FD7B36049 /* SystemBedAudioPlaybackService.swift in Sources */,
 				24B146DB329FC4B4AFB410F6 /* TTSCredentialSetsEditor.swift in Sources */,
+				8E35AB59D4ED3C3BB993BD19 /* TTSInputComposer.swift in Sources */,
 				F6AB525CD75A66D466A8B0E6 /* TestModeAudioPlaybackService.swift in Sources */,
 				C8252FC427DA51EE920971EA /* TestModeBedAudioPlaybackService.swift in Sources */,
 				1DEB739D9A1F4BB249AED19C /* TestModeScriptGenerationService.swift in Sources */,
@@ -703,6 +767,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -722,6 +787,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -744,6 +810,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 14;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = AgentBooth/Info.plist;
@@ -763,6 +830,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -793,9 +861,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -816,6 +886,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.10;
@@ -826,6 +897,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -856,9 +928,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -872,6 +946,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.10;
@@ -887,6 +962,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 14;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = AgentBooth/Info.plist;

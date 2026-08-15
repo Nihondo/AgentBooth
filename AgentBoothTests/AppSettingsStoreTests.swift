@@ -154,6 +154,63 @@ final class AppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.currentSettings.directionSettings.timeBasedPresets, [:])
     }
 
+    func testPronunciationDictionariesRoundTripAcrossReload() throws {
+        let (defaults, keychainStore, store) = makeStore()
+
+        var settings = AppSettings()
+        settings.globalPronunciationEntries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ")]
+        settings.directionSettings.pronunciationEntries = [PronunciationEntry(source: "Ys", reading: "イース")]
+        try store.saveSettings(settings)
+
+        let reloadedStore = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(reloadedStore.currentSettings.globalPronunciationEntries.map(\.source), ["女神転生"])
+        XCTAssertEqual(reloadedStore.currentSettings.directionSettings.pronunciationEntries.map(\.source), ["Ys"])
+    }
+
+    func testMissingPronunciationDictionaryFieldsFallBackToEmptyArrays() throws {
+        let (defaults, keychainStore, _) = makeStore()
+
+        let legacySettings = AppSettings()
+        var encoded = try JSONEncoder().encode(legacySettings)
+        var json = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        json.removeValue(forKey: "globalPronunciationEntries")
+        var directionSettingsJSON = try XCTUnwrap(json["directionSettings"] as? [String: Any])
+        directionSettingsJSON.removeValue(forKey: "pronunciationEntries")
+        json["directionSettings"] = directionSettingsJSON
+        encoded = try JSONSerialization.data(withJSONObject: json)
+        defaults.set(encoded, forKey: "app_settings")
+
+        let store = AppSettingsStore(userDefaults: defaults, keychainStore: keychainStore)
+        XCTAssertEqual(store.currentSettings.globalPronunciationEntries, [])
+        XCTAssertEqual(store.currentSettings.directionSettings.pronunciationEntries, [])
+    }
+
+    /// グローバル辞書はプロフィール切り替えの影響を受けず、プロフィール固有辞書だけが切り替わる。
+    func testProfileSwitchIsolatesProfilePronunciationDictionaryButKeepsGlobal() throws {
+        let (_, _, store) = makeStore()
+
+        let nightProfileID = try XCTUnwrap(store.currentSettings.activeProfileId)
+        var nightSettings = store.currentSettings
+        nightSettings.globalPronunciationEntries = [PronunciationEntry(source: "共通語", reading: "きょうつうご")]
+        nightSettings.directionSettings.pronunciationEntries = [PronunciationEntry(source: "深夜語", reading: "しんやご")]
+        try store.saveSettings(nightSettings)
+
+        let morningProfile = try store.createProfile(named: "朝の通勤")
+        var morningSettings = store.currentSettings
+        morningSettings.directionSettings.pronunciationEntries = [PronunciationEntry(source: "朝語", reading: "あさご")]
+        try store.saveSettings(morningSettings)
+
+        XCTAssertEqual(store.currentSettings.globalPronunciationEntries.map(\.source), ["共通語"])
+        XCTAssertEqual(store.currentSettings.directionSettings.pronunciationEntries.map(\.source), ["朝語"])
+
+        try store.selectProfile(nightProfileID)
+
+        XCTAssertEqual(store.currentSettings.globalPronunciationEntries.map(\.source), ["共通語"], "グローバル辞書はプロフィール切替の影響を受けない")
+        XCTAssertEqual(store.currentSettings.directionSettings.pronunciationEntries.map(\.source), ["深夜語"])
+
+        _ = morningProfile
+    }
+
     func testLoadLegacyMusicBedFallsBackToEnabled() throws {
         let (defaults, keychainStore, _) = makeStore()
 

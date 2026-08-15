@@ -13,9 +13,11 @@ final class MainViewModel: ObservableObject {
     @Published private(set) var previewTrackListState: TrackListState = .idle
     @Published private(set) var showProfiles: [ShowProfile]
     @Published private(set) var activeProfileId: UUID?
-    /// 事前生成モードのレビュー対象台本。
-    @Published var reviewItems: [ReviewScriptItem] = []
-    /// レビュー sheet の表示フラグ。
+    /// 事前生成モードのレビュー用 ViewModel。ドラフト編集状態はここが所有し、
+    /// `MainViewModel` 自体は打鍵のたびに publish されない（キャレット保護のため）。
+    /// レビューウィンドウを閉じても nil にはならず、編集内容は保持されたまま番組は中断状態を維持する。
+    @Published private(set) var reviewViewModel: ScriptReviewViewModel?
+    /// レビューウィンドウを開くべきかどうかの表示フラグ（`ContentView` が openWindow/dismissWindow のトリガに使う）。
     @Published var isReviewing = false
     /// 保存済み事前生成台本の再利用確認 alert の表示フラグ。
     @Published var isReusePrompting = false
@@ -228,8 +230,14 @@ final class MainViewModel: ObservableObject {
             scriptStore: scriptStore,
             reviewDidBecomeAvailable: { [weak self] items in
                 Task { @MainActor [weak self] in
-                    self?.reviewItems = items
-                    self?.isReviewing = true
+                    guard let self else { return }
+                    self.reviewViewModel = ScriptReviewViewModel(
+                        items: items,
+                        settingsStore: self.settingsStore,
+                        serviceFactory: self.serviceFactory,
+                        isTestMode: testMode
+                    )
+                    self.isReviewing = true
                 }
             },
             reusePromptDidBecomeAvailable: { [weak self] in
@@ -244,6 +252,9 @@ final class MainViewModel: ObservableObject {
                     self?.radioOrchestrator = nil
                     self?.isRecordingSession = false
                     self?.isReusePrompting = false
+                    // レビュー中に Stop ボタン等で番組そのものが停止した場合はレビューも畳む。
+                    self?.isReviewing = false
+                    self?.reviewViewModel = nil
                 }
             }
         }
@@ -263,14 +274,17 @@ final class MainViewModel: ObservableObject {
 
     /// レビュー済みの台本を承認して再生を開始する。
     func approveScriptReview() {
+        guard let reviewViewModel else { return }
+        let items = reviewViewModel.makeApprovedItems()
         isReviewing = false
-        let items = reviewItems
+        self.reviewViewModel = nil
         Task { await radioOrchestrator?.approveScripts(items) }
     }
 
     /// レビューをキャンセルして番組を停止する。
     func cancelScriptReview() {
         isReviewing = false
+        reviewViewModel = nil
         Task { await radioOrchestrator?.cancelReview() }
     }
 

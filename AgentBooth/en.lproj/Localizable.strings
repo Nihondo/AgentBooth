@@ -291,3 +291,97 @@
 "リリースページを開く" = "Open Releases Page";
 "未確認" = "Never";
 "アップデートを確認…" = "Check for Updates…";
+
+/* ContentView (script review) */
+"台本レビュー待ち" = "Waiting for script review";
+"レビューを開く" = "Open Review";
+
+/* AgentBoothApp (script review window/menu) */
+"台本レビューを開く" = "Open Script Review";
+"台本レビュー" = "Script Review";
+"レビュー対象の台本がありません" = "No Script Available for Review";
+
+/* ReviewDrafts */
+"男性" = "Male";
+"女性" = "Female";
+"空の発話行があります" = "There are empty dialogue lines";
+"発話行が1件もないセグメントがあります" = "There is a segment with no dialogue lines";
+
+/* PronunciationScope */
+"共通（全番組）" = "Common (All Shows)";
+"この番組のみ" = "This Show Only";
+
+/* ScriptReviewView */
+"セグメントを選択してください" = "Please select a segment";
+"セグメント（%d）" = "Segments (%d)";
+"キャンセル（番組を停止）" = "Cancel (Stop Show)";
+"警告: %d 件" = "%d Warning(s)";
+"承認して再生" = "Approve and Play";
+
+/* ScriptReviewSegmentEditor */
+"セグメントが見つかりません" = "Segment Not Found";
+"未設定" = "Not Set";
+"元に戻す" = "Undo";
+"発話指示" = "Scene Direction";
+"発話（%d 行）" = "Dialogue (%d Lines)";
+"行を追加" = "Add Line";
+"TTS へ渡る入力" = "TTS Input";
+"辞書に登録" = "Add to Dictionary";
+"合成中…" = "Synthesizing…";
+"試聴" = "Preview";
+"このセグメントを試聴します（TTS API を1回消費します）" = "Preview this segment (uses one TTS API call)";
+"有効な TTS 資格情報がありません" = "No active TTS credentials";
+"このセグメントを試聴しますか？" = "Preview this segment?";
+"試聴する" = "Preview";
+"試聴する（以後確認しない）" = "Preview (Don't Ask Again)";
+"Gemini TTS API を1回消費します。" = "This uses one Gemini TTS API call.";
+"発音辞書に登録" = "Add to Pronunciation Dictionary";
+"表記" = "Text";
+"例: 女神転生" = "e.g. Megami Tensei";
+"読み" = "Reading";
+"例: メガミテンセイ" = "e.g. Megami Tensei (reading)";
+"保存先" = "Save To";
+"この語はこのセグメントに出現しません" = "This word does not appear in this segment";
+"登録" = "Register";
+"この位置に行を挿入" = "Insert Line Here";
+"キャンセル" = "Cancel";
+
+/* DialogueLineRow */
+"ドラッグして並べ替え" = "Drag to Reorder";
+"発話テキスト" = "Dialogue Text";
+"上へ移動" = "Move Up";
+"下へ移動" = "Move Down";
+"この行を削除" = "Delete This Line";
+"セグメントの最後の1行は削除できません" = "Cannot delete the last remaining line in a segment";
+
+/* ReviewSearchBar */
+"検索" = "Search";
+"大文字・小文字を区別する" = "Match Case";
+"前のヒットへ（⇧⌘G）" = "Previous Match (⇧⌘G)";
+"次のヒットへ（⌘G）" = "Next Match (⌘G)";
+"置換後" = "Replace With";
+"置換" = "Replace";
+"すべて置換" = "Replace All";
+"検索バーを閉じる（Esc）" = "Close Search Bar (Esc)";
+"0 件" = "0 Matches";
+
+/* ScriptReviewViewModel */
+"表記と読みの両方を入力してください。" = "Please enter both the text and its reading.";
+
+/* PronunciationDictionaryEditor */
+"未登録。追加後に表記と読みを入力。" = "No entries yet. Add one, then enter its text and reading.";
+"エントリを追加" = "Add Entry";
+"表記未設定" = "Text Not Set";
+"読み未設定" = "Reading Not Set";
+"この番組の辞書で上書きされています" = "Overridden by this show's dictionary";
+"発音辞書エントリ編集" = "Edit Pronunciation Entry";
+"メモ" = "Note";
+"任意" = "Optional";
+"有効" = "Enabled";
+"閉じる" = "Close";
+
+/* SettingsView (pronunciation) */
+"発音辞書" = "Pronunciation Dictionary";
+"固有名詞の読みを TTS に伝える辞書を設定します。台本本文は変更されません。" = "Configure a dictionary that tells TTS how to pronounce proper nouns. The script text itself is not changed.";
+"固有名詞の読み方を TTS プロンプトにのみ伝えます。台本本文（文字表記）は変更されません。同じ表記が両方に登録されている場合は「この番組」側が優先されます。" = "Tells TTS how to pronounce proper nouns via the prompt only. The script text (spelling) is not changed. If the same text is registered in both, the \"This Show\" entry takes priority.";
+"実効辞書（プレビュー）" = "Effective Dictionary (Preview)";

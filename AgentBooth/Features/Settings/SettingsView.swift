@@ -6,6 +6,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     case profileManagement
     case programInfo
     case voiceDirection
+    case pronunciation
     case playbackBalance
     case bgmJingle
     case service
@@ -19,6 +20,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     static let showProfileCategories: [SettingsCategory] = [
         .programInfo,
         .voiceDirection,
+        .pronunciation,
         .playbackBalance,
         .bgmJingle,
     ]
@@ -32,6 +34,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return String(localized: "番組情報")
         case .voiceDirection:
             return String(localized: "声と話し方")
+        case .pronunciation:
+            return String(localized: "発音辞書")
         case .playbackBalance:
             return String(localized: "再生バランス")
         case .bgmJingle:
@@ -55,6 +59,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return "dot.radiowaves.left.and.right"
         case .voiceDirection:
             return "waveform"
+        case .pronunciation:
+            return "character.book.closed"
         case .playbackBalance:
             return "slider.horizontal.3"
         case .bgmJingle:
@@ -78,6 +84,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             return String(localized: "番組名やパーソナリティ名を設定します。")
         case .voiceDirection:
             return String(localized: "声、話し方、時間帯別のディレクションを設定します。")
+        case .pronunciation:
+            return String(localized: "固有名詞の読みを TTS に伝える辞書を設定します。台本本文は変更されません。")
         case .playbackBalance:
             return String(localized: "曲とトークの重なり方や音量を設定します。")
         case .bgmJingle:
@@ -197,6 +205,8 @@ struct SettingsView: View {
             programInfoSettingsView
         case .voiceDirection:
             voiceDirectionSettingsView
+        case .pronunciation:
+            pronunciationSettingsView
         case .playbackBalance:
             playbackBalanceSettingsView
         case .bgmJingle:
@@ -358,6 +368,49 @@ struct SettingsView: View {
                         )
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(2...)
+                    }
+                }
+            }
+        }
+    }
+
+    private var pronunciationSettingsView: some View {
+        let overridden = PronunciationDictionaryResolver.overriddenSources(
+            global: draftSettings.globalPronunciationEntries,
+            profile: draftSettings.directionSettings.pronunciationEntries
+        )
+        let effectiveEntries = PronunciationDictionaryResolver.resolve(settings: draftSettings)
+
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("固有名詞の読み方を TTS プロンプトにのみ伝えます。台本本文（文字表記）は変更されません。同じ表記が両方に登録されている場合は「この番組」側が優先されます。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            settingsGroup("共通（全番組）") {
+                PronunciationDictionaryEditor(
+                    entries: $draftSettings.globalPronunciationEntries,
+                    overriddenSources: overridden
+                )
+            }
+
+            settingsGroup("この番組のみ") {
+                PronunciationDictionaryEditor(entries: $draftSettings.directionSettings.pronunciationEntries)
+            }
+
+            if !effectiveEntries.isEmpty {
+                settingsGroup("実効辞書（プレビュー）") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(effectiveEntries) { entry in
+                            HStack(spacing: 4) {
+                                Text(entry.source)
+                                Image(systemName: "arrow.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(entry.reading)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.caption)
+                        }
                     }
                 }
             }

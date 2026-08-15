@@ -1208,9 +1208,11 @@ actor RadioOrchestrator {
             }()
             return ReviewScriptItem(
                 id: itemIndex,
+                segmentKey: key.persistableKey,
                 segmentLabel: label,
                 script: segment.script,
                 sceneDirection: segment.narrationSettings.directionSettings.sceneDirection,
+                pronunciationEntries: PronunciationDictionaryResolver.resolve(settings: segment.narrationSettings),
                 maleVoiceName: segment.narrationSettings.voiceSettings.maleVoiceName,
                 femaleVoiceName: segment.narrationSettings.voiceSettings.femaleVoiceName
             )
@@ -1237,14 +1239,18 @@ actor RadioOrchestrator {
     }
 
     /// 編集済み `ReviewScriptItem` のデータを `preGeneratedSegments` へ反映する。
+    /// `segmentKey` で引き当てるため、レビュー中に行の増減や並べ替えが起きても正しいセグメントに書き戻せる。
     private func applyEditedSegments(_ editedItems: [ReviewScriptItem]) {
-        let sortedKeys = sortedPreGeneratedSegmentKeys()
-
-        for (itemIndex, key) in sortedKeys.enumerated() {
-            guard itemIndex < editedItems.count else { break }
-            let edited = editedItems[itemIndex]
+        for edited in editedItems {
+            guard let key = SegmentKey(persistableKey: edited.segmentKey) else { continue }
             preGeneratedSegments[key]?.script = edited.script
             preGeneratedSegments[key]?.narrationSettings.directionSettings.sceneDirection = edited.sceneDirection
+            // レビュー時点で解決済みの実効辞書をプロフィール枠にそのまま格納し、グローバル枠は空にする。
+            // こうしないと再生時に PronunciationDictionaryResolver がもう一度マージしてしまい、
+            // レビューで確認した内容と実際に TTS へ渡る内容がずれる（sceneDirection の time-band
+            // 合成値の書き戻しと同じ理由）。
+            preGeneratedSegments[key]?.narrationSettings.directionSettings.pronunciationEntries = edited.pronunciationEntries
+            preGeneratedSegments[key]?.narrationSettings.globalPronunciationEntries = []
         }
     }
 
@@ -1257,7 +1263,9 @@ actor RadioOrchestrator {
                 }
                 return (key, CachedSegment(
                     script: segment.script,
-                    narrationSettings: segment.narrationSettings.applyingRuntimeSecrets(from: settings)
+                    narrationSettings: segment.narrationSettings
+                        .applyingRuntimeSecrets(from: settings)
+                        .applyingCurrentPronunciationDictionary(from: settings)
                 ))
             }
         )

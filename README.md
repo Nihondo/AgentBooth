@@ -217,15 +217,21 @@ Select in **Music Playback** → **Script Generation Mode**.
 | Mode | Behavior |
 |---|---|
 | **On-demand** | Scripts are generated one at a time while the show is playing. This is the default behavior. |
-| **Pre-generate (Review)** | All scripts (opening, transitions, closing) are generated before playback starts. A review sheet appears where you can read and edit every dialogue line and TTS scene direction. After approving, playback begins using the reviewed scripts. TTS audio is still generated on-demand during playback. |
+| **Pre-generate (Review)** | All scripts (opening, transitions, closing) are generated before playback starts. A separate, freely resizable review window appears where you can read and edit every dialogue line and TTS scene direction. After approving, playback begins using the reviewed scripts. TTS audio is still generated on-demand during playback. |
 
 When using **Pre-generate** mode:
 1. Press **Play** — all scripts are generated sequentially (progress shown in the status bar)
-2. A review sheet opens showing every segment with its dialogue, TTS scene direction, and voice assignments
-3. Edit any dialogue text or TTS scene direction as needed
-4. Press **Approve and Play** to start playback, or **Cancel** to discard and stop
+2. A review window opens showing every segment with its dialogue, TTS scene direction, and voice assignments. It's a normal window, so you can resize or maximize it, and closing it (⌘W) does not lose your edits or stop the show — reopen it from the "Open review" link on the main window or the Window menu.
+3. Edit any dialogue text or TTS scene direction as needed — add, delete, reorder (drag or the ↑/↓ buttons), or switch the speaker of any dialogue line, and undo any of these changes with **Undo** (⌥⌘Z)
+4. Press ⌘F to search and replace text across every segment at once
+5. Expand **TTS Input** on a segment to see exactly what will be sent to TTS, and press **Preview** to hear that segment before committing (uses one TTS API call unless the segment is unchanged since the last preview)
+6. Press **Approve and Play** to start playback, or **Cancel (Stop Show)** to discard and stop
 
-Approved pre-generated scripts are saved locally while playback is in progress. If playback is stopped or fails before the show finishes, starting again with the same playlist and track order shows a reuse prompt. Choosing **Reuse** skips script generation and opens the review sheet again; choosing **Regenerate** archives the active cache and creates a new set. After the show completes normally, the active cache is also archived so it is no longer offered for reuse, while the JSON file remains in the cache folder as history.
+Approved pre-generated scripts are saved locally while playback is in progress. If playback is stopped or fails before the show finishes, starting again with the same playlist and track order shows a reuse prompt. Choosing **Reuse** skips script generation and opens the review window again; choosing **Regenerate** archives the active cache and creates a new set. After the show completes normally, the active cache is also archived so it is no longer offered for reuse, while the JSON file remains in the cache folder as history.
+
+### Pronunciation dictionary
+
+Settings → **Pronunciation Dictionary** lets you correct how TTS reads proper nouns (game titles, artist names, etc.) without changing the script text itself. Each entry maps a piece of text to how it should be read; entries can be **Common (All Shows)** or **This Show Only** — when the same text is registered in both, the show-specific reading wins. The dictionary only affects the TTS voice, never the script generation prompt, so the transcript you read stays exactly as generated.
 
 ---
 

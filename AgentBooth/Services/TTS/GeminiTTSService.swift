@@ -183,7 +183,8 @@ actor GeminiTTSService: TTSService {
                     apiKey: credentialSet.apiKey,
                     modelName: credentialSet.modelName,
                     voiceSettings: settings.voiceSettings,
-                    directionSettings: settings.directionSettings
+                    directionSettings: settings.directionSettings,
+                    pronunciationEntries: PronunciationDictionaryResolver.resolve(settings: settings)
                 )
                 await cueSheetLogger?.append(
                     "Gemini API呼び出し終了(ステータス: 200 / セット: \(displayLabel) / モデル: \(credentialSet.modelName) / フォールバック: \(index > 0 ? "使用" : "なし"))",
@@ -227,11 +228,17 @@ actor GeminiTTSService: TTSService {
         apiKey: String,
         modelName: String,
         voiceSettings: VoiceSettings,
-        directionSettings: DirectionSettings
+        directionSettings: DirectionSettings,
+        pronunciationEntries: [PronunciationEntry]
     ) async throws -> Data {
+        let ttsInput = TTSInputComposer.makeInput(
+            dialogues: dialogues,
+            directionSettings: directionSettings,
+            pronunciationEntries: pronunciationEntries
+        )
         let requestBody = GeminiGenerateRequest(
             contents: [
-                GeminiContent(parts: [GeminiTextPart(text: makeTTSInput(dialogues: dialogues, directionSettings: directionSettings))]),
+                GeminiContent(parts: [GeminiTextPart(text: ttsInput)]),
             ],
             generationConfig: GeminiGenerationConfig(
                 responseModalities: ["AUDIO"],
@@ -295,16 +302,6 @@ actor GeminiTTSService: TTSService {
         return makeWAVData(from: pcmData, sampleRate: 24_000, channels: 1, bitsPerSample: 16)
     }
 
-    private func makeTTSInput(dialogues: [DialogueLine], directionSettings: DirectionSettings) -> String {
-        let directionBlock = makeDirectionBlock(directionSettings: directionSettings)
-        let transcript = makeTranscript(dialogues: dialogues)
-
-        guard !directionBlock.isEmpty else {
-            return transcript
-        }
-        return "\(directionBlock)\n\n\(transcript)"
-    }
-
     private func describeAPICallResult(
         error: GeminiTTSServiceError,
         credentialLabel: String,
@@ -326,22 +323,6 @@ actor GeminiTTSService: TTSService {
     private func displayCredentialLabel(_ label: String) -> String {
         let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedLabel.isEmpty ? String(localized: "名称未設定") : trimmedLabel
-    }
-
-    private func makeDirectionBlock(directionSettings: DirectionSettings) -> String {
-        let direction = directionSettings.sceneDirection.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !direction.isEmpty else { return "" }
-        return """
-        Direction:
-        \(direction)
-        """
-    }
-
-    private func makeTranscript(dialogues: [DialogueLine]) -> String {
-        dialogues.map { dialogue in
-            let speaker = dialogue.speaker == "male" ? "Male" : "Female"
-            return "\(speaker): \(dialogue.text)"
-        }.joined(separator: "\n")
     }
 
     private func makeWAVData(from pcmData: Data, sampleRate: Int, channels: Int, bitsPerSample: Int) -> Data {

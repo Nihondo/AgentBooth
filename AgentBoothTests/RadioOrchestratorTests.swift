@@ -671,6 +671,170 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertNotNil(savedSession)
     }
 
+    func testAwaitScriptReviewIncludesSegmentKeyAndResolvedPronunciationDictionary() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let ttsService = FakeTTSService()
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        var settings = makeFastPreGenerateSettings()
+        settings.globalPronunciationEntries = [PronunciationEntry(source: "共通語", reading: "きょうつうご")]
+        settings.directionSettings.pronunciationEntries = [PronunciationEntry(source: "番組語", reading: "ばんぐみご")]
+
+        let orchestrator = makeOrchestrator(
+            settings: settings,
+            musicService: musicService,
+            ttsService: ttsService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            promptRecorder.reviewCount() == 1
+        }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+
+        XCTAssertEqual(Set(reviewItems.map(\.segmentKey)), ["opening", "closing"])
+        for item in reviewItems {
+            XCTAssertEqual(Set(item.pronunciationEntries.map(\.source)), ["共通語", "番組語"])
+        }
+
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil {
+            await ttsService.recordedSettings.count >= 2
+        }
+
+        let recordedSettings = await ttsService.recordedSettings
+        for recorded in recordedSettings {
+            XCTAssertEqual(Set(recorded.directionSettings.pronunciationEntries.map(\.source)), ["共通語", "番組語"])
+            XCTAssertTrue(recorded.globalPronunciationEntries.isEmpty, "二重適用防止のため、解決済み辞書はプロフィール枠へ格納しグローバル枠は空にする")
+        }
+    }
+
+    /// `applyEditedSegments` が index ではなく `segmentKey` で引き当てることの回帰テスト。
+    /// レビュー結果を意図的に逆順（index 対応なら誤ったセグメントに書き戻る順序）で
+    /// `approveScripts` へ渡しても、各セグメントの編集内容が正しいキーへ反映されることを確認する。
+    func testApplyEditedSegmentsMatchesBySegmentKeyRegardlessOfReviewItemOrder() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            promptRecorder.reviewCount() == 1
+        }
+        var reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        XCTAssertEqual(Set(reviewItems.map(\.segmentKey)), ["opening", "closing"])
+
+        for index in reviewItems.indices {
+            let marker = reviewItems[index].segmentKey == "opening" ? "OPENING_MARK" : "CLOSING_MARK"
+            var dialogues = reviewItems[index].script.dialogues
+            dialogues[0].text = marker
+            reviewItems[index].script = RadioScript(
+                segmentType: reviewItems[index].script.segmentType,
+                dialogues: dialogues,
+                summaryBullets: reviewItems[index].script.summaryBullets,
+                track: reviewItems[index].script.track
+            )
+        }
+        let shuffledItems = Array(reviewItems.reversed())
+
+        await orchestrator.approveScripts(shuffledItems)
+        try await waitUntil {
+            await scriptStore.saveCallCount >= 1
+        }
+
+        let maybeSavedSession = await scriptStore.session
+        let savedSession = try XCTUnwrap(maybeSavedSession)
+        let openingSegment = try XCTUnwrap(savedSession.segments.first { $0.key == "opening" })
+        let closingSegment = try XCTUnwrap(savedSession.segments.first { $0.key == "closing" })
+        XCTAssertEqual(openingSegment.script.dialogues.first?.text, "OPENING_MARK")
+        XCTAssertEqual(closingSegment.script.dialogues.first?.text, "CLOSING_MARK")
+    }
+
+    /// 保存済み台本セッションを再利用したとき、辞書は保存時点のスナップショットではなく
+    /// 現在の実行環境が持つ最新の辞書で上書きされる。
+    func testReusingSavedSessionAppliesCurrentPronunciationDictionaryNotSavedOne() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+
+        var savedNarrationSettings = makeFastPreGenerateSettings().strippingSecrets()
+        savedNarrationSettings.globalPronunciationEntries = [PronunciationEntry(source: "旧語", reading: "きゅうご")]
+        let openingScript = RadioScript(
+            segmentType: "opening",
+            dialogues: FakeScriptGenerationService.sampleDialogues(),
+            summaryBullets: ["保存済みオープニング"],
+            track: trackList.first
+        )
+        let closingScript = RadioScript(
+            segmentType: "closing",
+            dialogues: FakeScriptGenerationService.sampleDialogues(),
+            summaryBullets: ["保存済みクロージング"],
+            track: trackList.last
+        )
+        let session = PersistedScriptSession(
+            playlistName: "Favorites",
+            trackFingerprint: trackList.map(\.id).joined(separator: "\n"),
+            tracks: trackList,
+            segments: [
+                PersistedSegment(key: "opening", script: openingScript, narrationSettings: savedNarrationSettings),
+                PersistedSegment(key: "closing", script: closingScript, narrationSettings: savedNarrationSettings),
+            ],
+            savedAt: Date(timeIntervalSince1970: 0)
+        )
+        let scriptStore = FakePreGeneratedScriptStore(session: session)
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        var currentSettings = makeFastPreGenerateSettings()
+        currentSettings.globalPronunciationEntries = [PronunciationEntry(source: "新語", reading: "しんご")]
+
+        let orchestrator = makeOrchestrator(
+            settings: currentSettings,
+            musicService: musicService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            reusePromptDidBecomeAvailable: {
+                promptRecorder.incrementReusePromptCount()
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil {
+            promptRecorder.reuseCount() == 1
+        }
+        await orchestrator.confirmReuse()
+        try await waitUntil {
+            promptRecorder.reviewCount() == 1
+        }
+
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        for item in reviewItems {
+            XCTAssertEqual(item.pronunciationEntries.map(\.source), ["新語"], "復元時は保存値ではなく現在の辞書が適用される")
+        }
+    }
+
     func testCueSheetRecordsTrackNarrationAndFadeEvents() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 1, playlistName: "Favorites"),

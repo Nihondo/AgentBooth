@@ -84,6 +84,75 @@ final class GeminiTTSServiceTests: XCTestCase {
         _ = try await service.synthesize(dialogues: dialogues, settings: settings)
     }
 
+    func testSynthesizeIncludesPronunciationDictionaryBlockInRequestBody() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        var settings = makeSettings(
+            sceneDirection: "深夜帯。静かに、息を多めに。",
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")]
+        )
+        settings.globalPronunciationEntries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ")]
+        let dialogues = [
+            DialogueLine(speaker: "male", text: "ファミコン版「女神転生」から"),
+            DialogueLine(speaker: "female", text: "エンディングテーマをお届けします"),
+        ]
+
+        MockURLProtocol.requestHandler = { request in
+            let requestBody = try XCTUnwrap(Self.extractBody(from: request))
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: requestBody) as? [String: Any])
+            let contents = try XCTUnwrap(payload["contents"] as? [[String: Any]])
+            let firstContent = try XCTUnwrap(contents.first)
+            let parts = try XCTUnwrap(firstContent["parts"] as? [[String: Any]])
+            let firstPart = try XCTUnwrap(parts.first)
+            let text = try XCTUnwrap(firstPart["text"] as? String)
+
+            XCTAssertEqual(
+                text,
+                """
+                Direction:
+                深夜帯。静かに、息を多めに。
+
+                Follow these pronunciation rules exactly.
+                These rules affect pronunciation only. Do not alter the transcript.
+
+                Pronunciation dictionary:
+                「女神転生」 = 「メガミテンセイ」
+
+                Male: ファミコン版「女神転生」から
+                Female: エンディングテーマをお届けします
+                """
+            )
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
+    func testSynthesizeMergesGlobalAndProfilePronunciationDictionaries() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        var settings = makeSettings(credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")])
+        settings.globalPronunciationEntries = [PronunciationEntry(source: "女神転生", reading: "めがみてんせい")]
+        settings.directionSettings.pronunciationEntries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ")]
+        let dialogues = [DialogueLine(speaker: "male", text: "女神転生シリーズ最新作")]
+
+        MockURLProtocol.requestHandler = { request in
+            let requestBody = try XCTUnwrap(Self.extractBody(from: request))
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: requestBody) as? [String: Any])
+            let contents = try XCTUnwrap(payload["contents"] as? [[String: Any]])
+            let firstContent = try XCTUnwrap(contents.first)
+            let parts = try XCTUnwrap(firstContent["parts"] as? [[String: Any]])
+            let firstPart = try XCTUnwrap(parts.first)
+            let text = try XCTUnwrap(firstPart["text"] as? String)
+
+            XCTAssertTrue(text.contains("「女神転生」 = 「メガミテンセイ」"), "プロフィール側の読みが優先されるはず")
+            XCTAssertFalse(text.contains("めがみてんせい"))
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
     func testSynthesizeFallsThroughToSecondCredentialSetOnRateLimit() async throws {
         let session = makeSession()
         let service = GeminiTTSService(session: session)

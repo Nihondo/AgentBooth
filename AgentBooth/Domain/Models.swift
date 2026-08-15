@@ -346,19 +346,24 @@ struct DirectionSettings: Codable, Equatable, Sendable {
     /// スクリプト生成向けコンテンツ指示（話題・テーマ・内容の方向性）。
     var scriptDirection: String = ""
     var timeBasedPresets: [TimeBand: String] = [:]
+    /// この番組固有の発音辞書。`AppSettings.globalPronunciationEntries`（全番組共通）とマージされ、
+    /// 衝突時はこちらが優先される。TTS プロンプトにのみ作用し、台本生成プロンプトには渡さない。
+    var pronunciationEntries: [PronunciationEntry] = []
 
     enum CodingKeys: String, CodingKey {
-        case sceneDirection, scriptDirection, timeBasedPresets
+        case sceneDirection, scriptDirection, timeBasedPresets, pronunciationEntries
     }
 
     init(
         sceneDirection: String = "",
         scriptDirection: String = "",
-        timeBasedPresets: [TimeBand: String] = [:]
+        timeBasedPresets: [TimeBand: String] = [:],
+        pronunciationEntries: [PronunciationEntry] = []
     ) {
         self.sceneDirection = sceneDirection
         self.scriptDirection = scriptDirection
         self.timeBasedPresets = timeBasedPresets
+        self.pronunciationEntries = pronunciationEntries
     }
 
     /// 旧バージョンの設定JSONに新フィールドがなくても既定値で復元する。
@@ -367,6 +372,7 @@ struct DirectionSettings: Codable, Equatable, Sendable {
         sceneDirection = try c.decodeIfPresent(String.self, forKey: .sceneDirection) ?? ""
         scriptDirection = try c.decodeIfPresent(String.self, forKey: .scriptDirection) ?? ""
         timeBasedPresets = try c.decodeIfPresent([TimeBand: String].self, forKey: .timeBasedPresets) ?? [:]
+        pronunciationEntries = try c.decodeIfPresent([PronunciationEntry].self, forKey: .pronunciationEntries) ?? []
     }
 }
 
@@ -504,6 +510,9 @@ struct AppSettings: Codable, Equatable, Sendable {
     var customCLIArguments: [String] = []
     /// scriptCLIModel が非空の場合のみ末尾に追加される引数配列。`{model}` をモデル名に置換。
     var customCLIModelArguments: [String] = []
+    /// 全番組共通の発音辞書。`ShowProfile` には含まれない（`ShowProfile.init(id:name:settings:)` /
+    /// `AppSettings.applyingProfile(_:)` の対象外）。番組固有分は `DirectionSettings.pronunciationEntries`。
+    var globalPronunciationEntries: [PronunciationEntry] = []
 
     enum CodingKeys: String, CodingKey {
         case geminiAPIKey, geminiTTSModel, geminiTTSFallbackModel, ttsCredentialSets
@@ -512,6 +521,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case voiceSettings, personalitySettings, directionSettings, volumeSettings, bgmSettings, radioShowSettings
         case isRecordingEnabled, recordingOutputDirectory, youtubeMusicUserAgent
         case customCLIExecutable, customCLIArguments, customCLIModelArguments
+        case globalPronunciationEntries
     }
 
     /// 実際に TTS 呼び出し対象となる有効セットのみ返す。
@@ -546,6 +556,7 @@ extension AppSettings {
         customCLIExecutable = try c.decodeIfPresent(String.self, forKey: .customCLIExecutable) ?? ""
         customCLIArguments = try c.decodeIfPresent([String].self, forKey: .customCLIArguments) ?? []
         customCLIModelArguments = try c.decodeIfPresent([String].self, forKey: .customCLIModelArguments) ?? []
+        globalPronunciationEntries = try c.decodeIfPresent([PronunciationEntry].self, forKey: .globalPronunciationEntries) ?? []
     }
 }
 
@@ -583,6 +594,16 @@ extension AppSettings {
         var settings = self
         settings.geminiAPIKey = source.geminiAPIKey
         settings.ttsCredentialSets = source.ttsCredentialSets
+        return settings
+    }
+
+    /// 保存済み台本セッションのスナップショットへ、現在の実行環境が持つ発音辞書を上書きする。
+    /// 発音辞書は「読み間違いの修正」であり、生成時点の値に固定せず後から直したものを
+    /// 常に反映したいため、`applyingRuntimeSecrets(from:)` と同様に復元時は現在値で上書きする。
+    func applyingCurrentPronunciationDictionary(from source: AppSettings) -> AppSettings {
+        var settings = self
+        settings.globalPronunciationEntries = source.globalPronunciationEntries
+        settings.directionSettings.pronunciationEntries = source.directionSettings.pronunciationEntries
         return settings
     }
 
@@ -641,14 +662,69 @@ struct RadioState: Equatable, Sendable {
     }
 }
 
+/// 固有名詞の読みを TTS プロンプトにのみ伝える発音辞書の1エントリ。
+/// `PromptBuilder`（台本生成）へは渡さない。台本本文は変更せず、読みだけを補正する。
+struct PronunciationEntry: Identifiable, Codable, Equatable, Sendable {
+    var id: UUID = UUID()
+    /// 台詞中に現れる表記。
+    var source: String = ""
+    /// TTS に伝える読み。
+    var reading: String = ""
+    var isEnabled: Bool = true
+    var note: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case id, source, reading, isEnabled, note
+    }
+
+    init(id: UUID = UUID(), source: String = "", reading: String = "", isEnabled: Bool = true, note: String = "") {
+        self.id = id
+        self.source = source
+        self.reading = reading
+        self.isEnabled = isEnabled
+        self.note = note
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        source = try c.decodeIfPresent(String.self, forKey: .source) ?? ""
+        reading = try c.decodeIfPresent(String.self, forKey: .reading) ?? ""
+        isEnabled = try c.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+    }
+}
+
+/// 発音辞書の保存スコープ。
+enum PronunciationScope: String, CaseIterable, Identifiable, Sendable {
+    /// 全番組共通（`AppSettings` 直下）。
+    case global
+    /// この番組のみ（`DirectionSettings` 配下、`ShowProfile` に含まれる）。
+    case profile
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .global: return String(localized: "共通（全番組）")
+        case .profile: return String(localized: "この番組のみ")
+        }
+    }
+}
+
 /// 事前生成モードのレビュー画面で1セグメント分の台本と TTS 入力を提示する構造体。
 struct ReviewScriptItem: Identifiable, Equatable, Sendable {
     let id: Int
+    /// セグメントを一意に特定するキー（`RadioOrchestrator.SegmentKey.persistableKey` と同じ形式）。
+    /// 承認時の書き戻しは index ではなくこのキーで引き当てる。
+    let segmentKey: String
     let segmentLabel: String
     /// 会話台本（編集可能）。
     var script: RadioScript
     /// 発話指示（time-band 合成後の実効値、編集可能）。
     var sceneDirection: String
+    /// 発音辞書の実効値（グローバル＋プロフィールのマージ結果）。TTS プロンプトにのみ作用する。
+    var pronunciationEntries: [PronunciationEntry] = []
     /// 男性パーソナリティの音声名（表示用・読取専用）。
     let maleVoiceName: String
     /// 女性パーソナリティの音声名（表示用・読取専用）。

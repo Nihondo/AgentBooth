@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var viewModel: MainViewModel
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -23,6 +24,7 @@ struct ContentView: View {
                 )
             }
             recordingInfoRow
+            reviewInfoRow
             statusInfoRow
         }
         .padding(24)
@@ -58,8 +60,13 @@ struct ContentView: View {
         .task {
             await viewModel.loadPlaylists()
         }
-        .sheet(isPresented: $viewModel.isReviewing) {
-            ScriptReviewView(viewModel: viewModel)
+        .onChange(of: viewModel.isReviewing) { _, isReviewing in
+            if isReviewing {
+                openWindow(id: WindowIdentifier.scriptReview)
+                NSApp.activate(ignoringOtherApps: true)
+            } else {
+                dismissWindow(id: WindowIdentifier.scriptReview)
+            }
         }
         .alert("事前生成台本が存在します", isPresented: $viewModel.isReusePrompting) {
             Button("再利用") {
@@ -166,6 +173,26 @@ struct ContentView: View {
             isRadioRunning: viewModel.radioState.isRunning,
             currentPlaybackPosition: viewModel.radioState.currentPlaybackPosition
         )
+    }
+
+    /// 台本レビュー中に、レビューウィンドウを閉じてしまった場合の復帰導線を表示する行
+    private var reviewInfoRow: some View {
+        Group {
+            if viewModel.reviewViewModel != nil {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundStyle(.orange)
+                    Text("台本レビュー待ち")
+                        .foregroundStyle(.secondary)
+                    Button("レビューを開く") {
+                        openWindow(id: WindowIdentifier.scriptReview)
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
+                    .buttonStyle(.link)
+                }
+                .font(.subheadline)
+            }
+        }
     }
 
     /// ステータスメッセージとスピナーを表示する行
