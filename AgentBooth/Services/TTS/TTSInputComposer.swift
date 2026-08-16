@@ -69,13 +69,31 @@ enum TTSInputComposer {
         pronunciationEntries: [PronunciationEntry] = [],
         applicationMode: PronunciationApplicationMode = .instruction
     ) -> String {
-        dialogues.map { dialogue in
-            let speaker = dialogue.speaker == "male" ? "Male" : "Female"
+        // 単一話者の入力では speechConfig 側（単一話者 voiceConfig）で声が確定するため、
+        // 話者ラベルは付けない。付けたままだとラベル自体が読み上げられる恐れがある。
+        let isSingleSpeaker = speakerLabels(in: dialogues).count <= 1
+        return dialogues.map { dialogue in
             let text = applicationMode == .replaceTranscript
                 ? replacePronunciations(in: dialogue.text, entries: pronunciationEntries)
                 : dialogue.text
+            guard !isSingleSpeaker else { return text }
+            let speaker = dialogue.speaker == "male" ? "Male" : "Female"
             return "\(speaker): \(text)"
         }.joined(separator: "\n")
+    }
+
+    /// 台詞に登場する話者ラベルを登場順・重複なしで返す（"Male" / "Female"）。
+    /// 単一話者かどうかの判定と、`GeminiTTSService` の speechConfig 構築の両方がこの1箇所を参照する。
+    static func speakerLabels(in dialogues: [DialogueLine]) -> [String] {
+        var seen: Set<String> = []
+        var labels: [String] = []
+        for dialogue in dialogues {
+            let label = dialogue.speaker == "male" ? "Male" : "Female"
+            guard !seen.contains(label) else { continue }
+            seen.insert(label)
+            labels.append(label)
+        }
+        return labels
     }
 
     /// 原文を左から1回だけ走査し、同じ位置で複数の表記が一致する場合は最長の表記を採用する。

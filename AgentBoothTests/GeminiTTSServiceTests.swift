@@ -77,7 +77,7 @@ final class GeminiTTSServiceTests: XCTestCase {
             let firstPart = try XCTUnwrap(parts.first)
             let text = try XCTUnwrap(firstPart["text"] as? String)
 
-            XCTAssertEqual(text, "Male: テストです")
+            XCTAssertEqual(text, "テストです")
             return try Self.makeSuccessResponse(for: request)
         }
 
@@ -148,7 +148,7 @@ final class GeminiTTSServiceTests: XCTestCase {
             let firstPart = try XCTUnwrap(parts.first)
             let text = try XCTUnwrap(firstPart["text"] as? String)
 
-            XCTAssertEqual(text, "Direction:\n静かに話す\n\nMale: メガミテンセイを紹介します")
+            XCTAssertEqual(text, "Direction:\n静かに話す\n\nメガミテンセイを紹介します")
             XCTAssertFalse(text.contains("Pronunciation dictionary"))
             return try Self.makeSuccessResponse(for: request)
         }
@@ -179,6 +179,59 @@ final class GeminiTTSServiceTests: XCTestCase {
         }
 
         _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
+    func testSynthesizeUsesSingleSpeakerVoiceConfigForMaleOnlyInput() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")])
+        let dialogues = [DialogueLine(speaker: "male", text: "男性だけの台詞")]
+
+        MockURLProtocol.requestHandler = { request in
+            let speechConfig = try Self.speechConfig(from: request)
+            XCTAssertNil(speechConfig["multiSpeakerVoiceConfig"])
+            let voiceConfig = try XCTUnwrap(speechConfig["voiceConfig"] as? [String: Any])
+            let prebuilt = try XCTUnwrap(voiceConfig["prebuiltVoiceConfig"] as? [String: Any])
+            XCTAssertEqual(prebuilt["voiceName"] as? String, settings.voiceSettings.maleVoiceName)
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
+    func testSynthesizeUsesSingleSpeakerVoiceConfigForFemaleOnlyInput() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")])
+        let dialogues = [DialogueLine(speaker: "female", text: "女性だけの台詞")]
+
+        MockURLProtocol.requestHandler = { request in
+            let speechConfig = try Self.speechConfig(from: request)
+            XCTAssertNil(speechConfig["multiSpeakerVoiceConfig"])
+            let voiceConfig = try XCTUnwrap(speechConfig["voiceConfig"] as? [String: Any])
+            let prebuilt = try XCTUnwrap(voiceConfig["prebuiltVoiceConfig"] as? [String: Any])
+            XCTAssertEqual(prebuilt["voiceName"] as? String, settings.voiceSettings.femaleVoiceName)
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
+    func testSynthesizeUsesMultiSpeakerVoiceConfigWhenBothSpeakersAppear() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "test-model")])
+
+        MockURLProtocol.requestHandler = { request in
+            let speechConfig = try Self.speechConfig(from: request)
+            XCTAssertNil(speechConfig["voiceConfig"])
+            let multiSpeakerConfig = try XCTUnwrap(speechConfig["multiSpeakerVoiceConfig"] as? [String: Any])
+            let speakerConfigs = try XCTUnwrap(multiSpeakerConfig["speakerVoiceConfigs"] as? [[String: Any]])
+            XCTAssertEqual(speakerConfigs.count, 2)
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
     }
 
     func testSynthesizeFallsThroughToSecondCredentialSetOnRateLimit() async throws {
@@ -527,6 +580,13 @@ final class GeminiTTSServiceTests: XCTestCase {
         let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
         let apiKey = components.queryItems?.first(where: { $0.name == "key" })?.value
         return try XCTUnwrap(apiKey)
+    }
+
+    private static func speechConfig(from request: URLRequest) throws -> [String: Any] {
+        let body = try XCTUnwrap(Self.extractBody(from: request))
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let generationConfig = try XCTUnwrap(payload["generationConfig"] as? [String: Any])
+        return try XCTUnwrap(generationConfig["speechConfig"] as? [String: Any])
     }
 
     private static func extractBody(from request: URLRequest) -> Data? {

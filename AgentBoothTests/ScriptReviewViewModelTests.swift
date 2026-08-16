@@ -390,7 +390,9 @@ final class ScriptReviewViewModelTests: XCTestCase {
             directionSettings: try XCTUnwrap(recordedSettings.first?.directionSettings),
             pronunciationEntries: try XCTUnwrap(recordedSettings.first?.directionSettings.pronunciationEntries)
         )
-        XCTAssertTrue(input.contains("Female: ヨロシクお願いします"))
+        // 単一話者(この行だけ)の入力なので、話者ラベルは付かない。
+        XCTAssertTrue(input.contains("ヨロシクお願いします"))
+        XCTAssertFalse(input.contains("Female:"))
         XCTAssertFalse(input.contains("Pronunciation dictionary"))
         XCTAssertEqual(playCount, 1)
     }
@@ -416,6 +418,45 @@ final class ScriptReviewViewModelTests: XCTestCase {
         let playCount = await audioService.playCount
         XCTAssertEqual(synthesisCount, 1, "同じ発話内容は TTS を再度呼ばない")
         XCTAssertEqual(playCount, 2, "キャッシュ音声も再生する")
+    }
+
+    /// プレビューはライブ設定の音声名ではなく、台本生成時にスナップショットされたセグメントの音声名を
+    /// 使わなければならない。そうでないと、プロフィール切替後にプレビュー・本番・画面表示の声が食い違う。
+    /// ここではライブ設定を先に書き換えてから ViewModel を作り、後から作られた設定に引きずられていないことを確認する。
+    func testConfirmLinePreviewUsesSegmentSnapshotVoiceNamesNotLiveSettings() async throws {
+        let (_, _, store) = makeSettingsStore()
+        try store.updateSettings { settings in
+            settings.ttsCredentialSets = [TTSCredentialSet(label: "test", apiKey: "key", modelName: "model")]
+            settings.voiceSettings.maleVoiceName = "LiveMaleVoice"
+            settings.voiceSettings.femaleVoiceName = "LiveFemaleVoice"
+        }
+        let item = makeItem(
+            segmentKey: "opening",
+            label: "オープニング",
+            maleVoiceName: "SegmentMaleVoice",
+            femaleVoiceName: "SegmentFemaleVoice"
+        )
+        let ttsService = FakeTTSService()
+        let viewModel = ScriptReviewViewModel(
+            items: [item],
+            settingsStore: store,
+            serviceFactory: FakeServiceFactory(
+                musicService: FakeMusicService(),
+                ttsService: ttsService,
+                audioPlaybackService: FakeAudioPlaybackService()
+            ),
+            isTestMode: false
+        )
+        let segment = viewModel.segments[0]
+        let lineID = segment.lines[0].id
+
+        viewModel.requestLinePreview(lineID, in: segment.id)
+        viewModel.confirmLinePreview(skipFutureConfirmations: false)
+        try await waitUntil { viewModel.linePreviewStates[lineID] == .ready }
+
+        let recordedSettings = await ttsService.recordedSettings
+        XCTAssertEqual(recordedSettings.first?.voiceSettings.maleVoiceName, "SegmentMaleVoice")
+        XCTAssertEqual(recordedSettings.first?.voiceSettings.femaleVoiceName, "SegmentFemaleVoice")
     }
 
     func testConfirmSegmentPreviewSynthesizesAndPlaysThenBecomesReady() async throws {
@@ -663,7 +704,12 @@ final class ScriptReviewViewModelTests: XCTestCase {
         return (defaults, keychainStore, store)
     }
 
-    private func makeItem(segmentKey: String, label: String) -> ReviewScriptItem {
+    private func makeItem(
+        segmentKey: String,
+        label: String,
+        maleVoiceName: String = "Charon",
+        femaleVoiceName: String = "Kore"
+    ) -> ReviewScriptItem {
         ReviewScriptItem(
             id: 0,
             segmentKey: segmentKey,
@@ -678,8 +724,8 @@ final class ScriptReviewViewModelTests: XCTestCase {
                 track: nil
             ),
             sceneDirection: "落ち着いたトーンで",
-            maleVoiceName: "Charon",
-            femaleVoiceName: "Kore"
+            maleVoiceName: maleVoiceName,
+            femaleVoiceName: femaleVoiceName
         )
     }
 }

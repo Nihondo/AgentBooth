@@ -92,7 +92,8 @@ private struct GeminiGenerationConfig: Encodable {
 }
 
 private struct GeminiSpeechConfig: Encodable {
-    let multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig
+    let voiceConfig: GeminiVoiceConfig?
+    let multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig?
 }
 
 private struct GeminiMultiSpeakerVoiceConfig: Encodable {
@@ -226,6 +227,47 @@ actor GeminiTTSService: TTSService {
         }
     }
 
+    /// 台詞に登場する話者が1人だけなら single-speaker 形式、2人以上なら multi-speaker 形式を返す。
+    /// multi-speaker 形式は「プロンプトに登場する話者名と同名の話者を定義すること」が
+    /// voice マッピングの前提であり、1話者の入力に対して2話者を宣言すると割り当てが不定になる。
+    private static func makeSpeechConfig(dialogues: [DialogueLine], voiceSettings: VoiceSettings) -> GeminiSpeechConfig {
+        let labels = TTSInputComposer.speakerLabels(in: dialogues)
+        guard labels.count > 1 else {
+            // 話者が0人（空配列）の場合も、`TTSInputComposer` の「不明な話者は女性扱い」ルールに合わせる。
+            let singleLabel = labels.first ?? "Female"
+            let voiceName = singleLabel == "Male" ? voiceSettings.maleVoiceName : voiceSettings.femaleVoiceName
+            return GeminiSpeechConfig(
+                voiceConfig: GeminiVoiceConfig(
+                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: voiceName)
+                ),
+                multiSpeakerVoiceConfig: nil
+            )
+        }
+        return GeminiSpeechConfig(
+            voiceConfig: nil,
+            multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
+                speakerVoiceConfigs: [
+                    GeminiSpeakerVoiceConfig(
+                        speaker: "Male",
+                        voiceConfig: GeminiVoiceConfig(
+                            prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
+                                voiceName: voiceSettings.maleVoiceName
+                            )
+                        )
+                    ),
+                    GeminiSpeakerVoiceConfig(
+                        speaker: "Female",
+                        voiceConfig: GeminiVoiceConfig(
+                            prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
+                                voiceName: voiceSettings.femaleVoiceName
+                            )
+                        )
+                    ),
+                ]
+            )
+        )
+    }
+
     private func requestWAV(
         dialogues: [DialogueLine],
         apiKey: String,
@@ -245,28 +287,7 @@ actor GeminiTTSService: TTSService {
             ],
             generationConfig: GeminiGenerationConfig(
                 responseModalities: ["AUDIO"],
-                speechConfig: GeminiSpeechConfig(
-                    multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
-                        speakerVoiceConfigs: [
-                            GeminiSpeakerVoiceConfig(
-                                speaker: "Male",
-                                voiceConfig: GeminiVoiceConfig(
-                                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
-                                        voiceName: voiceSettings.maleVoiceName
-                                    )
-                                )
-                            ),
-                            GeminiSpeakerVoiceConfig(
-                                speaker: "Female",
-                                voiceConfig: GeminiVoiceConfig(
-                                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
-                                        voiceName: voiceSettings.femaleVoiceName
-                                    )
-                                )
-                            ),
-                        ]
-                    )
-                )
+                speechConfig: Self.makeSpeechConfig(dialogues: dialogues, voiceSettings: voiceSettings)
             )
         )
 

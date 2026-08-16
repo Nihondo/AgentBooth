@@ -490,6 +490,15 @@ final class ScriptReviewViewModel: ObservableObject {
         narrationSettings.directionSettings.pronunciationEntries = segment.pronunciationEntries
         narrationSettings.directionSettings.pronunciationApplicationMode = segment.pronunciationApplicationMode
         narrationSettings.globalPronunciationEntries = []
+        // 台本生成時にスナップショットされた音声名を使う。ライブ設定のままだと、
+        // プロフィール切替や Settings での声名変更後にプレビュー・本番・画面表示の声が食い違う。
+        // 空文字（未設定）はライブ設定のフォールバックのままにする。
+        if !segment.maleVoiceName.isEmpty {
+            narrationSettings.voiceSettings.maleVoiceName = segment.maleVoiceName
+        }
+        if !segment.femaleVoiceName.isEmpty {
+            narrationSettings.voiceSettings.femaleVoiceName = segment.femaleVoiceName
+        }
         let contentHash = previewContentHash(dialogues: dialogues, segment: segment)
 
         setPreviewState(.synthesizing, for: target)
@@ -535,11 +544,13 @@ final class ScriptReviewViewModel: ObservableObject {
         }
     }
 
-    /// 発話指示・発話テキスト・発音辞書のいずれかが変わればキャッシュを無効化するためのハッシュ。
+    /// 発話指示・発話テキスト・発音辞書・音声名のいずれかが変わればキャッシュを無効化するためのハッシュ。
     private func previewContentHash(dialogues: [DialogueLine], segment: ReviewSegmentDraft) -> Int {
         var hasher = Hasher()
         hasher.combine(segment.sceneDirection)
         hasher.combine(segment.pronunciationApplicationMode)
+        hasher.combine(segment.maleVoiceName)
+        hasher.combine(segment.femaleVoiceName)
         for dialogue in dialogues {
             hasher.combine(dialogue.speaker)
             hasher.combine(dialogue.text)

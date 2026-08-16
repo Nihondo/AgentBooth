@@ -83,7 +83,7 @@ final class TTSInputComposerTests: XCTestCase {
             pronunciationEntries: entries
         )
 
-        XCTAssertEqual(result, "Direction:\n静かに話す\n\nMale: メガミテンセイからメガミテンセイへ")
+        XCTAssertEqual(result, "Direction:\n静かに話す\n\nメガミテンセイからメガミテンセイへ")
         XCTAssertFalse(result.contains("Pronunciation dictionary"))
     }
 
@@ -156,10 +156,47 @@ final class TTSInputComposerTests: XCTestCase {
         XCTAssertFalse(result.contains("Pronunciation dictionary"))
     }
 
+    /// 2話者以上の入力ではラベルが付くため、未知の話者が Female へ正規化されることを検証できる
+    /// （単一話者の入力ではそもそもラベルが付かないため、2行構成にする必要がある）。
     func testMakeTranscriptNormalizesUnknownSpeakerToFemale() {
-        let mixedDialogues = [DialogueLine(speaker: "narrator", text: "地の文")]
+        let mixedDialogues = [
+            DialogueLine(speaker: "male", text: "男性の台詞"),
+            DialogueLine(speaker: "narrator", text: "地の文"),
+        ]
         let transcript = TTSInputComposer.makeTranscript(dialogues: mixedDialogues)
-        XCTAssertEqual(transcript, "Female: 地の文")
+        XCTAssertEqual(transcript, "Male: 男性の台詞\nFemale: 地の文")
+    }
+
+    func testMakeTranscriptOmitsSpeakerLabelForSingleSpeakerInput() {
+        let maleOnly = [DialogueLine(speaker: "male", text: "男性だけの台詞")]
+        XCTAssertEqual(TTSInputComposer.makeTranscript(dialogues: maleOnly), "男性だけの台詞")
+
+        let femaleOnly = [DialogueLine(speaker: "female", text: "女性だけの台詞")]
+        XCTAssertEqual(TTSInputComposer.makeTranscript(dialogues: femaleOnly), "女性だけの台詞")
+    }
+
+    func testMakeTranscriptKeepsSpeakerLabelsForMultipleSpeakers() {
+        let dialogues = [
+            DialogueLine(speaker: "male", text: "こんにちは"),
+            DialogueLine(speaker: "female", text: "こんばんは"),
+        ]
+        XCTAssertEqual(
+            TTSInputComposer.makeTranscript(dialogues: dialogues),
+            "Male: こんにちは\nFemale: こんばんは"
+        )
+    }
+
+    func testSpeakerLabelsReturnsDistinctLabelsInAppearanceOrder() {
+        let dialogues = [
+            DialogueLine(speaker: "female", text: "1"),
+            DialogueLine(speaker: "male", text: "2"),
+            DialogueLine(speaker: "female", text: "3"),
+        ]
+        XCTAssertEqual(TTSInputComposer.speakerLabels(in: dialogues), ["Female", "Male"])
+    }
+
+    func testSpeakerLabelsReturnsEmptyForNoDialogues() {
+        XCTAssertEqual(TTSInputComposer.speakerLabels(in: []), [])
     }
 
     func testAppliesToDetectsSubstringMatch() {
