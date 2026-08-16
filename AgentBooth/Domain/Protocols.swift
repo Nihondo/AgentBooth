@@ -78,6 +78,12 @@ protocol PreGeneratedScriptStoreProtocol: Sendable {
     func load() async -> PersistedScriptSession?
     /// active cache を再利用対象から外す。ライブ実装では削除せずアーカイブ名へ退避する。
     func clear() async
+
+    /// セグメント単位の TTS 音声キャッシュ。キーは `NarrationAudioFingerprint` の値。
+    func loadNarrationAudio(fingerprint: String) async -> Data?
+    func saveNarrationAudio(_ wavData: Data, fingerprint: String) async
+    /// 引数の fingerprint 以外の音声を削除する（台本編集で不要になった WAV の掃除）。
+    func pruneNarrationAudio(keeping fingerprints: Set<String>) async
 }
 
 /// A factory that wires live or fake services together.

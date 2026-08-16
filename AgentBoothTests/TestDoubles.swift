@@ -357,9 +357,14 @@ actor FakePreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
     private(set) var saveCallCount = 0
     private(set) var loadCallCount = 0
     private(set) var clearCallCount = 0
+    private var narrationAudioByFingerprint: [String: Data]
+    private(set) var saveNarrationAudioCallCount = 0
+    private(set) var loadNarrationAudioCallCount = 0
+    private(set) var lastPrunedFingerprints: Set<String>?
 
-    init(session: PersistedScriptSession? = nil) {
+    init(session: PersistedScriptSession? = nil, narrationAudioByFingerprint: [String: Data] = [:]) {
         self.session = session
+        self.narrationAudioByFingerprint = narrationAudioByFingerprint
     }
 
     func save(_ session: PersistedScriptSession) async {
@@ -375,6 +380,22 @@ actor FakePreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
     func clear() async {
         clearCallCount += 1
         session = nil
+        narrationAudioByFingerprint = [:]
+    }
+
+    func loadNarrationAudio(fingerprint: String) async -> Data? {
+        loadNarrationAudioCallCount += 1
+        return narrationAudioByFingerprint[fingerprint]
+    }
+
+    func saveNarrationAudio(_ wavData: Data, fingerprint: String) async {
+        saveNarrationAudioCallCount += 1
+        narrationAudioByFingerprint[fingerprint] = wavData
+    }
+
+    func pruneNarrationAudio(keeping fingerprints: Set<String>) async {
+        lastPrunedFingerprints = fingerprints
+        narrationAudioByFingerprint = narrationAudioByFingerprint.filter { fingerprints.contains($0.key) }
     }
 }
 

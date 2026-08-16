@@ -73,10 +73,16 @@ final class ScriptReviewViewModel: ObservableObject {
     @Published var pendingPreviewConfirmationSegmentID: ReviewSegmentDraft.ID?
     /// 「API を1回消費します」の確認待ち発話行（nil なら確認ダイアログは非表示）。
     @Published private(set) var pendingLinePreviewConfirmation: LinePreviewRequest?
+    /// 番組を最後まで再生し終えても台本・音声キャッシュをアーカイブ/削除せず保持するか。
+    /// 通しで聴いた結果、1セグメントだけ直して流し直したい場合に使う。
+    @Published var preservesShowCacheAfterCompletion = false
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: any AppServiceFactory
     private let isTestMode: Bool
+    /// セグメント単位の TTS 音声キャッシュ。`RadioOrchestrator` に渡しているものと同一インスタンス
+    /// （`MainViewModel.startShow` 内で1つだけ生成される）で、レビューの試聴と本番再生が同じキャッシュを共有する。
+    private let scriptStore: (any PreGeneratedScriptStoreProtocol)?
     private var contentRevisionTask: Task<Void, Never>?
 
     /// 構造編集の undo スタック。深さ20で打ち切る。
@@ -94,17 +100,22 @@ final class ScriptReviewViewModel: ObservableObject {
     private var previewCache: [PreviewTarget: (contentHash: Int, wavData: Data)] = [:]
     private var previewTask: Task<Void, Never>?
     private var activePreviewAudioService: (any AudioPlaybackServiceProtocol)?
+    /// 永続音声キャッシュへの事前確認タスク。確認ダイアログを出す前に、本番再生や過去のレビューが
+    /// 既に作った音声がないかを確認する（ヒットすれば API を消費しないため確認ダイアログを省く）。
+    private var persistentPreviewProbeTask: Task<Void, Never>?
 
     init(
         items: [ReviewScriptItem],
         settingsStore: AppSettingsStore,
         serviceFactory: any AppServiceFactory,
-        isTestMode: Bool
+        isTestMode: Bool,
+        scriptStore: (any PreGeneratedScriptStoreProtocol)? = nil
     ) {
         self.segments = items.map { ReviewSegmentDraft(item: $0) }
         self.settingsStore = settingsStore
         self.serviceFactory = serviceFactory
         self.isTestMode = isTestMode
+        self.scriptStore = scriptStore
         self.selectedSegmentID = segments.first?.id
     }
 
@@ -381,7 +392,8 @@ final class ScriptReviewViewModel: ObservableObject {
     func requestSegmentPreview(_ segmentID: UUID) {
         guard let segment = segment(withID: segmentID) else { return }
         let target = PreviewTarget.segment(segmentID)
-        let contentHash = previewContentHash(dialogues: segment.dialogueLines, segment: segment)
+        let dialogues = segmentAudioDialogues(for: segment)
+        let contentHash = previewContentHash(dialogues: dialogues, segment: segment)
 
         if let cached = previewCache[target], cached.contentHash == contentHash {
             playCachedPreview(target: target, wavData: cached.wavData)
@@ -391,8 +403,26 @@ final class ScriptReviewViewModel: ObservableObject {
         // テストモードは実 API を呼ばないため、確認ダイアログを挟む意味がない。
         if skipsPreviewConfirmation || isTestMode {
             performSegmentPreview(segmentID)
-        } else {
+            return
+        }
+
+        // 永続音声キャッシュ（本番再生や他セッションのプレビューが作った音声）にヒットすれば
+        // API を消費しないため、確認ダイアログを出す前に確認する。
+        guard let scriptStore, let fingerprint = narrationAudioFingerprint(for: segment, dialogues: dialogues) else {
             pendingPreviewConfirmationSegmentID = segmentID
+            return
+        }
+        persistentPreviewProbeTask?.cancel()
+        persistentPreviewProbeTask = Task { [weak self] in
+            guard let self else { return }
+            let wavData = await scriptStore.loadNarrationAudio(fingerprint: fingerprint)
+            guard !Task.isCancelled else { return }
+            if let wavData {
+                self.previewCache[target] = (contentHash, wavData)
+                self.playCachedPreview(target: target, wavData: wavData)
+            } else {
+                self.pendingPreviewConfirmationSegmentID = segmentID
+            }
         }
     }
 
@@ -453,10 +483,12 @@ final class ScriptReviewViewModel: ObservableObject {
 
     private func performSegmentPreview(_ segmentID: UUID) {
         guard let segment = segment(withID: segmentID) else { return }
+        let dialogues = segmentAudioDialogues(for: segment)
         performPreview(
             target: .segment(segmentID),
-            dialogues: segment.dialogueLines,
-            segment: segment
+            dialogues: dialogues,
+            segment: segment,
+            audioFingerprint: narrationAudioFingerprint(for: segment, dialogues: dialogues)
         )
     }
 
@@ -464,27 +496,25 @@ final class ScriptReviewViewModel: ObservableObject {
         guard let segment = segment(withID: request.segmentID),
               let line = segment.lines.first(where: { $0.id == request.lineID }),
               !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        // 本番再生は1行だけの音声を単独で合成することがないため、行プレビューには永続キャッシュを使わない
+        // （本番側と一致する相手がなく意味を持たないため、audioFingerprint は常に nil）。
         performPreview(
             target: .line(request.lineID),
             dialogues: [line.asDialogueLine],
-            segment: segment
+            segment: segment,
+            audioFingerprint: nil
         )
     }
 
-    private func performPreview(
-        target: PreviewTarget,
-        dialogues: [DialogueLine],
-        segment: ReviewSegmentDraft
-    ) {
-        let previousAudioService = interruptActivePreview()
-        let audioService: any AudioPlaybackServiceProtocol = isTestMode
-            ? TestModeAudioPlaybackService()
-            : serviceFactory.makeAudioPlaybackService()
-        let ttsService: any TTSService = isTestMode
-            ? TestModeTTSService()
-            : serviceFactory.makeTTSService(settings: settingsStore.currentSettings, cueSheetLogger: nil)
-        activePreviewAudioService = audioService
+    /// セグメント試聴で TTS へ送る台詞。空行の扱いを承認後の本番再生（`applyEditedSegments` 経由で
+    /// 実際に TTS へ渡る内容）と揃えることで、同じ内容の試聴と本番が同じ fingerprint になる。
+    private func segmentAudioDialogues(for segment: ReviewSegmentDraft) -> [DialogueLine] {
+        segment.makeReviewScriptItem(id: 0, droppingEmptyLines: true).script.dialogues
+    }
 
+    /// 試聴に送る設定を組み立てる。`performPreview` と fingerprint 計算の両方がここを通ることで、
+    /// 「試聴に送る設定」と「fingerprint のもとになる設定」が構造的に一致する。
+    private func makeNarrationSettings(for segment: ReviewSegmentDraft) -> AppSettings {
         var narrationSettings = settingsStore.currentSettings
         narrationSettings.directionSettings.sceneDirection = segment.sceneDirection
         narrationSettings.directionSettings.pronunciationEntries = segment.pronunciationEntries
@@ -499,6 +529,32 @@ final class ScriptReviewViewModel: ObservableObject {
         if !segment.femaleVoiceName.isEmpty {
             narrationSettings.voiceSettings.femaleVoiceName = segment.femaleVoiceName
         }
+        return narrationSettings
+    }
+
+    /// セグメント試聴用の永続音声キャッシュキー。テストモードや `scriptStore` 未注入時は
+    /// キャッシュに一切触れないよう `nil` を返す。
+    private func narrationAudioFingerprint(for segment: ReviewSegmentDraft, dialogues: [DialogueLine]) -> String? {
+        guard scriptStore != nil, !isTestMode else { return nil }
+        return NarrationAudioFingerprint.make(dialogues: dialogues, settings: makeNarrationSettings(for: segment))
+    }
+
+    private func performPreview(
+        target: PreviewTarget,
+        dialogues: [DialogueLine],
+        segment: ReviewSegmentDraft,
+        audioFingerprint: String?
+    ) {
+        let previousAudioService = interruptActivePreview()
+        let audioService: any AudioPlaybackServiceProtocol = isTestMode
+            ? TestModeAudioPlaybackService()
+            : serviceFactory.makeAudioPlaybackService()
+        let ttsService: any TTSService = isTestMode
+            ? TestModeTTSService()
+            : serviceFactory.makeTTSService(settings: settingsStore.currentSettings, cueSheetLogger: nil)
+        activePreviewAudioService = audioService
+
+        let narrationSettings = makeNarrationSettings(for: segment)
         let contentHash = previewContentHash(dialogues: dialogues, segment: segment)
 
         setPreviewState(.synthesizing, for: target)
@@ -510,6 +566,9 @@ final class ScriptReviewViewModel: ObservableObject {
                 let result = try await ttsService.synthesize(dialogues: dialogues, settings: narrationSettings)
                 guard !Task.isCancelled else { return }
                 self.previewCache[target] = (contentHash, result.wavData)
+                if let audioFingerprint {
+                    await self.scriptStore?.saveNarrationAudio(result.wavData, fingerprint: audioFingerprint)
+                }
                 self.setPreviewState(.playing, for: target)
                 try await audioService.play(wavData: result.wavData)
                 guard !Task.isCancelled else { return }
@@ -564,6 +623,8 @@ final class ScriptReviewViewModel: ObservableObject {
     }
 
     private func interruptActivePreview() -> (any AudioPlaybackServiceProtocol)? {
+        persistentPreviewProbeTask?.cancel()
+        persistentPreviewProbeTask = nil
         previewTask?.cancel()
         previewTask = nil
         let audioService = activePreviewAudioService

@@ -41,6 +41,10 @@ actor PreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
     }
 
     func clear() async {
+        // 台本セッションがアーカイブされて再利用候補から外れる以上、
+        // 音声だけ残しても到達不能なゴミになるため、両方まとめて片付ける。
+        await pruneNarrationAudio(keeping: [])
+
         guard fileManager.fileExists(atPath: fileURL.path) else {
             return
         }
@@ -51,6 +55,45 @@ actor PreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
             // active キャッシュが残ると次回も再利用候補になるため、退避失敗時だけ削除へフォールバックする。
             try? fileManager.removeItem(at: fileURL)
         }
+    }
+
+    func loadNarrationAudio(fingerprint: String) async -> Data? {
+        let audioURL = narrationAudioFileURL(fingerprint: fingerprint)
+        guard fileManager.fileExists(atPath: audioURL.path) else {
+            return nil
+        }
+        return try? Data(contentsOf: audioURL)
+    }
+
+    func saveNarrationAudio(_ wavData: Data, fingerprint: String) async {
+        do {
+            let directoryURL = narrationAudioDirectoryURL()
+            try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+            try wavData.write(to: narrationAudioFileURL(fingerprint: fingerprint), options: .atomic)
+        } catch {
+            // 音声キャッシュの保存失敗は再生自体を止めない。次回は通常どおり合成し直す。
+        }
+    }
+
+    func pruneNarrationAudio(keeping fingerprints: Set<String>) async {
+        let directoryURL = narrationAudioDirectoryURL()
+        guard let contents = try? fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil) else {
+            return
+        }
+        for fileURL in contents {
+            guard fileURL.pathExtension == "wav" else { continue }
+            let fingerprint = fileURL.deletingPathExtension().lastPathComponent
+            guard !fingerprints.contains(fingerprint) else { continue }
+            try? fileManager.removeItem(at: fileURL)
+        }
+    }
+
+    private func narrationAudioDirectoryURL() -> URL {
+        fileURL.deletingLastPathComponent().appendingPathComponent("audio", isDirectory: true)
+    }
+
+    private func narrationAudioFileURL(fingerprint: String) -> URL {
+        narrationAudioDirectoryURL().appendingPathComponent("\(fingerprint).wav")
     }
 
     private func makeArchiveFileURL() -> URL {

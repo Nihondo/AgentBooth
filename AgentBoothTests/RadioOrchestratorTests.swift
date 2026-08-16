@@ -809,6 +809,305 @@ final class RadioOrchestratorTests: XCTestCase {
         XCTAssertNotNil(savedSession)
     }
 
+    // MARK: - セグメント単位の TTS 音声キャッシュ
+
+    /// 保存済み台本を復元し、対応する fingerprint の音声もキャッシュ済みなら
+    /// 台本生成だけでなく TTS 合成そのものが一切走らないことを確認する。
+    func testReuseWithCachedNarrationAudioSkipsAllTTSCalls() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let ttsService = FakeTTSService()
+        var liveSettings = makeFastPreGenerateSettings()
+        liveSettings.ttsCredentialSets = [TTSCredentialSet(label: "runtime", apiKey: "runtime-key", modelName: "runtime-model")]
+
+        let openingDialogues = [DialogueLine(speaker: "male", text: "保存済みオープニングの台詞")]
+        let closingDialogues = [DialogueLine(speaker: "female", text: "保存済みクロージングの台詞")]
+        let session = makeTwoSegmentSession(
+            tracks: trackList,
+            openingDialogues: openingDialogues,
+            closingDialogues: closingDialogues
+        )
+        let effectiveSettings = makeEffectiveNarrationSettings(liveSettings: liveSettings)
+        let openingFingerprint = NarrationAudioFingerprint.make(dialogues: openingDialogues, settings: effectiveSettings)
+        let closingFingerprint = NarrationAudioFingerprint.make(dialogues: closingDialogues, settings: effectiveSettings)
+        let scriptStore = FakePreGeneratedScriptStore(
+            session: session,
+            narrationAudioByFingerprint: [
+                openingFingerprint: Data([0x01]),
+                closingFingerprint: Data([0x02]),
+            ]
+        )
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: liveSettings,
+            musicService: musicService,
+            ttsService: ttsService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            reusePromptDidBecomeAvailable: {
+                promptRecorder.incrementReusePromptCount()
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reuseCount() == 1 }
+        await orchestrator.confirmReuse()
+        try await waitUntil { promptRecorder.reviewCount() == 1 }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil { await scriptStore.clearCallCount >= 1 }
+
+        let recordedDialogues = await ttsService.recordedDialogues
+        let loadCallCount = await scriptStore.loadNarrationAudioCallCount
+        XCTAssertTrue(recordedDialogues.isEmpty, "音声キャッシュがヒットする限り TTS は一度も呼ばれない")
+        XCTAssertEqual(loadCallCount, 2, "オープニング・クロージングそれぞれでキャッシュ確認が行われる")
+    }
+
+    /// レビューで1セグメントだけ台詞を編集すると、そのセグメントだけが再合成され、
+    /// 未編集のセグメントはキャッシュ済み音声をそのまま使う。
+    func testEditingOneSegmentOnlyResynthesizesThatSegment() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let ttsService = FakeTTSService()
+        var liveSettings = makeFastPreGenerateSettings()
+        liveSettings.ttsCredentialSets = [TTSCredentialSet(label: "runtime", apiKey: "runtime-key", modelName: "runtime-model")]
+
+        let openingDialogues = [DialogueLine(speaker: "male", text: "保存済みオープニングの台詞")]
+        let closingDialogues = [DialogueLine(speaker: "female", text: "保存済みクロージングの台詞")]
+        let session = makeTwoSegmentSession(
+            tracks: trackList,
+            openingDialogues: openingDialogues,
+            closingDialogues: closingDialogues
+        )
+        let effectiveSettings = makeEffectiveNarrationSettings(liveSettings: liveSettings)
+        let openingFingerprint = NarrationAudioFingerprint.make(dialogues: openingDialogues, settings: effectiveSettings)
+        let closingFingerprint = NarrationAudioFingerprint.make(dialogues: closingDialogues, settings: effectiveSettings)
+        let scriptStore = FakePreGeneratedScriptStore(
+            session: session,
+            narrationAudioByFingerprint: [
+                openingFingerprint: Data([0x01]),
+                closingFingerprint: Data([0x02]),
+            ]
+        )
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: liveSettings,
+            musicService: musicService,
+            ttsService: ttsService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            reusePromptDidBecomeAvailable: {
+                promptRecorder.incrementReusePromptCount()
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reuseCount() == 1 }
+        await orchestrator.confirmReuse()
+        try await waitUntil { promptRecorder.reviewCount() == 1 }
+        var reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+
+        let closingIndex = try XCTUnwrap(reviewItems.firstIndex { $0.segmentKey == "closing" })
+        let editedClosingDialogues = [DialogueLine(speaker: "female", text: "編集後のクロージングの台詞")]
+        reviewItems[closingIndex].script = RadioScript(
+            segmentType: reviewItems[closingIndex].script.segmentType,
+            dialogues: editedClosingDialogues,
+            summaryBullets: reviewItems[closingIndex].script.summaryBullets,
+            track: reviewItems[closingIndex].script.track
+        )
+
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil { await scriptStore.clearCallCount >= 1 }
+
+        let recordedDialogues = await ttsService.recordedDialogues
+        let saveCallCount = await scriptStore.saveNarrationAudioCallCount
+        XCTAssertEqual(recordedDialogues.count, 1, "編集したセグメントだけが TTS へ渡る")
+        XCTAssertEqual(recordedDialogues.first, editedClosingDialogues)
+        XCTAssertEqual(saveCallCount, 1, "再合成した音声だけがキャッシュへ保存される")
+    }
+
+    /// 新規生成した音声はキャッシュへ保存され、次回以降の再利用に備える。
+    func testFreshlySynthesizedNarrationIsSavedToAudioCache() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+        let scriptService = FakeScriptGenerationService()
+        // オープニングとクロージングの台詞をあえて別内容にする。既定値はどちらも同じ固定サンプルで、
+        // 台詞が同じだと fingerprint も同じになり、片方の合成結果がもう片方のキャッシュヒットとして
+        // 扱われてしまう（これは意図した重複排除の挙動であり、そのままでは検証できない）。
+        scriptService.openingScript = RadioScript(
+            segmentType: "opening",
+            dialogues: [DialogueLine(speaker: "male", text: "オープニングの台詞")],
+            summaryBullets: ["オープニングで触れた話題"],
+            track: nil
+        )
+        scriptService.closingScript = RadioScript(
+            segmentType: "closing",
+            dialogues: [DialogueLine(speaker: "female", text: "クロージングの台詞")],
+            summaryBullets: ["クロージングで触れた話題"],
+            track: nil
+        )
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptService: scriptService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reviewCount() == 1 }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil { await scriptStore.clearCallCount >= 1 }
+
+        let saveCallCount = await scriptStore.saveNarrationAudioCallCount
+        XCTAssertEqual(saveCallCount, 2, "オープニング・クロージングそれぞれの合成結果が保存される")
+    }
+
+    /// `isNarrationAudioCacheEnabled: false`（テストモード相当）では音声キャッシュの
+    /// いずれの API にも一切触れない。
+    func testDisabledNarrationAudioCacheNeverTouchesCacheAPIs() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptStore: scriptStore,
+            isNarrationAudioCacheEnabled: false,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reviewCount() == 1 }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil { await scriptStore.clearCallCount >= 1 }
+
+        let loadCallCount = await scriptStore.loadNarrationAudioCallCount
+        let saveCallCount = await scriptStore.saveNarrationAudioCallCount
+        let lastPruned = await scriptStore.lastPrunedFingerprints
+        XCTAssertEqual(loadCallCount, 0)
+        XCTAssertEqual(saveCallCount, 0)
+        XCTAssertNil(lastPruned, "キャッシュ無効時は clear() 経由の掃除以外で pruneNarrationAudio を呼ばない")
+    }
+
+    // MARK: - 「終了後も保持」トグル
+
+    /// レビューで「終了後も保持」を選んで承認すると、番組が最後まで正常終了しても
+    /// 台本セッションはアーカイブされず、次回同じプレイリストで再利用候補として残る。
+    func testApprovingWithPreservingCacheKeepsSessionAfterNormalCompletion() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+        let stateRecorder = LockedRadioStateRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            stateDidChange: { state in
+                stateRecorder.append(state)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reviewCount() == 1 }
+        let reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems, preservingCacheAfterCompletion: true)
+        // `isRunning` は startShow 直後に true になり、番組が完全に終了した時だけ false へ戻る
+        // （`phase` は開始直後にも `.idle` を経由するため完了判定には使えない）。
+        try await waitUntil { stateRecorder.latest()?.isRunning == false }
+
+        let clearCallCount = await scriptStore.clearCallCount
+        let savedSession = await scriptStore.session
+        XCTAssertEqual(clearCallCount, 0, "保持を選んだ場合、正常終了してもアーカイブされない")
+        XCTAssertNotNil(savedSession)
+    }
+
+    /// 「終了後も保持」フラグは番組ごとにリセットされる。1回目を保持ありで完走させると
+    /// 台本セッションが残るため、2回目の起動では保存済みセッションの再利用確認が挟まる
+    /// （declineReuse で外して再生成する）。2回目をデフォルト（保持なし）で承認すれば
+    /// 通常どおりアーカイブされることを確認する。
+    func testPreservesShowCacheFlagResetsForNextShow() async throws {
+        let trackList = [
+            TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
+        ]
+        let musicService = FakeMusicService(playlists: ["Favorites"], tracksByPlaylist: ["Favorites": trackList])
+        let scriptStore = FakePreGeneratedScriptStore()
+        let promptRecorder = LockedPreGeneratePromptRecorder()
+        let stateRecorder = LockedRadioStateRecorder()
+
+        let orchestrator = makeOrchestrator(
+            settings: makeFastPreGenerateSettings(),
+            musicService: musicService,
+            scriptStore: scriptStore,
+            reviewDidBecomeAvailable: { items in
+                promptRecorder.appendReviewItems(items)
+            },
+            reusePromptDidBecomeAvailable: {
+                promptRecorder.incrementReusePromptCount()
+            },
+            stateDidChange: { state in
+                stateRecorder.append(state)
+            }
+        )
+
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reviewCount() == 1 }
+        var reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        await orchestrator.approveScripts(reviewItems, preservingCacheAfterCompletion: true)
+        try await waitUntil { stateRecorder.latest()?.isRunning == false }
+        let clearCallCountAfterFirstShow = await scriptStore.clearCallCount
+        XCTAssertEqual(clearCallCountAfterFirstShow, 0)
+
+        // 1回目を保持したので、2回目の起動では保存済みセッションの再利用確認が挟まる。
+        await orchestrator.startShow(playlistName: "Favorites")
+        try await waitUntil { promptRecorder.reuseCount() == 1 }
+        await orchestrator.declineReuse()
+        try await waitUntil { promptRecorder.reviewCount() == 2 }
+        reviewItems = try XCTUnwrap(promptRecorder.latestReviewItems())
+        let clearCallCountBeforeSecondApprove = await scriptStore.clearCallCount
+        await orchestrator.approveScripts(reviewItems)
+        try await waitUntil { stateRecorder.latest()?.isRunning == false }
+
+        let finalClearCallCount = await scriptStore.clearCallCount
+        XCTAssertGreaterThan(
+            finalClearCallCount,
+            clearCallCountBeforeSecondApprove,
+            "2回目はデフォルト（保持なし）なので完走後に再度アーカイブされる"
+        )
+    }
+
     func testAwaitScriptReviewIncludesSegmentKeyAndResolvedPronunciationDictionary() async throws {
         let trackList = [
             TrackInfo(name: "Song A", artist: "Artist A", album: "Album A", durationSeconds: 0, playlistName: "Favorites"),
@@ -828,6 +1127,11 @@ final class RadioOrchestratorTests: XCTestCase {
             musicService: musicService,
             ttsService: ttsService,
             scriptStore: scriptStore,
+            // このテストの主旨は発音辞書の解決結果が TTS 設定へ正しく渡ることの検証であり、
+            // 音声キャッシュとは無関係。既定の台本フィクスチャはオープニング・クロージングで
+            // 台詞が同一なので、キャッシュ有効のままだと fingerprint が一致して片方の TTS 呼び出しが
+            // 省略されてしまい、`recordedSettings.count >= 2` が満たされなくなる。
+            isNarrationAudioCacheEnabled: false,
             reviewDidBecomeAvailable: { items in
                 promptRecorder.appendReviewItems(items)
             }
@@ -1233,6 +1537,48 @@ final class RadioOrchestratorTests: XCTestCase {
         )
     }
 
+    /// オープニング・クロージングの台詞を個別に指定できる版の `makePersistedSession`。
+    /// 音声キャッシュのテストでは、2セグメントの fingerprint が確実に異なることが必要になる。
+    private func makeTwoSegmentSession(
+        tracks: [TrackInfo],
+        openingDialogues: [DialogueLine],
+        closingDialogues: [DialogueLine]
+    ) -> PersistedScriptSession {
+        let settings = makeFastPreGenerateSettings().strippingSecrets()
+        let openingScript = RadioScript(
+            segmentType: "opening",
+            dialogues: openingDialogues,
+            summaryBullets: ["保存済みオープニング"],
+            track: tracks.first
+        )
+        let closingScript = RadioScript(
+            segmentType: "closing",
+            dialogues: closingDialogues,
+            summaryBullets: ["保存済みクロージング"],
+            track: tracks.last
+        )
+        return PersistedScriptSession(
+            playlistName: "Favorites",
+            trackFingerprint: tracks.map(\.id).joined(separator: "\n"),
+            tracks: tracks,
+            segments: [
+                PersistedSegment(key: "opening", script: openingScript, narrationSettings: settings),
+                PersistedSegment(key: "closing", script: closingScript, narrationSettings: settings),
+            ],
+            savedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    /// `RadioOrchestrator.restorePreGeneratedSegments(from:)` が実際に組み立てる narrationSettings を
+    /// テスト側で再現する。`makeTwoSegmentSession` / `makePersistedSession` が保存する
+    /// `makeFastPreGenerateSettings().strippingSecrets()` を土台に、ライブ設定の秘密情報と
+    /// 発音辞書を重ねる（本体の `applyingRuntimeSecrets` / `applyingCurrentPronunciationDictionary` と同じ手順）。
+    private func makeEffectiveNarrationSettings(liveSettings: AppSettings) -> AppSettings {
+        makeFastPreGenerateSettings().strippingSecrets()
+            .applyingRuntimeSecrets(from: liveSettings)
+            .applyingCurrentPronunciationDictionary(from: liveSettings)
+    }
+
     private func makeOrchestrator(
         settings: AppSettings = AppSettings(),
         musicService: FakeMusicService,
@@ -1244,6 +1590,7 @@ final class RadioOrchestratorTests: XCTestCase {
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
         scriptStore: (any PreGeneratedScriptStoreProtocol)? = nil,
+        isNarrationAudioCacheEnabled: Bool = true,
         currentDateProvider: @escaping @Sendable () -> Date = { Date() },
         reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)? = nil,
         reusePromptDidBecomeAvailable: (@Sendable () -> Void)? = nil,
@@ -1260,6 +1607,7 @@ final class RadioOrchestratorTests: XCTestCase {
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger,
             scriptStore: scriptStore,
+            isNarrationAudioCacheEnabled: isNarrationAudioCacheEnabled,
             currentDateProvider: currentDateProvider,
             reviewDidBecomeAvailable: reviewDidBecomeAvailable,
             reusePromptDidBecomeAvailable: reusePromptDidBecomeAvailable,

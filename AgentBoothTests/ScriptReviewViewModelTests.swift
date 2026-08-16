@@ -459,6 +459,110 @@ final class ScriptReviewViewModelTests: XCTestCase {
         XCTAssertEqual(recordedSettings.first?.voiceSettings.femaleVoiceName, "SegmentFemaleVoice")
     }
 
+    // MARK: - 永続音声キャッシュ（本番再生・他セッションのプレビューと共有）
+
+    /// レビューの試聴で合成した音声は、本番再生（`RadioOrchestrator`）が計算するのと
+    /// 同じ fingerprint で永続キャッシュへ保存される。
+    func testConfirmSegmentPreviewSavesAudioToScriptStoreWithMatchingFingerprint() async throws {
+        let scriptStore = FakePreGeneratedScriptStore()
+        let item = makeItem(segmentKey: "opening", label: "オープニング")
+        let (viewModel, _, _) = makeViewModelWithFakes(items: [item], isTestMode: false, scriptStore: scriptStore)
+        let segmentID = viewModel.segments[0].id
+
+        viewModel.requestSegmentPreview(segmentID)
+        viewModel.confirmSegmentPreview(segmentID, skipFutureConfirmations: false)
+        try await waitUntil { viewModel.previewStates[segmentID] == .ready }
+
+        let saveCallCount = await scriptStore.saveNarrationAudioCallCount
+        XCTAssertEqual(saveCallCount, 1)
+
+        let expectedFingerprint = NarrationAudioFingerprint.make(
+            dialogues: item.script.dialogues,
+            settings: makeExpectedSegmentNarrationSettings(sceneDirection: item.sceneDirection)
+        )
+        let savedAudio = await scriptStore.loadNarrationAudio(fingerprint: expectedFingerprint)
+        XCTAssertNotNil(savedAudio, "本番再生と同じ fingerprint で読み出せること")
+    }
+
+    /// 本番再生や過去のレビューが既に作った音声が永続キャッシュにあれば、確認ダイアログを出さず
+    /// API も消費せずに再生する。
+    func testRequestSegmentPreviewReusesPersistedAudioWithoutConfirmationOrTTSCall() async throws {
+        let item = makeItem(segmentKey: "opening", label: "オープニング")
+        let fingerprint = NarrationAudioFingerprint.make(
+            dialogues: item.script.dialogues,
+            settings: makeExpectedSegmentNarrationSettings(sceneDirection: item.sceneDirection)
+        )
+        let scriptStore = FakePreGeneratedScriptStore(narrationAudioByFingerprint: [fingerprint: Data([0x01, 0x02])])
+        let (viewModel, ttsService, audioService) = makeViewModelWithFakes(
+            items: [item],
+            isTestMode: false,
+            scriptStore: scriptStore
+        )
+        let segmentID = viewModel.segments[0].id
+
+        viewModel.requestSegmentPreview(segmentID)
+        try await waitUntil { viewModel.previewStates[segmentID] == .ready }
+
+        XCTAssertNil(viewModel.pendingPreviewConfirmationSegmentID, "永続キャッシュがヒットすれば確認ダイアログを出さない")
+        let recordedDialogues = await ttsService.recordedDialogues
+        let playCount = await audioService.playCount
+        XCTAssertTrue(recordedDialogues.isEmpty, "キャッシュヒット時は TTS を呼ばない")
+        XCTAssertEqual(playCount, 1)
+    }
+
+    /// 永続キャッシュに何かは入っているが、このセグメントの fingerprint とは一致しない場合
+    /// （台本を編集した後など）は、通常どおり確認ダイアログを要求する。
+    func testRequestSegmentPreviewShowsConfirmationWhenPersistedAudioFingerprintDoesNotMatch() async throws {
+        let item = makeItem(segmentKey: "opening", label: "オープニング")
+        let scriptStore = FakePreGeneratedScriptStore(narrationAudioByFingerprint: ["stale-fingerprint": Data([0x01])])
+        let (viewModel, ttsService, _) = makeViewModelWithFakes(items: [item], isTestMode: false, scriptStore: scriptStore)
+        let segmentID = viewModel.segments[0].id
+
+        viewModel.requestSegmentPreview(segmentID)
+        try await waitUntil { viewModel.pendingPreviewConfirmationSegmentID == segmentID }
+
+        let recordedDialogues = await ttsService.recordedDialogues
+        XCTAssertTrue(recordedDialogues.isEmpty, "確認ダイアログを出した段階ではまだ合成しない")
+    }
+
+    /// セグメント試聴に送る台詞は、承認後に実際に TTS へ渡る内容（空行を除外したもの）と一致させる。
+    /// 揃えないと、同じ内容の試聴と本番再生で fingerprint が食い違いキャッシュが共有できない。
+    func testSegmentPreviewDropsEmptyLinesToMatchApprovedScript() async throws {
+        var item = makeItem(segmentKey: "opening", label: "オープニング")
+        item.script.dialogues[1].text = "   "
+        let (viewModel, ttsService, _) = makeViewModelWithFakes(items: [item], isTestMode: false)
+        let segmentID = viewModel.segments[0].id
+
+        viewModel.requestSegmentPreview(segmentID)
+        viewModel.confirmSegmentPreview(segmentID, skipFutureConfirmations: false)
+        try await waitUntil { viewModel.previewStates[segmentID] == .ready }
+
+        let recordedDialogues = await ttsService.recordedDialogues
+        XCTAssertEqual(recordedDialogues.first?.count, 1, "空行は本番同様に除外されて TTS へ渡る")
+        XCTAssertEqual(recordedDialogues.first?.first?.text, "こんばんは、今夜も始まりました")
+    }
+
+    /// `scriptStore` を注入しない場合は従来どおり同期的に確認ダイアログを出す
+    /// （永続キャッシュの確認自体を行わない）。
+    func testRequestSegmentPreviewWithoutScriptStoreShowsConfirmationSynchronously() {
+        let (viewModel, _, _) = makeViewModelWithFakes(
+            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            isTestMode: false
+        )
+        let segmentID = viewModel.segments[0].id
+
+        viewModel.requestSegmentPreview(segmentID)
+
+        XCTAssertEqual(viewModel.pendingPreviewConfirmationSegmentID, segmentID)
+    }
+
+    private func makeExpectedSegmentNarrationSettings(sceneDirection: String) -> AppSettings {
+        var settings = AppSettings()
+        settings.ttsCredentialSets = [TTSCredentialSet(label: "test", apiKey: "key", modelName: "model")]
+        settings.directionSettings.sceneDirection = sceneDirection
+        return settings
+    }
+
     func testConfirmSegmentPreviewSynthesizesAndPlaysThenBecomesReady() async throws {
         let (viewModel, ttsService, audioService) = makeViewModelWithFakes(
             items: [makeItem(segmentKey: "opening", label: "オープニング")],
@@ -660,7 +764,8 @@ final class ScriptReviewViewModelTests: XCTestCase {
     /// 実 API・実再生は発生しない。`store.currentSettings` に有効な TTS 資格情報を1件設定しておく。
     private func makeViewModelWithFakes(
         items: [ReviewScriptItem],
-        isTestMode: Bool
+        isTestMode: Bool,
+        scriptStore: (any PreGeneratedScriptStoreProtocol)? = nil
     ) -> (ScriptReviewViewModel, FakeTTSService, FakeAudioPlaybackService) {
         let (_, _, store) = makeSettingsStore()
         try? store.updateSettings { settings in
@@ -676,7 +781,8 @@ final class ScriptReviewViewModelTests: XCTestCase {
                 ttsService: ttsService,
                 audioPlaybackService: audioService
             ),
-            isTestMode: isTestMode
+            isTestMode: isTestMode,
+            scriptStore: scriptStore
         )
         return (viewModel, ttsService, audioService)
     }

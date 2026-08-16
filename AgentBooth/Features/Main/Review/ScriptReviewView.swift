@@ -124,6 +124,9 @@ struct ScriptReviewView: View {
                     .foregroundStyle(.orange)
                 }
 
+                Toggle("終了後も保持", isOn: $viewModel.preservesShowCacheAfterCompletion)
+                    .help("番組を最後まで再生し終えても台本と音声キャッシュを保持します。次回同じプレイリストで再開すると、変更していないセグメントの音声を再利用できます。")
+
                 Button("承認して再生") {
                     onApprove()
                 }

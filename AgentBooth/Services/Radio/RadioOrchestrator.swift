@@ -84,6 +84,9 @@ actor RadioOrchestrator {
     private let recordingService: (any ShowRecordingServiceProtocol)?
     private let cueSheetLogger: ShowCueSheetLogger?
     private let scriptStore: (any PreGeneratedScriptStoreProtocol)?
+    /// セグメント単位の TTS 音声キャッシュを使うか。テストモード実行では本番のキャッシュを
+    /// 汚染しないよう無効化される（`MainViewModel` が `!testMode` を渡す）。
+    private let isNarrationAudioCacheEnabled: Bool
     private let currentDateProvider: @Sendable () -> Date
     private let stateDidChange: @Sendable (RadioState) -> Void
     /// 事前生成モードでレビュー対象の台本が揃った時に呼ばれるコールバック。
@@ -117,6 +120,9 @@ actor RadioOrchestrator {
     private var reviewContinuation: CheckedContinuation<[ReviewScriptItem], Error>?
     /// 再利用確認中断用の continuation。
     private var reuseContinuation: CheckedContinuation<Bool, Error>?
+    /// レビュー画面で「終了後も保持する」が選ばれたか。true の間は番組が正常終了しても
+    /// 台本セッション・音声キャッシュをアーカイブ/削除しない。
+    private var preservesShowCacheAfterCompletion = false
 
     /// バックエンドの自動連続再生を抑止するため、曲の自然終了より手前で停止する安全マージン（秒）。
     /// これにより orchestrator が明示的に stop を呼ぶ前にバックエンドが次曲へ進むレースを防ぐ。
@@ -133,6 +139,7 @@ actor RadioOrchestrator {
         recordingService: (any ShowRecordingServiceProtocol)? = nil,
         cueSheetLogger: ShowCueSheetLogger? = nil,
         scriptStore: (any PreGeneratedScriptStoreProtocol)? = nil,
+        isNarrationAudioCacheEnabled: Bool = true,
         currentDateProvider: @escaping @Sendable () -> Date = { Date() },
         reviewDidBecomeAvailable: (@Sendable ([ReviewScriptItem]) -> Void)? = nil,
         reusePromptDidBecomeAvailable: (@Sendable () -> Void)? = nil,
@@ -148,6 +155,7 @@ actor RadioOrchestrator {
         self.recordingService = recordingService
         self.cueSheetLogger = cueSheetLogger
         self.scriptStore = scriptStore
+        self.isNarrationAudioCacheEnabled = isNarrationAudioCacheEnabled
         self.currentDateProvider = currentDateProvider
         self.reviewDidBecomeAvailable = reviewDidBecomeAvailable
         self.reusePromptDidBecomeAvailable = reusePromptDidBecomeAvailable
@@ -225,7 +233,11 @@ actor RadioOrchestrator {
         do {
             try await performShow(playlistName: playlistName, initialTracks: initialTracks)
             if settings.defaultScriptGenerationMode == .preGenerate, !isStopRequested {
-                await scriptStore?.clear()
+                if preservesShowCacheAfterCompletion {
+                    await cueSheetLogger?.append("事前生成: ユーザー指定により台本・音声キャッシュを保持", indentLevel: 0)
+                } else {
+                    await scriptStore?.clear()
+                }
             }
             await finishRunShow(errorMessage: nil)
         } catch is CancellationError {
@@ -264,6 +276,7 @@ actor RadioOrchestrator {
             let editedItems = try await awaitScriptReview()
             applyEditedSegments(editedItems)
             await scriptStore?.save(makePersistedSession(playlistName: playlistName, tracks: tracks))
+            await pruneStaleNarrationAudioCache()
         }
 
         let openingNarration = try await prepareOpeningNarration(tracks: tracks)
@@ -440,7 +453,12 @@ actor RadioOrchestrator {
             let wavData = try await synthesizeNarration(
                 dialogues: script.dialogues,
                 segmentLabel: segmentLabel,
-                settings: narrationSettings
+                settings: narrationSettings,
+                audioFingerprint: makeNarrationAudioFingerprint(
+                    isPreGenerated: cached != nil,
+                    dialogues: script.dialogues,
+                    settings: narrationSettings
+                )
             )
             return PreparedNarration(
                 script: script,
@@ -511,7 +529,12 @@ actor RadioOrchestrator {
             let wavData = try await synthesizeNarration(
                 dialogues: script.dialogues,
                 segmentLabel: segmentLabel,
-                settings: narrationSettings
+                settings: narrationSettings,
+                audioFingerprint: makeNarrationAudioFingerprint(
+                    isPreGenerated: cached != nil,
+                    dialogues: script.dialogues,
+                    settings: narrationSettings
+                )
             )
             return PreparedNarration(
                 script: script,
@@ -545,7 +568,12 @@ actor RadioOrchestrator {
             let wavData = try await synthesizeNarration(
                 dialogues: script.dialogues,
                 segmentLabel: segmentLabel,
-                settings: narrationSettings
+                settings: narrationSettings,
+                audioFingerprint: makeNarrationAudioFingerprint(
+                    isPreGenerated: cached != nil,
+                    dialogues: script.dialogues,
+                    settings: narrationSettings
+                )
             )
             return PreparedNarration(
                 script: script,
@@ -811,8 +839,15 @@ actor RadioOrchestrator {
     private func synthesizeNarration(
         dialogues: [DialogueLine],
         segmentLabel: String,
-        settings narrationSettings: AppSettings
+        settings narrationSettings: AppSettings,
+        audioFingerprint: String? = nil
     ) async throws -> Data {
+        if let audioFingerprint, let cachedWavData = await scriptStore?.loadNarrationAudio(fingerprint: audioFingerprint) {
+            updateState { $0.statusMessage = String(format: String(localized: "TTS音声キャッシュ再利用（%@）"), segmentLabel); $0.isProcessing = false }
+            await cueSheetLogger?.append("TTS音声キャッシュ再利用(\(segmentLabel))")
+            return cachedWavData
+        }
+
         updateState { $0.statusMessage = String(format: String(localized: "TTS音声作成開始（%@）"), segmentLabel); $0.isProcessing = true }
         await cueSheetLogger?.append("TTS音声作成開始(\(segmentLabel))")
         do {
@@ -831,6 +866,9 @@ actor RadioOrchestrator {
             await cueSheetLogger?.append(
                 "TTS音声作成終了(\(segmentLabel) / セット: \(credentialLabel) / モデル: \(result.modelUsed) / フォールバック: \(result.didUseFallback ? "あり" : "なし"))"
             )
+            if let audioFingerprint {
+                await scriptStore?.saveNarrationAudio(result.wavData, fingerprint: audioFingerprint)
+            }
             return result.wavData
         } catch {
             await cueSheetLogger?.append("TTS音声作成終了(\(segmentLabel) / エラー: \(error.localizedDescription))")
@@ -1344,6 +1382,29 @@ actor RadioOrchestrator {
         }
     }
 
+    /// 事前生成セグメントに対してのみキャッシュキーを作る。
+    /// オンデマンド生成の台本は毎回内容が変わるためキャッシュしない。
+    private func makeNarrationAudioFingerprint(
+        isPreGenerated: Bool,
+        dialogues: [DialogueLine],
+        settings: AppSettings
+    ) -> String? {
+        guard isNarrationAudioCacheEnabled, isPreGenerated else {
+            return nil
+        }
+        return NarrationAudioFingerprint.make(dialogues: dialogues, settings: settings)
+    }
+
+    /// レビュー承認直後、現在の `preGeneratedSegments` に対応しない音声キャッシュを削除する。
+    /// 台詞を編集したセグメントは fingerprint が変わるため、古い WAV がここで掃除される。
+    private func pruneStaleNarrationAudioCache() async {
+        guard isNarrationAudioCacheEnabled else { return }
+        let fingerprints = Set(preGeneratedSegments.values.map { cached in
+            NarrationAudioFingerprint.make(dialogues: cached.script.dialogues, settings: cached.narrationSettings)
+        })
+        await scriptStore?.pruneNarrationAudio(keeping: fingerprints)
+    }
+
     /// 保存済み台本セッションをメモリキャッシュへ復元する。
     private func restorePreGeneratedSegments(from session: PersistedScriptSession) {
         preGeneratedSegments = Dictionary(
@@ -1417,9 +1478,12 @@ actor RadioOrchestrator {
     }
 
     /// レビュー結果を承認して再生を続行する。
-    func approveScripts(_ editedItems: [ReviewScriptItem]) {
+    /// `preservingCacheAfterCompletion` が true の場合、番組が最後まで正常終了しても
+    /// 台本セッション・音声キャッシュをアーカイブ/削除しない（次回同じプレイリストで再利用できる）。
+    func approveScripts(_ editedItems: [ReviewScriptItem], preservingCacheAfterCompletion: Bool = false) {
         guard let continuation = reviewContinuation else { return }
         reviewContinuation = nil
+        preservesShowCacheAfterCompletion = preservingCacheAfterCompletion
         continuation.resume(returning: editedItems)
     }
 
@@ -1458,6 +1522,7 @@ actor RadioOrchestrator {
         pauseStartedAt = nil
         accumulatedPausedSeconds = 0
         preGeneratedSegments = [:]
+        preservesShowCacheAfterCompletion = false
         updateState {
             $0.isRunning = false
             $0.isPaused = false

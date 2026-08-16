@@ -24,6 +24,7 @@
 		2412F9D20338BF2D29ED8F47 /* agentbooth.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3695314D2707876818736936 /* agentbooth.icon */; };
 		24B146DB329FC4B4AFB410F6 /* TTSCredentialSetsEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB05E2F5F6192C615B028634 /* TTSCredentialSetsEditor.swift */; };
 		28FEDEF8052BDD5EC3595331 /* YouTubeMusicBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */; };
+		2912A3671A6AC71CC9FF4F27 /* NarrationAudioFingerprintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4FBE496023B25E985B29EBC /* NarrationAudioFingerprintTests.swift */; };
 		294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */; };
 		2B612CD3B5D35CCC240681E5 /* SpotifyDOMModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A73172906FA5788B6E8D1722 /* SpotifyDOMModels.swift */; };
 		2BFFB6D78A1FEE04832B17F6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C39922A308CE75BF0D1D5E /* Models.swift */; };
@@ -66,6 +67,7 @@
 		A4813849F1A19B657F6A4FD2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CCE6F6D9D1ABD6A1F577A60C /* Localizable.strings */; };
 		A783BF60A1667BB793FF49FB /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 571281CD47E4CA30F6996F0D /* ScreenCaptureKit.framework */; };
 		ABF166875ADD020AD3EBC2D1 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58975426E0097C0CFE155B8E /* CoreMedia.framework */; };
+		AF811894737995390A0632E7 /* NarrationAudioFingerprint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E90F2AA91C2231B990B9EA8 /* NarrationAudioFingerprint.swift */; };
 		AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */; };
 		B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */; };
 		B670E7A19D095C07893A8C12 /* YouTubeMusicScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A725F59DE59B73646C65CC43 /* YouTubeMusicScriptRunner.swift */; };
@@ -166,6 +168,7 @@
 		99EFD152C7EAB48D8175EB18 /* PreGeneratedScriptStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreGeneratedScriptStore.swift; sourceTree = "<group>"; };
 		9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServiceContainer.swift; sourceTree = "<group>"; };
 		9DBA837DA52D39360545C07F /* ShowProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowProfileStore.swift; sourceTree = "<group>"; };
+		9E90F2AA91C2231B990B9EA8 /* NarrationAudioFingerprint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NarrationAudioFingerprint.swift; sourceTree = "<group>"; };
 		9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryControlStateTests.swift; sourceTree = "<group>"; };
 		A39FD0648FD0B0AB8FD77A6C /* TimeBasedDirectionResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeBasedDirectionResolver.swift; sourceTree = "<group>"; };
 		A703B9C53D2B555D308819FF /* YouTubeMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicService.swift; sourceTree = "<group>"; };
@@ -190,6 +193,7 @@
 		DF291B3CD17DDD03A03EFB5D /* SystemBedAudioPlaybackServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBedAudioPlaybackServiceTests.swift; sourceTree = "<group>"; };
 		E2EC10CAED3ACBAE47308EB1 /* YouTubeMusicBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicBrowserWindow.swift; sourceTree = "<group>"; };
 		E3BD548FFD67212BA64CAF3B /* AgentBoothTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentBoothTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4FBE496023B25E985B29EBC /* NarrationAudioFingerprintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NarrationAudioFingerprintTests.swift; sourceTree = "<group>"; };
 		E631FA254CDC04930FA07299 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		E6B1B7619C3D915FACE380A8 /* RadioOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestrator.swift; sourceTree = "<group>"; };
 		E8950BBEDA233AFFA12AC842 /* AgentBooth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentBooth.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -333,6 +337,7 @@
 				F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */,
 				79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */,
 				04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */,
+				E4FBE496023B25E985B29EBC /* NarrationAudioFingerprintTests.swift */,
 				7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */,
 				9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */,
 				6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */,
@@ -537,6 +542,7 @@
 			isa = PBXGroup;
 			children = (
 				0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */,
+				9E90F2AA91C2231B990B9EA8 /* NarrationAudioFingerprint.swift */,
 				95DA44A7F8BAF791D5CB0E38 /* PronunciationDictionaryResolver.swift */,
 				5F65490B3FD4C7721C60A28C /* TestModeTTSService.swift */,
 				0B2CFBBED6B0B18EB3B201DE /* TTSInputComposer.swift */,
@@ -647,6 +653,7 @@
 				AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */,
 				D1DC639BE636543B5F2105E7 /* GeminiTTSServiceTests.swift in Sources */,
 				1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */,
+				2912A3671A6AC71CC9FF4F27 /* NarrationAudioFingerprintTests.swift in Sources */,
 				B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */,
 				294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */,
 				8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */,
@@ -683,6 +690,7 @@
 				6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */,
 				483EF38C595DEDECE64A292A /* MainViewModel.swift in Sources */,
 				2BFFB6D78A1FEE04832B17F6 /* Models.swift in Sources */,
+				AF811894737995390A0632E7 /* NarrationAudioFingerprint.swift in Sources */,
 				355D80EDF9B40A776C2E192D /* NowPlayingBar.swift in Sources */,
 				7B9878514411E69C830359AB /* PreGeneratedScriptStore.swift in Sources */,
 				E0FAE1567D838876CF736668 /* ProcessScriptGenerationService.swift in Sources */,
@@ -811,7 +819,7 @@
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = AgentBooth/Info.plist;
@@ -820,7 +828,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBooth;
 				PRODUCT_NAME = AgentBooth;
 				SDKROOT = macosx;
@@ -954,7 +962,7 @@
 				CODE_SIGN_ENTITLEMENTS = AgentBooth/AgentBooth.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = AgentBooth/Info.plist;
@@ -963,7 +971,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dmng.AgentBooth;
 				PRODUCT_NAME = AgentBooth;
 				SDKROOT = macosx;

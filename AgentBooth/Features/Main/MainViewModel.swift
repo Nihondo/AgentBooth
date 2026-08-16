@@ -228,6 +228,7 @@ final class MainViewModel: ObservableObject {
             recordingService: recordingService,
             cueSheetLogger: cueSheetLogger,
             scriptStore: scriptStore,
+            isNarrationAudioCacheEnabled: !testMode,
             reviewDidBecomeAvailable: { [weak self] items in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
@@ -235,7 +236,8 @@ final class MainViewModel: ObservableObject {
                         items: items,
                         settingsStore: self.settingsStore,
                         serviceFactory: self.serviceFactory,
-                        isTestMode: testMode
+                        isTestMode: testMode,
+                        scriptStore: scriptStore
                     )
                     self.isReviewing = true
                 }
@@ -276,9 +278,10 @@ final class MainViewModel: ObservableObject {
     func approveScriptReview() {
         guard let reviewViewModel else { return }
         let items = reviewViewModel.makeApprovedItems()
+        let preservesCache = reviewViewModel.preservesShowCacheAfterCompletion
         isReviewing = false
         self.reviewViewModel = nil
-        Task { await radioOrchestrator?.approveScripts(items) }
+        Task { await radioOrchestrator?.approveScripts(items, preservingCacheAfterCompletion: preservesCache) }
     }
 
     /// レビューをキャンセルして番組を停止する。
