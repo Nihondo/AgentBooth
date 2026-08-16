@@ -397,6 +397,10 @@ actor FakePreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
         lastPrunedFingerprints = fingerprints
         narrationAudioByFingerprint = narrationAudioByFingerprint.filter { fingerprints.contains($0.key) }
     }
+
+    func hasNarrationAudio(fingerprint: String) async -> Bool {
+        narrationAudioByFingerprint[fingerprint] != nil
+    }
 }
 
 struct FakeServiceFactory: AppServiceFactory {

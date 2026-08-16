@@ -90,6 +90,11 @@ struct ScriptReviewView: View {
                     .foregroundStyle(.orange)
                     .help("空の発話行があります")
             }
+            if viewModel.segmentAudioCacheStatus[segment.id] == true {
+                Image(systemName: "waveform.badge.checkmark")
+                    .foregroundStyle(.green)
+                    .help("この内容の音声はキャッシュ済みです。再生時に TTS API を呼び出しません。")
+            }
         }
     }
 

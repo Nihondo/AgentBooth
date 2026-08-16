@@ -75,6 +75,10 @@ actor PreGeneratedScriptStore: PreGeneratedScriptStoreProtocol {
         }
     }
 
+    func hasNarrationAudio(fingerprint: String) async -> Bool {
+        fileManager.fileExists(atPath: narrationAudioFileURL(fingerprint: fingerprint).path)
+    }
+
     func pruneNarrationAudio(keeping fingerprints: Set<String>) async {
         let directoryURL = narrationAudioDirectoryURL()
         guard let contents = try? fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil) else {

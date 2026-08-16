@@ -556,6 +556,75 @@ final class ScriptReviewViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.pendingPreviewConfirmationSegmentID, segmentID)
     }
 
+    // MARK: - セグメントの音声キャッシュ有無表示
+
+    /// レビュー画面を開いた時点で、各セグメントの現在の内容に対応する音声キャッシュの有無を
+    /// バックグラウンドで確認し、`segmentAudioCacheStatus` へ反映する。
+    func testInitProbesAudioCacheStatusAndMarksCachedSegmentTrue() async throws {
+        let item = makeItem(segmentKey: "opening", label: "オープニング")
+        let fingerprint = NarrationAudioFingerprint.make(
+            dialogues: item.script.dialogues,
+            settings: makeExpectedSegmentNarrationSettings(sceneDirection: item.sceneDirection)
+        )
+        let scriptStore = FakePreGeneratedScriptStore(narrationAudioByFingerprint: [fingerprint: Data([0x01])])
+        let (viewModel, _, _) = makeViewModelWithFakes(items: [item], isTestMode: false, scriptStore: scriptStore)
+        let segmentID = viewModel.segments[0].id
+
+        try await waitUntil { viewModel.segmentAudioCacheStatus[segmentID] == true }
+    }
+
+    /// キャッシュが存在しないセグメントは true にならない。
+    func testInitLeavesUncachedSegmentStatusNotTrue() async throws {
+        let scriptStore = FakePreGeneratedScriptStore()
+        let (viewModel, _, _) = makeViewModelWithFakes(
+            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            isTestMode: false,
+            scriptStore: scriptStore
+        )
+        let segmentID = viewModel.segments[0].id
+
+        // 「確認済みで false」になるまで待つ（未確認の nil のままでないことを保証する）。
+        try await waitUntil { viewModel.segmentAudioCacheStatus[segmentID] == false }
+    }
+
+    /// 試聴して新規に合成・保存した直後は、確認を待たず即座に「キャッシュあり」と表示する。
+    func testConfirmSegmentPreviewMarksAudioCacheStatusTrueImmediately() async throws {
+        let scriptStore = FakePreGeneratedScriptStore()
+        let (viewModel, _, _) = makeViewModelWithFakes(
+            items: [makeItem(segmentKey: "opening", label: "オープニング")],
+            isTestMode: false,
+            scriptStore: scriptStore
+        )
+        let segmentID = viewModel.segments[0].id
+
+        viewModel.requestSegmentPreview(segmentID)
+        viewModel.confirmSegmentPreview(segmentID, skipFutureConfirmations: false)
+        try await waitUntil { viewModel.previewStates[segmentID] == .ready }
+
+        XCTAssertEqual(viewModel.segmentAudioCacheStatus[segmentID], true)
+    }
+
+    /// 台詞を編集すると fingerprint が変わるため、既存のキャッシュ表示は無効になる
+    /// （デバウンス後に再確認され、新しい内容には対応するキャッシュがないので false になる）。
+    func testEditingLineTextInvalidatesAudioCacheStatus() async throws {
+        let item = makeItem(segmentKey: "opening", label: "オープニング")
+        let fingerprint = NarrationAudioFingerprint.make(
+            dialogues: item.script.dialogues,
+            settings: makeExpectedSegmentNarrationSettings(sceneDirection: item.sceneDirection)
+        )
+        let scriptStore = FakePreGeneratedScriptStore(narrationAudioByFingerprint: [fingerprint: Data([0x01])])
+        let (viewModel, _, _) = makeViewModelWithFakes(items: [item], isTestMode: false, scriptStore: scriptStore)
+        let segment = viewModel.segments[0]
+
+        try await waitUntil { viewModel.segmentAudioCacheStatus[segment.id] == true }
+
+        viewModel.updateLineText(segmentID: segment.id, lineID: segment.lines[0].id, text: "書き換えたテキスト")
+
+        try await waitUntil(timeoutNanoseconds: 6_000_000_000) {
+            viewModel.segmentAudioCacheStatus[segment.id] == false
+        }
+    }
+
     private func makeExpectedSegmentNarrationSettings(sceneDirection: String) -> AppSettings {
         var settings = AppSettings()
         settings.ttsCredentialSets = [TTSCredentialSet(label: "test", apiKey: "key", modelName: "model")]

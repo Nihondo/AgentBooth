@@ -76,6 +76,10 @@ final class ScriptReviewViewModel: ObservableObject {
     /// 番組を最後まで再生し終えても台本・音声キャッシュをアーカイブ/削除せず保持するか。
     /// 通しで聴いた結果、1セグメントだけ直して流し直したい場合に使う。
     @Published var preservesShowCacheAfterCompletion = false
+    /// セグメントの「現在の内容」に対応する音声が永続キャッシュに存在するか。
+    /// キーがないセグメントは未確認（確認中）を表す。true のときだけ UI に表示する
+    /// （false／未確認を積極的に表示すると煩雑になるため）。
+    @Published private(set) var segmentAudioCacheStatus: [ReviewSegmentDraft.ID: Bool] = [:]
 
     private let settingsStore: AppSettingsStore
     private let serviceFactory: any AppServiceFactory
@@ -117,6 +121,7 @@ final class ScriptReviewViewModel: ObservableObject {
         self.isTestMode = isTestMode
         self.scriptStore = scriptStore
         self.selectedSegmentID = segments.first?.id
+        refreshAllAudioCacheStatuses()
     }
 
     // MARK: - 参照
@@ -150,7 +155,7 @@ final class ScriptReviewViewModel: ObservableObject {
     func updateSceneDirection(segmentID: UUID, text: String) {
         guard let index = segments.firstIndex(where: { $0.id == segmentID }) else { return }
         segments[index].sceneDirection = text
-        scheduleContentRevisionBump()
+        scheduleContentRevisionBump(for: segmentID)
     }
 
     /// 発話行のテキストを書き換える。無通知。
@@ -158,15 +163,16 @@ final class ScriptReviewViewModel: ObservableObject {
         guard let segmentIndex = segments.firstIndex(where: { $0.id == segmentID }),
               let lineIndex = segments[segmentIndex].lines.firstIndex(where: { $0.id == lineID }) else { return }
         segments[segmentIndex].lines[lineIndex].text = text
-        scheduleContentRevisionBump()
+        scheduleContentRevisionBump(for: segmentID)
     }
 
-    private func scheduleContentRevisionBump() {
+    private func scheduleContentRevisionBump(for segmentID: UUID) {
         contentRevisionTask?.cancel()
         contentRevisionTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
             self?.contentRevision += 1
+            self?.refreshAudioCacheStatus(for: segmentID)
         }
     }
 
@@ -190,6 +196,8 @@ final class ScriptReviewViewModel: ObservableObject {
         guard let previous = undoStack.popLast() else { return }
         segments = previous
         structureRevision += 1
+        // undo は任意のセグメントへ影響し得るため、まとめて確認し直す。
+        refreshAllAudioCacheStatuses()
     }
 
     /// セグメント末尾に空の発話行を追加する。
@@ -198,6 +206,7 @@ final class ScriptReviewViewModel: ObservableObject {
         pushUndoSnapshot()
         segments[index].lines.append(ReviewLineDraft(speaker: speaker, text: ""))
         structureRevision += 1
+        refreshAudioCacheStatus(for: segmentID)
     }
 
     /// 指定行の直後に空の発話行を挿入する。
@@ -207,6 +216,7 @@ final class ScriptReviewViewModel: ObservableObject {
         pushUndoSnapshot()
         segments[segmentIndex].lines.insert(ReviewLineDraft(speaker: speaker, text: ""), at: lineIndex + 1)
         structureRevision += 1
+        refreshAudioCacheStatus(for: segmentID)
     }
 
     /// 発話行を削除する。セグメント内の最後の1行は削除しない（TTS への空 transcript 送出を防ぐ）。
@@ -217,6 +227,7 @@ final class ScriptReviewViewModel: ObservableObject {
         pushUndoSnapshot()
         segments[segmentIndex].lines.remove(at: lineIndex)
         structureRevision += 1
+        refreshAudioCacheStatus(for: segmentID)
     }
 
     /// 話者（男性⇄女性）を切り替える。
@@ -235,6 +246,7 @@ final class ScriptReviewViewModel: ObservableObject {
         pushUndoSnapshot()
         segments[segmentIndex].lines[lineIndex].speaker = transform(segments[segmentIndex].lines[lineIndex].speaker)
         structureRevision += 1
+        refreshAudioCacheStatus(for: segmentID)
     }
 
     /// ドラッグ&ドロップによる並べ替えの開始。ドラッグ1回分をまとめて1 undo ステップにするため、
@@ -253,6 +265,7 @@ final class ScriptReviewViewModel: ObservableObject {
         let line = segments[segmentIndex].lines.remove(at: fromIndex)
         segments[segmentIndex].lines.insert(line, at: clampedTarget)
         structureRevision += 1
+        refreshAudioCacheStatus(for: segmentID)
     }
 
     // MARK: - 検索・置換
@@ -302,6 +315,7 @@ final class ScriptReviewViewModel: ObservableObject {
         pushUndoSnapshot()
         segments = ReviewSearchEngine.replacing(match, in: segments, replacement: search.replacement)
         structureRevision += 1
+        refreshAudioCacheStatus(for: match.segmentID)
 
         let remainingMatches = matches
         if remainingMatches.isEmpty {
@@ -325,6 +339,8 @@ final class ScriptReviewViewModel: ObservableObject {
         )
         structureRevision += 1
         search.currentMatchIndex = -1
+        // 複数セグメントにまたがって置換され得るため、まとめて確認し直す。
+        refreshAllAudioCacheStatuses()
     }
 
     // MARK: - 発音辞書 / TTS 入力プレビュー
@@ -372,6 +388,8 @@ final class ScriptReviewViewModel: ObservableObject {
             segments[index].pronunciationEntries = resolvedEntries
         }
         contentRevision += 1
+        // 全セグメントの実効辞書が変わるため、まとめて確認し直す。
+        refreshAllAudioCacheStatuses()
     }
 
     /// 試聴ボタンを有効化してよいか。テストモードでは実 API を呼ばないため常に許可する。
@@ -419,8 +437,10 @@ final class ScriptReviewViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             if let wavData {
                 self.previewCache[target] = (contentHash, wavData)
+                self.segmentAudioCacheStatus[segmentID] = true
                 self.playCachedPreview(target: target, wavData: wavData)
             } else {
+                self.segmentAudioCacheStatus[segmentID] = false
                 self.pendingPreviewConfirmationSegmentID = segmentID
             }
         }
@@ -539,6 +559,26 @@ final class ScriptReviewViewModel: ObservableObject {
         return NarrationAudioFingerprint.make(dialogues: dialogues, settings: makeNarrationSettings(for: segment))
     }
 
+    /// 全セグメントの「現在の内容」に対する永続音声キャッシュ有無をまとめて確認する。
+    /// 初期表示時、および複数セグメントへ影響し得る操作（undo・一括置換・辞書登録）の後に呼ぶ。
+    private func refreshAllAudioCacheStatuses() {
+        for segment in segments {
+            refreshAudioCacheStatus(for: segment.id)
+        }
+    }
+
+    /// 指定セグメントの「現在の内容」に対する永続音声キャッシュ有無を非同期に確認し、
+    /// `segmentAudioCacheStatus` へ反映する。ローカルファイルの存在確認のみで API は消費しない。
+    private func refreshAudioCacheStatus(for segmentID: UUID) {
+        guard let scriptStore, let segment = segment(withID: segmentID) else { return }
+        let dialogues = segmentAudioDialogues(for: segment)
+        guard let fingerprint = narrationAudioFingerprint(for: segment, dialogues: dialogues) else { return }
+        Task { [weak self] in
+            let exists = await scriptStore.hasNarrationAudio(fingerprint: fingerprint)
+            self?.segmentAudioCacheStatus[segmentID] = exists
+        }
+    }
+
     private func performPreview(
         target: PreviewTarget,
         dialogues: [DialogueLine],
@@ -568,6 +608,9 @@ final class ScriptReviewViewModel: ObservableObject {
                 self.previewCache[target] = (contentHash, result.wavData)
                 if let audioFingerprint {
                     await self.scriptStore?.saveNarrationAudio(result.wavData, fingerprint: audioFingerprint)
+                    if case .segment(let segmentID) = target {
+                        self.segmentAudioCacheStatus[segmentID] = true
+                    }
                 }
                 self.setPreviewState(.playing, for: target)
                 try await audioService.play(wavData: result.wavData)

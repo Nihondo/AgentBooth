@@ -84,6 +84,8 @@ protocol PreGeneratedScriptStoreProtocol: Sendable {
     func saveNarrationAudio(_ wavData: Data, fingerprint: String) async
     /// 引数の fingerprint 以外の音声を削除する（台本編集で不要になった WAV の掃除）。
     func pruneNarrationAudio(keeping fingerprints: Set<String>) async
+    /// 指定 fingerprint の音声キャッシュが存在するかだけを確認する（UI 表示用、`loadNarrationAudio` と違い音声本体は読まない）。
+    func hasNarrationAudio(fingerprint: String) async -> Bool
 }
 
 /// A factory that wires live or fake services together.

@@ -66,6 +66,11 @@ struct ScriptReviewSegmentEditor: View {
                 HStack(spacing: 16) {
                     Label(segment.maleVoiceName.isEmpty ? String(localized: "未設定") : segment.maleVoiceName, systemImage: "person.fill")
                     Label(segment.femaleVoiceName.isEmpty ? String(localized: "未設定") : segment.femaleVoiceName, systemImage: "person.fill")
+                    if viewModel.segmentAudioCacheStatus[segment.id] == true {
+                        Label("音声キャッシュあり", systemImage: "waveform.badge.checkmark")
+                            .foregroundStyle(.green)
+                            .help("この内容の音声はすでにキャッシュされています。再生時に TTS API を呼び出しません。")
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
