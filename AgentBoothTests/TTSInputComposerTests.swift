@@ -208,4 +208,109 @@ final class TTSInputComposerTests: XCTestCase {
         let entry = PronunciationEntry(source: "存在しない語", reading: "そんざいしないご")
         XCTAssertFalse(TTSInputComposer.appliesTo(entry: entry, dialogues: dialogues))
     }
+
+    // MARK: - stripInlineVocalTags（Gemini 2.5 / 3.1 向け: タグを演技指示として解釈できないため除去する）
+
+    func testStripInlineVocalTagsRemovesWhitelistedTags() {
+        XCTAssertEqual(
+            TTSInputComposer.stripInlineVocalTags("待って… <short pause> 聞こえた? <laugh>"),
+            "待って… 聞こえた?"
+        )
+    }
+
+    /// タグが1つも含まれない入力では出力がバイト単位で不変であること（既存ゴールデンテストの前提）。
+    func testStripInlineVocalTagsLeavesTextWithoutTagsUnchanged() {
+        let text = "ファミコン版「女神転生」から、a < b という比較の話もします"
+        XCTAssertEqual(TTSInputComposer.stripInlineVocalTags(text), text)
+    }
+
+    func testStripInlineVocalTagsIgnoresNonWhitelistedAngleBrackets() {
+        let text = "これは <独自タグ> です"
+        XCTAssertEqual(TTSInputComposer.stripInlineVocalTags(text), text)
+    }
+
+    // MARK: - makeStructuredInput（Gemini 3.8 以降: speech_metadata スキーマ）
+
+    func testMakeStructuredInputOmitsSpeakerForSingleSpeaker() {
+        let single = [DialogueLine(speaker: "male", text: "男性だけの台詞")]
+        let result = TTSInputComposer.makeStructuredInput(dialogues: single, directionSettings: DirectionSettings())
+
+        XCTAssertNil(result.style)
+        XCTAssertEqual(result.turns, [TTSTurn(speaker: nil, text: "男性だけの台詞")])
+    }
+
+    func testMakeStructuredInputSetsSpeakerOnEveryTurnForMultiSpeaker() {
+        let result = TTSInputComposer.makeStructuredInput(
+            dialogues: dialogues,
+            directionSettings: DirectionSettings(sceneDirection: "深夜帯、静かに話す")
+        )
+
+        XCTAssertEqual(result.style, "深夜帯、静かに話す")
+        XCTAssertEqual(
+            result.turns,
+            [
+                TTSTurn(speaker: "Male", text: "ファミコン版「女神転生」から"),
+                TTSTurn(speaker: "Female", text: "エンディングテーマをお届けします"),
+            ]
+        )
+    }
+
+    /// 演技指示（Direction）を本文へ書くと 3.8 では読み上げられてしまうため、
+    /// 本文には一切含めず `style` にのみ載せる。
+    func testMakeStructuredInputNeverEmbedsDirectionInTurnText() {
+        let result = TTSInputComposer.makeStructuredInput(
+            dialogues: dialogues,
+            directionSettings: DirectionSettings(sceneDirection: "深夜帯")
+        )
+        for turn in result.turns {
+            XCTAssertFalse(turn.text.contains("Direction"))
+        }
+    }
+
+    /// 発音辞書はモード指定に関わらず常にトランスクリプト置換を適用する
+    /// （ルール文をそのまま本文に書くと 3.8 では読み上げられてしまうため）。
+    func testMakeStructuredInputAlwaysReplacesPronunciationRegardlessOfMode() {
+        let dialogues = [DialogueLine(speaker: "male", text: "女神転生の話をします")]
+        let entries = [PronunciationEntry(source: "女神転生", reading: "メガミテンセイ")]
+        let directionSettings = DirectionSettings(pronunciationApplicationMode: .instruction)
+
+        let result = TTSInputComposer.makeStructuredInput(
+            dialogues: dialogues,
+            directionSettings: directionSettings,
+            pronunciationEntries: entries
+        )
+
+        XCTAssertEqual(result.turns, [TTSTurn(speaker: nil, text: "メガミテンセイの話をします")])
+    }
+
+    /// インラインタグは 3.8 側でサポートされるため、legacy 経路と異なり除去しない。
+    func testMakeStructuredInputKeepsInlineVocalTags() {
+        let dialogues = [DialogueLine(speaker: "male", text: "待って <short pause> 聞こえた? <laugh>")]
+        let result = TTSInputComposer.makeStructuredInput(dialogues: dialogues, directionSettings: DirectionSettings())
+
+        XCTAssertEqual(result.turns, [TTSTurn(speaker: nil, text: "待って <short pause> 聞こえた? <laugh>")])
+    }
+
+    // MARK: - makePreviewText
+
+    func testMakePreviewTextForLegacySchemaMatchesMakeInput() {
+        let directionSettings = DirectionSettings(sceneDirection: "深夜帯、静かに話す")
+        XCTAssertEqual(
+            TTSInputComposer.makePreviewText(dialogues: dialogues, directionSettings: directionSettings, schema: .legacyPrompt),
+            TTSInputComposer.makeInput(dialogues: dialogues, directionSettings: directionSettings)
+        )
+    }
+
+    func testMakePreviewTextForSpeechMetadataSchemaIncludesStyleAndSpeakerLabels() {
+        let directionSettings = DirectionSettings(sceneDirection: "深夜帯、静かに話す")
+        let result = TTSInputComposer.makePreviewText(dialogues: dialogues, directionSettings: directionSettings, schema: .speechMetadata)
+
+        let expected = """
+        Style: 深夜帯、静かに話す
+
+        [Male] ファミコン版「女神転生」から
+        [Female] エンディングテーマをお届けします
+        """
+        XCTAssertEqual(result, expected)
+    }
 }

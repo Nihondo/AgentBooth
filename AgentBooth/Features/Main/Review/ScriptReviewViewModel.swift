@@ -352,16 +352,21 @@ final class ScriptReviewViewModel: ObservableObject {
     }
 
     /// 「実際に TTS へ渡る入力」のプレビュー。`GeminiTTSService` と同じ `TTSInputComposer` を使うため、
-    /// ここに表示される文字列は承認後に送信される文字列と一致する。
+    /// ここに表示される文字列は承認後に送信される内容と一致する
+    /// （Gemini 3.8 以降の `speechMetadata` スキーマでは、実際のワイヤーフォーマットではなく
+    /// 人間可読な要約表示になる。`NarrationAudioFingerprint` と同じ規則でモデルからスキーマを決める）。
     func ttsInputPreview(for segmentID: UUID) -> String {
         guard let segment = segment(withID: segmentID) else { return "" }
-        return TTSInputComposer.makeInput(
+        let modelName = settingsStore.currentSettings.activeTTSCredentialSets.first?.modelName ?? ""
+        let schema = GeminiTTSRequestSchema.forModel(modelName)
+        return TTSInputComposer.makePreviewText(
             dialogues: segment.dialogueLines,
             directionSettings: DirectionSettings(
                 sceneDirection: segment.sceneDirection,
                 pronunciationApplicationMode: segment.pronunciationApplicationMode
             ),
-            pronunciationEntries: segment.pronunciationEntries
+            pronunciationEntries: segment.pronunciationEntries,
+            schema: schema
         )
     }
 

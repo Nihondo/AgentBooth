@@ -64,7 +64,7 @@ The app cannot start without the API Key and CLI set.
 
 | Field | Description |
 |---|---|
-| **Gemini TTS credential sets** | One or more API key + model pairs. The app tries usable sets in order |
+| **Gemini TTS credential sets** | One or more API key + model pairs. The app tries usable sets in order. Defaults to `gemini-3.8-flash-tts`; `gemini-3.8-flash-lite-tts` and the older `gemini-2.5-*-preview-tts` / `gemini-3.1-flash-tts-preview` models also work |
 | **CLI** | AI CLI to use for script generation (`claude` / `gemini` / `codex` / `copilot`) |
 | **CLI Model** | Model name for the CLI (leave blank to use the CLI's default) |
 
@@ -234,6 +234,8 @@ Approved pre-generated scripts are saved locally while playback is in progress. 
 ### Pronunciation dictionary
 
 Settings → **Pronunciation Dictionary** lets you correct how TTS reads proper nouns (game titles, artist names, etc.) without changing the script shown or saved by AgentBooth. Each entry maps a piece of text to how it should be read; entries can be **Common (All Shows)** or **This Show Only** — when the same text is registered in both, the show-specific reading wins. For each show, **Apply as pronunciation instructions** (the default) keeps the original wording and adds pronunciation rules, while **Replace script text with readings** replaces matching text only in the input sent to TTS. The TTS Input preview shows the exact result. The dictionary never affects the script generation prompt.
+
+> With a `gemini-3.8-flash-tts` / `gemini-3.8-flash-lite-tts` credential set, AgentBooth always sends replaced readings to TTS regardless of this setting — those models read input text verbatim, so pronunciation instructions written as plain text would otherwise be read aloud. With `gemini-3.8-*` models, AgentBooth may also insert a small number of inline delivery tags (laughter, sighs, breaths, short/long pauses) into generated dialogue, which those models render as non-speech sound; older models ignore/strip these tags instead.
 
 ---
 

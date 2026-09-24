@@ -140,7 +140,7 @@ private struct TTSCredentialSetEditView: View {
             }
 
             LabeledContent("モデル名") {
-                TextField("gemini-2.5-flash-preview-tts", text: $set.modelName)
+                TextField("gemini-3.8-flash-tts", text: $set.modelName)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 240)
             }

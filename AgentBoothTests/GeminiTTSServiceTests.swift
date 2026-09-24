@@ -328,9 +328,10 @@ final class GeminiTTSServiceTests: XCTestCase {
         }
 
         let cueSheetText = try await readCueSheetText(from: cueSheetLogger)
-        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し開始(セット: main / モデル: model-1)"))
+        // "model-1" / "model-2" はバージョン表記を持たないため legacy スキーマと判定される。
+        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し開始(セット: main / モデル: model-1 / スキーマ: legacy)"))
         XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し終了(ステータス: 401 / セット: main / モデル: model-1 / 次セット: あり)"))
-        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し開始(セット: backup / モデル: model-2)"))
+        XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し開始(セット: backup / モデル: model-2 / スキーマ: legacy)"))
         XCTAssertTrue(cueSheetText.contains("Gemini API呼び出し終了(ステータス: 200 / セット: backup / モデル: model-2 / フォールバック: 使用)"))
     }
 
@@ -518,6 +519,127 @@ final class GeminiTTSServiceTests: XCTestCase {
         XCTAssertEqual(recorder.requestTimes.count, 2)
         let delta = recorder.requestTimes[1].timeIntervalSince(recorder.requestTimes[0])
         XCTAssertLessThan(delta, 0.04)
+    }
+
+    // MARK: - Gemini 3.8 (speechMetadata スキーマ)
+
+    /// 3.8 モデルでは、各発話ターンを個別の part に分け、`speech_metadata` へ speaker/style を載せる。
+    /// 本文（`text`）には `Direction:` や `Male:` のような地の文を一切含めてはならない
+    /// （3.8 は入力を逐語トランスクリプトとして扱うため、地の文があると読み上げられてしまう）。
+    func testSynthesizeUsesSpeechMetadataSchemaForGemini38Model() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(
+            sceneDirection: "深夜帯。静かに、息を多めに。",
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "gemini-3.8-flash-tts")]
+        )
+        let dialogues = [
+            DialogueLine(speaker: "male", text: "こんばんは"),
+            DialogueLine(speaker: "female", text: "今夜も始めていきます"),
+        ]
+
+        MockURLProtocol.requestHandler = { request in
+            let requestBody = try XCTUnwrap(Self.extractBody(from: request))
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: requestBody) as? [String: Any])
+            let contents = try XCTUnwrap(payload["contents"] as? [[String: Any]])
+            let firstContent = try XCTUnwrap(contents.first)
+            XCTAssertEqual(firstContent["role"] as? String, "user")
+            let parts = try XCTUnwrap(firstContent["parts"] as? [[String: Any]])
+            XCTAssertEqual(parts.count, 2)
+
+            let firstPart = try XCTUnwrap(parts.first)
+            XCTAssertEqual(firstPart["text"] as? String, "こんばんは")
+            XCTAssertFalse((firstPart["text"] as? String ?? "").contains("Direction"))
+            XCTAssertFalse((firstPart["text"] as? String ?? "").contains("Male"))
+            let firstMetadata = try XCTUnwrap(firstPart["speech_metadata"] as? [String: Any])
+            XCTAssertEqual(firstMetadata["speaker"] as? String, "Male")
+            XCTAssertEqual(firstMetadata["style"] as? String, "深夜帯。静かに、息を多めに。")
+
+            let secondPart = try XCTUnwrap(parts.last)
+            XCTAssertEqual(secondPart["text"] as? String, "今夜も始めていきます")
+            let secondMetadata = try XCTUnwrap(secondPart["speech_metadata"] as? [String: Any])
+            XCTAssertEqual(secondMetadata["speaker"] as? String, "Female")
+            XCTAssertEqual(secondMetadata["style"] as? String, "深夜帯。静かに、息を多めに。")
+
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: dialogues, settings: settings)
+    }
+
+    /// legacy モデル（2.5 / 3.1 相当）のリクエストには `role` / `speech_metadata` キーが一切現れない
+    /// （既存のリクエスト形式をバイト単位で維持する）。
+    func testSynthesizeOmitsSpeechMetadataKeysForLegacyModel() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "gemini-2.5-flash-preview-tts")]
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            let requestBody = try XCTUnwrap(Self.extractBody(from: request))
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: requestBody) as? [String: Any])
+            let contents = try XCTUnwrap(payload["contents"] as? [[String: Any]])
+            let firstContent = try XCTUnwrap(contents.first)
+            XCTAssertNil(firstContent["role"])
+            let parts = try XCTUnwrap(firstContent["parts"] as? [[String: Any]])
+            XCTAssertEqual(parts.count, 1)
+            XCTAssertNil(parts[0]["speech_metadata"])
+
+            return try Self.makeSuccessResponse(for: request)
+        }
+
+        _ = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+    }
+
+    /// Gemini 3.8 は unary レスポンスで既に RIFF ヘッダー付き WAV を返す。これへさらに
+    /// ヘッダーを足すと二重ヘッダーになり冒頭にノイズが乗るため、そのまま返さなければならない。
+    func testSynthesizeReturnsWAVResponseUnwrapped() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "gemini-3.8-flash-tts")]
+        )
+
+        let samplePCM = Data([0x11, 0x22, 0x33, 0x44])
+        var wavBytes = Data("RIFF".utf8)
+        wavBytes.append(contentsOf: [0, 0, 0, 0]) // chunk size（テストでは検証しないダミー値）
+        wavBytes.append(Data("WAVE".utf8))
+        wavBytes.append(samplePCM)
+        let base64WAV = wavBytes.base64EncodedString()
+
+        MockURLProtocol.requestHandler = { request in
+            let response = try XCTUnwrap(HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil))
+            let body = """
+            {"candidates":[{"content":{"parts":[{"inlineData":{"data":"\(base64WAV)","mimeType":"audio/wav"}}]}}]}
+            """.data(using: .utf8)!
+            return (response, body)
+        }
+
+        let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+
+        // 既に WAV な応答はバイト単位でそのまま返し、二重ヘッダーを付与しない。
+        XCTAssertEqual(result.wavData, wavBytes)
+        XCTAssertEqual(result.wavData.count, wavBytes.count)
+    }
+
+    /// headerless PCM（legacy 応答、および 3.8 のストリーミング相当）は従来どおりヘッダーを付与する。
+    func testSynthesizeWrapsHeaderlessPCMResponseInWAVHeader() async throws {
+        let session = makeSession()
+        let service = GeminiTTSService(session: session)
+        let settings = makeSettings(
+            credentialSets: [TTSCredentialSet(label: "main", apiKey: "test-key", modelName: "gemini-3.8-flash-tts")]
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            try Self.makeSuccessResponse(for: request)
+        }
+
+        let result = try await service.synthesize(dialogues: sampleDialogues(), settings: settings)
+
+        // "AAAA" は base64 で 3 バイトの PCM (0x00 0x00 0x00) にデコードされ、44 バイトの WAV ヘッダーが付く。
+        XCTAssertEqual(result.wavData.count, 44 + 3)
+        XCTAssertEqual(result.wavData.prefix(4), Data("RIFF".utf8))
     }
 
     private func makeSession() -> URLSession {

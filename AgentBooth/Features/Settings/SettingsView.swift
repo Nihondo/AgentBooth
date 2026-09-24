@@ -407,6 +407,14 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                if usesSpeechMetadataSchema {
+                    settingsRow("") {
+                        Text("Gemini 3.8 以降のモデルでは、入力テキストが逐語トランスクリプトとして扱われ発音ルールの指示文もそのまま読み上げられてしまうため、選択にかかわらず常に台本表記を読みへ置換して送信します。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             settingsGroup("共通（全番組）") {
@@ -438,6 +446,12 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    /// 現在アクティブな TTS クレデンシャルセットのモデルが Gemini 3.8 以降（`speechMetadata` スキーマ）かどうか。
+    private var usesSpeechMetadataSchema: Bool {
+        let modelName = draftSettings.activeTTSCredentialSets.first?.modelName ?? ""
+        return GeminiTTSRequestSchema.forModel(modelName) == .speechMetadata
     }
 
     private func pronunciationModeDescription(_ mode: PronunciationApplicationMode) -> String {

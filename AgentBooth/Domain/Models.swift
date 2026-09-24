@@ -507,7 +507,7 @@ struct TTSCredentialSet: Identifiable, Codable, Equatable, Sendable {
     var id: UUID = UUID()
     var label: String = ""
     var apiKey: String = ""
-    var modelName: String = "gemini-2.5-flash-preview-tts"
+    var modelName: String = "gemini-3.8-flash-tts"
 }
 
 /// Application-wide persisted settings snapshot.

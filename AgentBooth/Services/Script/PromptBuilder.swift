@@ -31,6 +31,7 @@ enum PromptBuilder {
         - 読みが不明な場合や、話題の検索にWeb検索を活用してもよい
         - speaker に使ってよい値は male と female のみ
         \(summaryRuleLines())
+        \(inlineVocalTagRuleLines(settings: settings))
         - text の中で ASCII の二重引用符は使わず、日本語のカギ括弧を使う
         - 最後は曲を流す合図で締める
         - JSONのみ出力し、余計な説明は不要
@@ -73,6 +74,7 @@ enum PromptBuilder {
         - 話題の切り替えを自然にする
         - speaker に使ってよい値は male と female のみ
         \(summaryRuleLines())
+        \(inlineVocalTagRuleLines(settings: settings))
         - text の中で ASCII の二重引用符は使わない
         - 最後は曲を流す合図で締める
         - JSONのみ出力し、余計な説明は不要
@@ -101,6 +103,7 @@ enum PromptBuilder {
         - リスナーへの感謝と次回への期待を入れる
         - speaker に使ってよい値は male と female のみ
         \(summaryRuleLines())
+        \(inlineVocalTagRuleLines(settings: settings))
         - text の中で ASCII の二重引用符は使わず、日本語のカギ括弧を使う
         - 最後の挨拶で番組を締める
         - JSONのみ出力し、余計な説明は不要
@@ -136,6 +139,19 @@ enum PromptBuilder {
         - summaryBullets には今回触れた話題・観点・エピソードを 2〜4 件の短い箇条書きで入れる
         - summaryBullets は次回の重複回避メモとして使うため、自然な台詞そのものではなく要点だけを書く
         - summaryBullets の各項目は 1 行で簡潔にまとめ、長文の要約は避ける
+        """
+    }
+
+    /// アクティブな TTS モデルが Gemini 3.8 以降（`GeminiTTSRequestSchema.speechMetadata`）のときだけ、
+    /// 台本生成 CLI へインライン発話タグの使用ルールを伝える。旧モデル（2.5 / 3.1）は
+    /// タグを演技指示として解釈できず、そのまま読み上げてしまうため案内しない
+    /// （`TTSInputComposer.stripInlineVocalTags` が保険として除去する）。
+    private static func inlineVocalTagRuleLines(settings: AppSettings) -> String {
+        let modelName = settings.activeTTSCredentialSets.first?.modelName ?? ""
+        guard GeminiTTSRequestSchema.forModel(modelName) == .speechMetadata else { return "" }
+        return """
+        - text の中では必要な箇所に限り <laugh> <sigh> <breath> <short pause> <long pause> を使ってよい（使いすぎない、1台詞に1個まで）
+        - これら以外の山括弧タグや、(笑) のような括弧書きの演出指示は書かない
         """
     }
 

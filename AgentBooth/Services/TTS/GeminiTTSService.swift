@@ -79,11 +79,28 @@ private struct GeminiGenerateRequest: Encodable {
 }
 
 private struct GeminiContent: Encodable {
+    /// `GeminiTTSRequestSchema.speechMetadata`（Gemini 3.8 以降）の公式サンプルに合わせて `"user"` を送る。
+    /// legacy スキーマでは nil にして、これまでどおり `role` キー自体を省略する
+    /// （Encodable の自動合成は Optional なプロパティに `encodeIfPresent` を使うため、nil ならキーが出ない）。
+    let role: String?
     let parts: [GeminiTextPart]
 }
 
 private struct GeminiTextPart: Encodable {
     let text: String
+    /// `GeminiTTSRequestSchema.speechMetadata` でのみ設定する。legacy スキーマでは常に nil。
+    let speechMetadata: GeminiSpeechMetadata?
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case speechMetadata = "speech_metadata"
+    }
+}
+
+/// part 単位の演技指示・話者指定（Gemini 3.8 以降の公式サンプル表記に合わせる）。
+private struct GeminiSpeechMetadata: Encodable {
+    let speaker: String?
+    let style: String?
 }
 
 private struct GeminiGenerationConfig: Encodable {
@@ -177,8 +194,9 @@ actor GeminiTTSService: TTSService {
 
         for (index, credentialSet) in availableCredentialSets.enumerated() {
             let displayLabel = displayCredentialLabel(credentialSet.label)
+            let schema = GeminiTTSRequestSchema.forModel(credentialSet.modelName)
             await cueSheetLogger?.append(
-                "Gemini API呼び出し開始(セット: \(displayLabel) / モデル: \(credentialSet.modelName))",
+                "Gemini API呼び出し開始(セット: \(displayLabel) / モデル: \(credentialSet.modelName) / スキーマ: \(describeSchema(schema)))",
                 indentOffset: 1
             )
             do {
@@ -276,15 +294,14 @@ actor GeminiTTSService: TTSService {
         directionSettings: DirectionSettings,
         pronunciationEntries: [PronunciationEntry]
     ) async throws -> Data {
-        let ttsInput = TTSInputComposer.makeInput(
-            dialogues: dialogues,
-            directionSettings: directionSettings,
-            pronunciationEntries: pronunciationEntries
-        )
+        let schema = GeminiTTSRequestSchema.forModel(modelName)
         let requestBody = GeminiGenerateRequest(
-            contents: [
-                GeminiContent(parts: [GeminiTextPart(text: ttsInput)]),
-            ],
+            contents: Self.makeContents(
+                schema: schema,
+                dialogues: dialogues,
+                directionSettings: directionSettings,
+                pronunciationEntries: pronunciationEntries
+            ),
             generationConfig: GeminiGenerationConfig(
                 responseModalities: ["AUDIO"],
                 speechConfig: Self.makeSpeechConfig(dialogues: dialogues, voiceSettings: voiceSettings)
@@ -326,11 +343,64 @@ actor GeminiTTSService: TTSService {
             throw GeminiTTSServiceError.invalidResponse(String(format: String(localized: " inlineData が見つかりません。応答: %@"), String(bodyText.prefix(400))))
         }
 
-        guard let base64PCM = inlineData.data.isEmpty ? nil : inlineData.data,
-              let pcmData = Data(base64Encoded: base64PCM) else {
+        guard let base64Audio = inlineData.data.isEmpty ? nil : inlineData.data,
+              let audioData = Data(base64Encoded: base64Audio) else {
             throw GeminiTTSServiceError.invalidResponse(String(localized: " 音声データの base64 デコードに失敗しました。"))
         }
-        return makeWAVData(from: pcmData, sampleRate: 24_000, channels: 1, bitsPerSample: 16)
+        return makePlayableWAV(from: audioData)
+    }
+
+    /// legacy スキーマ（2.5 / 3.1）は単一 text part にラベル付きプロンプトを、
+    /// speechMetadata スキーマ（3.8 以降）は発話ターンごとに part を分けて `speech_metadata` を付与する。
+    private static func makeContents(
+        schema: GeminiTTSRequestSchema,
+        dialogues: [DialogueLine],
+        directionSettings: DirectionSettings,
+        pronunciationEntries: [PronunciationEntry]
+    ) -> [GeminiContent] {
+        switch schema {
+        case .legacyPrompt:
+            let ttsInput = TTSInputComposer.makeInput(
+                dialogues: dialogues,
+                directionSettings: directionSettings,
+                pronunciationEntries: pronunciationEntries
+            )
+            return [GeminiContent(role: nil, parts: [GeminiTextPart(text: ttsInput, speechMetadata: nil)])]
+        case .speechMetadata:
+            let structuredInput = TTSInputComposer.makeStructuredInput(
+                dialogues: dialogues,
+                directionSettings: directionSettings,
+                pronunciationEntries: pronunciationEntries
+            )
+            let parts = structuredInput.turns.map { turn in
+                GeminiTextPart(
+                    text: turn.text,
+                    speechMetadata: GeminiSpeechMetadata(speaker: turn.speaker, style: structuredInput.style)
+                )
+            }
+            return [GeminiContent(role: "user", parts: parts)]
+        }
+    }
+
+    /// Gemini 3.8 以降は unary レスポンスで RIFF ヘッダー付き WAV（`AUDIO_WAV`）をそのまま返すため、
+    /// 既に WAV な応答へさらに `makeWAVData` でヘッダーを足すと二重ヘッダーになり冒頭にノイズが乗る。
+    /// マジックバイト（先頭4バイトが `"RIFF"`）で判定し、既に WAV ならそのまま返し、
+    /// headerless PCM（2.5 / 3.1、および 3.8 のストリーミング応答相当）なら従来どおりヘッダーを付与する。
+    private func makePlayableWAV(from audioData: Data) -> Data {
+        let riffMagic = Data("RIFF".utf8)
+        if audioData.count >= 4, audioData.prefix(4) == riffMagic {
+            return audioData
+        }
+        return makeWAVData(from: audioData, sampleRate: 24_000, channels: 1, bitsPerSample: 16)
+    }
+
+    private func describeSchema(_ schema: GeminiTTSRequestSchema) -> String {
+        switch schema {
+        case .legacyPrompt:
+            return "legacy"
+        case .speechMetadata:
+            return "speech_metadata"
+        }
     }
 
     private func describeAPICallResult(

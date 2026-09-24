@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		051B646AF7242C28503038A4 /* GeminiTTSRequestSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3523EF133EA543635E1E20F5 /* GeminiTTSRequestSchema.swift */; };
 		07359B4E2519327F6B826245 /* SystemAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D492872A306EA6A2AA7523 /* SystemAudioPlaybackService.swift */; };
 		08D0363766C6DBECAB638999 /* SystemBedAudioPlaybackServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF291B3CD17DDD03A03EFB5D /* SystemBedAudioPlaybackServiceTests.swift */; };
 		096EC3BAAD470BB723A16AB1 /* ShowCueSheetLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3266323576B5D4457482566 /* ShowCueSheetLogger.swift */; };
@@ -35,6 +36,7 @@
 		36886C24FB87BE1FD7B36049 /* SystemBedAudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DC87C1D86CB6DF936207C1 /* SystemBedAudioPlaybackService.swift */; };
 		3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */; };
 		3EFE8DA04411390A5860523A /* AgentBoothApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495016F14804CDB1C59A40E /* AgentBoothApp.swift */; };
+		3F79D9293409AE1460D22E31 /* PromptBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CB687DD7B4900B269760CF /* PromptBuilderTests.swift */; };
 		44BEEB1D46D77AA4AD987C94 /* ScriptReviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE4511E53995D4DF9908C82A /* ScriptReviewViewModel.swift */; };
 		4522F62CB093FF281D651C07 /* AppServiceContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D35E02C5B682EEB663412C1 /* AppServiceContainer.swift */; };
 		4692DE91A11C64755EEF0A3A /* AppleScriptExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0034334CB53C3E7CE0213C8 /* AppleScriptExecutor.swift */; };
@@ -46,6 +48,7 @@
 		57918480D551301E9AC01429 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13682AE7052945E83EEA4E7 /* AppSettingsStore.swift */; };
 		60F641F5B882326551B806D8 /* SpotifyDOMScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429B24A26CC85B5FE930CC56 /* SpotifyDOMScripts.swift */; };
 		6265F6EB3A4258876E0719C1 /* UpdateSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F7B5A0A662EC80E04077D0 /* UpdateSettingsView.swift */; };
+		672F7460276C331936F86891 /* GeminiTTSRequestSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B7A9261091C36A6E416AE2 /* GeminiTTSRequestSchemaTests.swift */; };
 		67563E5F16E7CC7B56A9D8E1 /* YouTubeMusicAPIFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65C1004D29E40131ADA88988 /* YouTubeMusicAPIFetcher.swift */; };
 		6A03426E5CBD3D577F1B2A7E /* YouTubeMusicLoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0006EEE51C46F3CE4BB4DB9 /* YouTubeMusicLoginViewModel.swift */; };
 		6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1573B77F7AE6E162EDACC0D /* KeychainStore.swift */; };
@@ -127,8 +130,10 @@
 		245F0A196203C693EC3B6B30 /* ReviewSearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSearchBar.swift; sourceTree = "<group>"; };
 		265A50D323675BA84DFFED68 /* RealtimeContextProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeContextProviderTests.swift; sourceTree = "<group>"; };
 		27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioOrchestratorTests.swift; sourceTree = "<group>"; };
+		28CB687DD7B4900B269760CF /* PromptBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilderTests.swift; sourceTree = "<group>"; };
 		2EB5DC470F1D45AD18F25B05 /* ScriptReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReviewView.swift; sourceTree = "<group>"; };
 		338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStoreTests.swift; sourceTree = "<group>"; };
+		3523EF133EA543635E1E20F5 /* GeminiTTSRequestSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSRequestSchema.swift; sourceTree = "<group>"; };
 		3581E582CF14B056EA04E774 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
 		3695314D2707876818736936 /* agentbooth.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = agentbooth.icon; sourceTree = "<group>"; };
 		39F21B8232267DD95ED4A06E /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -180,6 +185,7 @@
 		B1805E0CA7CF453148013870 /* SpotifyBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyBrowserView.swift; sourceTree = "<group>"; };
 		B7702F727F0D28028A7BA9A3 /* Protocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocols.swift; sourceTree = "<group>"; };
 		B8A3EC2F5B06B360F429E4CC /* NowPlayingBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingBar.swift; sourceTree = "<group>"; };
+		C0B7A9261091C36A6E416AE2 /* GeminiTTSRequestSchemaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTTSRequestSchemaTests.swift; sourceTree = "<group>"; };
 		C24BDCA94B7E16E800972E0F /* AppleMusicServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicServiceTests.swift; sourceTree = "<group>"; };
 		C2C4A6657B19A76099CE0808 /* SpotifyScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyScriptRunner.swift; sourceTree = "<group>"; };
 		C8CCF4DB2AED62F8921C18DB /* ReviewSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSearchEngine.swift; sourceTree = "<group>"; };
@@ -335,12 +341,14 @@
 				338C31B22A2D0900BCEC030C /* AppSettingsStoreTests.swift */,
 				104070FBBB93EEAC85364C92 /* AudioAssetPickerTests.swift */,
 				F47BCB8F69019993CC11840A /* GeminiRetryPolicyTests.swift */,
+				C0B7A9261091C36A6E416AE2 /* GeminiTTSRequestSchemaTests.swift */,
 				79121E2CCE8361593D62BDBA /* GeminiTTSServiceTests.swift */,
 				04DFBBB68BB027FD35353D38 /* MainViewModelTests.swift */,
 				E4FBE496023B25E985B29EBC /* NarrationAudioFingerprintTests.swift */,
 				7F334A3FE0600ABE10DF3216 /* PreGeneratedScriptStoreTests.swift */,
 				9F54AA8BB74E6BC36C6C2F80 /* PrimaryControlStateTests.swift */,
 				6D45EE85DD43B3284D3DDD5D /* ProcessScriptGenerationServiceTests.swift */,
+				28CB687DD7B4900B269760CF /* PromptBuilderTests.swift */,
 				D0C0623FF7E6CAEF1BF90F75 /* PronunciationDictionaryResolverTests.swift */,
 				27E98AD1A98918B62A79EF2C /* RadioOrchestratorTests.swift */,
 				265A50D323675BA84DFFED68 /* RealtimeContextProviderTests.swift */,
@@ -541,6 +549,7 @@
 		FDE075118B3F1F23B60FFA1B /* TTS */ = {
 			isa = PBXGroup;
 			children = (
+				3523EF133EA543635E1E20F5 /* GeminiTTSRequestSchema.swift */,
 				0B009A546A5FAF2C679BE410 /* GeminiTTSService.swift */,
 				9E90F2AA91C2231B990B9EA8 /* NarrationAudioFingerprint.swift */,
 				95DA44A7F8BAF791D5CB0E38 /* PronunciationDictionaryResolver.swift */,
@@ -651,12 +660,14 @@
 				8A6038B407586D01EF43AF69 /* AppleMusicServiceTests.swift in Sources */,
 				365C554D8FCDAEAB5CA1AFF0 /* AudioAssetPickerTests.swift in Sources */,
 				AFCF917E7CA4BE98C2E962A2 /* GeminiRetryPolicyTests.swift in Sources */,
+				672F7460276C331936F86891 /* GeminiTTSRequestSchemaTests.swift in Sources */,
 				D1DC639BE636543B5F2105E7 /* GeminiTTSServiceTests.swift in Sources */,
 				1541EE70C59B10C54FA94D02 /* MainViewModelTests.swift in Sources */,
 				2912A3671A6AC71CC9FF4F27 /* NarrationAudioFingerprintTests.swift in Sources */,
 				B558100B9128FBC2C3F7E837 /* PreGeneratedScriptStoreTests.swift in Sources */,
 				294A4688A57ABCE46E0FBA5F /* PrimaryControlStateTests.swift in Sources */,
 				8AFA2989D3540DB0ED7B825F /* ProcessScriptGenerationServiceTests.swift in Sources */,
+				3F79D9293409AE1460D22E31 /* PromptBuilderTests.swift in Sources */,
 				8311FFC9CCB0E69CFD4CA88C /* PronunciationDictionaryResolverTests.swift in Sources */,
 				3B60952A6D03E382F8B7FBDF /* RadioOrchestratorTests.swift in Sources */,
 				FEA15DE2AF1F6243A67D730A /* RealtimeContextProviderTests.swift in Sources */,
@@ -686,6 +697,7 @@
 				E79C9EEA74E219FEBB943867 /* ContentView.swift in Sources */,
 				80DB291BAE6E5FAC1ACE4F0F /* DialogueLineRow.swift in Sources */,
 				E3E99D6074A4BC11AE73DC60 /* DraftTextEditor.swift in Sources */,
+				051B646AF7242C28503038A4 /* GeminiTTSRequestSchema.swift in Sources */,
 				9792D589885A62488DC945DC /* GeminiTTSService.swift in Sources */,
 				6CC2B90D70D8E8CA136B3252 /* KeychainStore.swift in Sources */,
 				483EF38C595DEDECE64A292A /* MainViewModel.swift in Sources */,

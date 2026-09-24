@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import AgentBooth
 
@@ -123,5 +124,40 @@ final class NarrationAudioFingerprintTests: XCTestCase {
         let changed = NarrationAudioFingerprint.make(dialogues: dialogues, settings: makeSettings(modelName: "other-model"))
 
         XCTAssertNotEqual(base, changed)
+    }
+
+    /// legacy スキーマ（`test-model`）のフィンガープリントは 3.8 対応前とバイト単位で同一でなければならない。
+    /// これが崩れると、既存ユーザーの 2.5 / 3.1 音声キャッシュが今回の変更だけで全て無効化されてしまう。
+    func testLegacyModelFingerprintUnchangedByMigration() {
+        let fingerprint = NarrationAudioFingerprint.make(dialogues: makeDialogues(), settings: makeSettings())
+        XCTAssertEqual(fingerprint, "43c1c757aad25ce288c211afdc1fa673a6dde89e9b19b9e754de692f7271a719")
+    }
+
+    /// 単一話者・sceneDirection 空の場合、speechMetadata のプレビュー文字列は legacy の
+    /// `makeInput` 結果と完全に一致する（どちらも台詞テキストのみ）。このケースでスキーマを
+    /// フィンガープリントへ含めなければ、3.8 移行前に生成された不正なキャッシュと衝突してしまう。
+    func testSpeechMetadataFingerprintDiffersFromNaiveFormulaEvenWhenPreviewTextMatchesLegacy() {
+        let dialogues = [DialogueLine(speaker: "male", text: "こんにちは")]
+        var settings = AppSettings()
+        settings.directionSettings.sceneDirection = ""
+        settings.voiceSettings.maleVoiceName = "Charon"
+        settings.voiceSettings.femaleVoiceName = "Kore"
+        settings.ttsCredentialSets = [TTSCredentialSet(label: "main", apiKey: "key", modelName: "gemini-3.8-flash-tts")]
+
+        let actual = NarrationAudioFingerprint.make(dialogues: dialogues, settings: settings)
+
+        let previewText = TTSInputComposer.makePreviewText(
+            dialogues: dialogues,
+            directionSettings: settings.directionSettings,
+            pronunciationEntries: [],
+            schema: .speechMetadata
+        )
+        // 前提の確認: このケースでは speechMetadata のプレビューが legacy の makeInput と同一文字列になる。
+        XCTAssertEqual(previewText, "こんにちは")
+
+        let naivePayload = [previewText, "Charon", "Kore", "gemini-3.8-flash-tts"].joined(separator: "\u{1F}")
+        let naiveDigest = SHA256.hash(data: Data(naivePayload.utf8)).map { String(format: "%02x", $0) }.joined()
+
+        XCTAssertNotEqual(actual, naiveDigest)
     }
 }
