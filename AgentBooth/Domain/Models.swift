@@ -171,7 +171,8 @@ enum ScriptCLIKind: String, CaseIterable, Codable, Identifiable {
     var displayName: String {
         switch self {
         case .claude: "Claude"
-        case .gemini: "Gemini"
+        // 内部識別子(rawValue)は gemini のまま、UI 上は Antigravity と表示する。
+        case .gemini: "Antigravity"
         case .codex: "Codex"
         case .copilot: "Copilot"
         case .custom: String(localized: "カスタム")

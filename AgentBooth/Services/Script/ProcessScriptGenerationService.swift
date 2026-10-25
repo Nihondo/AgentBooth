@@ -28,7 +28,7 @@ struct ScriptCommandBuilder {
             )
         case .gemini:
             return addModelArgument(
-                baseCommand: ["gemini", "-p", prompt],
+                baseCommand: ["agy", "-p", prompt],
                 settings: settings,
                 optionName: "--model"
             )
@@ -168,6 +168,22 @@ private struct ScriptLogSession {
     let directoryURL: URL
 }
 
+/// CLI プロセス 1 回分の実行結果。ログへ残すため終了コードと標準エラーも保持する。
+private struct CLIExecutionResult {
+    let executableName: String
+    let exitStatus: Int32
+    let standardOutput: String
+    let standardError: String
+
+    /// 終了コードが 0 以外の場合にユーザーへ見せるエラー内容。
+    var failureDetail: String {
+        let detail = standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+        return detail.isEmpty
+            ? String(format: String(localized: "%@ CLI の実行に失敗しました。"), executableName)
+            : detail
+    }
+}
+
 /// Generates radio scripts by shelling out to an external CLI tool.
 actor ProcessScriptGenerationService: ScriptGenerationService {
     /// CLI 出力を JSON として解釈できなかった場合の最大試行回数（初回を含む）。
@@ -238,14 +254,27 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
         // LLM が稀に壊れた JSON を返すため、解釈失敗時のみ再生成する。
         var attempt = 1
         while true {
-            let rawOutput = try await runCLI(prompt: prompt, settings: settings)
+            let cliResult = try await runCLI(prompt: prompt, settings: settings)
+            guard cliResult.exitStatus == 0 else {
+                let failure = ScriptGenerationError.processFailed(cliResult.failureDetail)
+                try? await saveLog(
+                    segmentType: segmentType,
+                    label: label,
+                    prompt: prompt,
+                    cliResult: cliResult,
+                    dialogues: [],
+                    summaryBullets: [],
+                    error: failure
+                )
+                throw failure
+            }
             do {
-                let parsedScript = try parseRadioScript(from: rawOutput)
+                let parsedScript = try parseRadioScript(from: cliResult.standardOutput)
                 try await saveLog(
                     segmentType: segmentType,
                     label: label,
                     prompt: prompt,
-                    rawOutput: rawOutput,
+                    cliResult: cliResult,
                     dialogues: parsedScript.dialogues,
                     summaryBullets: parsedScript.summaryBullets,
                     error: nil
@@ -261,7 +290,7 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
                     segmentType: segmentType,
                     label: label,
                     prompt: prompt,
-                    rawOutput: rawOutput,
+                    cliResult: cliResult,
                     dialogues: [],
                     summaryBullets: [],
                     error: error
@@ -275,7 +304,8 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
         }
     }
 
-    private func runCLI(prompt: String, settings: AppSettings) async throws -> String {
+    /// CLI を実行して結果を返す。終了コードが 0 以外でも throw せず、呼び出し側でログ保存後に判定する。
+    private func runCLI(prompt: String, settings: AppSettings) async throws -> CLIExecutionResult {
         let command = try commandBuilder.makeCommand(prompt: prompt, settings: settings)
         guard let executableName = command.first else { throw ScriptGenerationError.unsupportedCLI }
         let environment = environmentBuilder.makeEnvironment()
@@ -331,12 +361,12 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
             indentOffset: 1
         )
 
-        guard terminationStatus == 0 else {
-            let detail = errorText.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw ScriptGenerationError.processFailed(detail.isEmpty ? String(format: String(localized: "%@ CLI の実行に失敗しました。"), executableName) : detail)
-        }
-
-        return outputText
+        return CLIExecutionResult(
+            executableName: executableName,
+            exitStatus: terminationStatus,
+            standardOutput: outputText,
+            standardError: errorText
+        )
     }
 
     private func parseRadioScript(from rawOutput: String) throws -> (dialogues: [DialogueLine], summaryBullets: [String]) {
@@ -409,7 +439,7 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
         segmentType: String,
         label: String,
         prompt: String,
-        rawOutput: String,
+        cliResult: CLIExecutionResult,
         dialogues: [DialogueLine],
         summaryBullets: [String],
         error: Error?
@@ -441,10 +471,20 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
 
         \(summaryText)
         \(errorBlock)
+        ## CLI Exit Status
+
+        \(cliResult.executableName): \(cliResult.exitStatus)
+
         ## Raw Output
 
         ```
-        \(rawOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+        \(cliResult.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+        ```
+
+        ## Standard Error
+
+        ```
+        \(cliResult.standardError.trimmingCharacters(in: .whitespacesAndNewlines))
         ```
         """
 

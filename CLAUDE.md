@@ -55,7 +55,7 @@ Structural edits implemented so far: `appendLine` / `insertLine(in:after:speaker
 
 **`AppServiceFactory` / `LiveAppServiceFactory`** — Dependency injection entry point. `AppServiceContainer.swift` wires up live services plus `MusicPlaybackProfile` values. Tests use fakes from `TestDoubles.swift`.
 
-**`ProcessScriptGenerationService`** (`Services/Script/`) — An actor that calls an external CLI subprocess (`claude`, `gemini`, `codex`, or `copilot`) to generate JSON scripts. `ScriptCommandBuilder` assembles the command per CLI type. stdout and stderr must be drained concurrently while the child process runs, and process termination must be awaited asynchronously; reverting to `waitUntilExit()` followed by pipe reads can deadlock on output larger than the OS pipe buffer. Actor isolation also protects the shared script-session log. Each script session folder gets a `cuesheet.txt` file with CLI timing and related playback events.
+**`ProcessScriptGenerationService`** (`Services/Script/`) — An actor that calls an external CLI subprocess (`claude`, `agy`, `codex`, or `copilot`) to generate JSON scripts. `ScriptCommandBuilder` assembles the command per CLI type. The Antigravity CLI is stored internally as `ScriptCLIKind.gemini` (rawValue `gemini`, kept for settings compatibility) but runs the `agy` executable and is labeled "Antigravity" in the UI (`ScriptCLIKind.displayName`). stdout and stderr must be drained concurrently while the child process runs, and process termination must be awaited asynchronously; reverting to `waitUntilExit()` followed by pipe reads can deadlock on output larger than the OS pipe buffer. Actor isolation also protects the shared script-session log. Each script session folder gets a `cuesheet.txt` file with CLI timing and related playback events.
 
 **`PromptBuilder`** (`Services/Script/`) — Builds the script-generation prompts. Prompt realtime context remains available as show info, but non-empty `DirectionSettings.scriptDirection` is emitted with an explicit priority block: if it specifies a time of day, greeting, or mood, that show-time direction overrides the realtime context and the CLI should avoid conflicting realtime expressions. `inlineVocalTagRuleLines(settings:)` appends a rule inviting the CLI to use a whitelisted set of inline vocal tags (`<laugh>`, `<sigh>`, `<breath>`, `<short pause>`, `<long pause>`) inside `text`, but only when the active credential set resolves to `GeminiTTSRequestSchema.speechMetadata` (Gemini 3.8+) — older models cannot interpret the tags as delivery cues and would read them aloud verbatim, and `TTSInputComposer.stripInlineVocalTags` strips them as a safety net on that path regardless of whether the CLI was told to use them.
 
@@ -204,7 +204,7 @@ The script review window's logic is tested as plain `ObservableObject` behavior 
 
 - App Sandbox is disabled (`ENABLE_APP_SANDBOX: NO`) — Mac App Store distribution is not yet supported.
 - The project is managed by XcodeGen (`project.yml`). Edit `project.yml` for build settings changes, then regenerate.
-- External CLIs (`claude`, `gemini`, `codex`, `copilot`) must be installed in the user's environment.
+- External CLIs (`claude`, `agy`, `codex`, `copilot`) must be installed in the user's environment.
 - YouTube Music requires manual login via Settings → 音楽 → "YouTube Music でログイン" before use.
 - Spotify requires manual login via Settings → 音楽 → "Spotify でログイン" before use.
 - Spotify automation is DOM-based. Selector breakage is expected when Spotify updates the Web Player UI.

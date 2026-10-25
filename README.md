@@ -65,7 +65,7 @@ The app cannot start without the API Key and CLI set.
 | Field | Description |
 |---|---|
 | **Gemini TTS credential sets** | One or more API key + model pairs. The app tries usable sets in order. Defaults to `gemini-3.8-flash-tts`; `gemini-3.8-flash-lite-tts` and the older `gemini-2.5-*-preview-tts` / `gemini-3.1-flash-tts-preview` models also work |
-| **CLI** | AI CLI to use for script generation (`claude` / `gemini` / `codex` / `copilot`) |
+| **CLI** | AI CLI to use for script generation (`claude` / `agy` (Antigravity) / `codex` / `copilot`) |
 | **CLI Model** | Model name for the CLI (leave blank to use the CLI's default) |
 
 ### Service

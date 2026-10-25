@@ -65,7 +65,7 @@ Apple Music はこれだけで動作します。YouTube Music / Spotify は先�
 | 項目 | 説明 |
 |---|---|
 | **Gemini TTS 資格情報セット** | API Key とモデルの組み合わせ。利用可能なセットを上から順に試します。既定値は `gemini-3.8-flash-tts`。`gemini-3.8-flash-lite-tts` や、旧来の `gemini-2.5-*-preview-tts` / `gemini-3.1-flash-tts-preview` も利用できます |
-| **CLI** | 台本生成に使う AI CLI を選ぶ（`claude` / `gemini` / `codex` / `copilot`）(**必須**) |
+| **CLI** | 台本生成に使う AI CLI を選ぶ（`claude` / `agy`（Antigravity）/ `codex` / `copilot`）(**必須**) |
 | **CLI モデル** | CLI で使うモデル名（空欄にするとその CLI の既定値を使う） |
 
 ### サービス
