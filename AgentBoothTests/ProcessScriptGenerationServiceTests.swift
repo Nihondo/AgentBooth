@@ -118,6 +118,78 @@ final class ProcessScriptGenerationServiceTests: XCTestCase {
         XCTAssertEqual(script.dialogues.first?.text, largeDialogue)
     }
 
+    func testGenerateOpeningRetriesOnceWhenOutputIsInvalidJSON() async throws {
+        let brokenOutput = """
+        {"dialogues": [{"female", "text": "speaker が欠落"}]}
+        """
+        let validOutput = """
+        {"dialogues": [{"speaker": "male", "text": "再生成できました"}], "summaryBullets": []}
+        """
+        let service = try makeSequencedService(rawOutputs: [brokenOutput, validOutput])
+        var settings = AppSettings()
+        settings.scriptCLIKind = .claude
+
+        let script = try await service.generateOpening(
+            tracks: [TrackInfo(name: "Song A", artist: "Artist A", album: "Album A")],
+            settings: settings
+        )
+
+        XCTAssertEqual(script.dialogues.map(\.text), ["再生成できました"])
+    }
+
+    func testGenerateOpeningThrowsWhenOutputStaysInvalidAfterRetry() async throws {
+        let brokenOutput = """
+        {"dialogues": [{"female", "text": "speaker が欠落"}]}
+        """
+        let service = try makeSequencedService(rawOutputs: [brokenOutput, brokenOutput, brokenOutput])
+        var settings = AppSettings()
+        settings.scriptCLIKind = .claude
+
+        do {
+            _ = try await service.generateOpening(
+                tracks: [TrackInfo(name: "Song A", artist: "Artist A", album: "Album A")],
+                settings: settings
+            )
+            XCTFail("invalidOutput が投げられるはずです")
+        } catch ScriptGenerationError.invalidOutput {
+            // expected
+        }
+    }
+
+    /// 呼び出しごとに `rawOutputs` を先頭から順に返す `claude` スタブを PATH に置く。
+    private func makeSequencedService(rawOutputs: [String]) throws -> ProcessScriptGenerationService {
+        let service = ProcessScriptGenerationService()
+        let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+
+        for (index, rawOutput) in rawOutputs.enumerated() {
+            try rawOutput.write(
+                to: temporaryDirectoryURL.appendingPathComponent("output_\(index).txt"),
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+        let executableURL = temporaryDirectoryURL.appendingPathComponent("claude")
+        let scriptBody = """
+        #!/bin/zsh
+        dir="\(temporaryDirectoryURL.path)"
+        count=$(cat "$dir/count" 2>/dev/null || echo 0)
+        echo $((count + 1)) > "$dir/count"
+        cat "$dir/output_$count.txt" 2>/dev/null
+        """
+        try scriptBody.write(to: executableURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executableURL.path)
+
+        let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        setenv("PATH", "\(temporaryDirectoryURL.path):\(originalPath)", 1)
+        addTeardownBlock {
+            setenv("PATH", originalPath, 1)
+            try? FileManager.default.removeItem(at: temporaryDirectoryURL)
+        }
+        return service
+    }
+
     private func makeService(
         rawOutput: String,
         cueSheetLogger: ShowCueSheetLogger? = nil

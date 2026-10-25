@@ -170,6 +170,9 @@ private struct ScriptLogSession {
 
 /// Generates radio scripts by shelling out to an external CLI tool.
 actor ProcessScriptGenerationService: ScriptGenerationService {
+    /// CLI 出力を JSON として解釈できなかった場合の最大試行回数（初回を含む）。
+    private static let maxInvalidOutputAttempts = 2
+
     private let commandBuilder = ScriptCommandBuilder()
     private let environmentBuilder = ScriptProcessEnvironmentBuilder()
     private let launchBuilder = ScriptProcessLaunchBuilder()
@@ -232,35 +235,43 @@ actor ProcessScriptGenerationService: ScriptGenerationService {
         track: TrackInfo?,
         settings: AppSettings
     ) async throws -> RadioScript {
-        let rawOutput = try await runCLI(prompt: prompt, settings: settings)
-        do {
-            let parsedScript = try parseRadioScript(from: rawOutput)
-            try await saveLog(
-                segmentType: segmentType,
-                label: label,
-                prompt: prompt,
-                rawOutput: rawOutput,
-                dialogues: parsedScript.dialogues,
-                summaryBullets: parsedScript.summaryBullets,
-                error: nil
-            )
-            return RadioScript(
-                segmentType: segmentType,
-                dialogues: parsedScript.dialogues,
-                summaryBullets: parsedScript.summaryBullets,
-                track: track
-            )
-        } catch {
-            try? await saveLog(
-                segmentType: segmentType,
-                label: label,
-                prompt: prompt,
-                rawOutput: rawOutput,
-                dialogues: [],
-                summaryBullets: [],
-                error: error
-            )
-            throw error
+        // LLM が稀に壊れた JSON を返すため、解釈失敗時のみ再生成する。
+        var attempt = 1
+        while true {
+            let rawOutput = try await runCLI(prompt: prompt, settings: settings)
+            do {
+                let parsedScript = try parseRadioScript(from: rawOutput)
+                try await saveLog(
+                    segmentType: segmentType,
+                    label: label,
+                    prompt: prompt,
+                    rawOutput: rawOutput,
+                    dialogues: parsedScript.dialogues,
+                    summaryBullets: parsedScript.summaryBullets,
+                    error: nil
+                )
+                return RadioScript(
+                    segmentType: segmentType,
+                    dialogues: parsedScript.dialogues,
+                    summaryBullets: parsedScript.summaryBullets,
+                    track: track
+                )
+            } catch {
+                try? await saveLog(
+                    segmentType: segmentType,
+                    label: label,
+                    prompt: prompt,
+                    rawOutput: rawOutput,
+                    dialogues: [],
+                    summaryBullets: [],
+                    error: error
+                )
+                guard case ScriptGenerationError.invalidOutput = error,
+                      attempt < Self.maxInvalidOutputAttempts else {
+                    throw error
+                }
+                attempt += 1
+            }
         }
     }
 
