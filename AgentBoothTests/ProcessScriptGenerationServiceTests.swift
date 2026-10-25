@@ -156,6 +156,97 @@ final class ProcessScriptGenerationServiceTests: XCTestCase {
         }
     }
 
+    func testGenerateOpeningSavesLogWithStandardErrorAndExitStatusWhenCLIFails() async throws {
+        let cueSheetLogger = try makeCueSheetLogger()
+        let service = try makeScriptStubService(
+            body: """
+            echo "partial output"
+            echo "quota exceeded" >&2
+            exit 3
+            """,
+            cueSheetLogger: cueSheetLogger
+        )
+        var settings = AppSettings()
+        settings.scriptCLIKind = .claude
+
+        do {
+            _ = try await service.generateOpening(
+                tracks: [TrackInfo(name: "Song A", artist: "Artist A", album: "Album A")],
+                settings: settings
+            )
+            XCTFail("processFailed が投げられるはずです")
+        } catch ScriptGenerationError.processFailed(let detail) {
+            XCTAssertEqual(detail, "quota exceeded")
+        }
+
+        let logText = try await readScriptLogText(from: cueSheetLogger)
+        XCTAssertTrue(logText.contains("claude: 3"))
+        XCTAssertTrue(logText.contains("partial output"))
+        XCTAssertTrue(logText.contains("## Standard Error"))
+        XCTAssertTrue(logText.contains("quota exceeded"))
+    }
+
+    func testGenerateOpeningSavesStandardErrorWhenOutputIsEmpty() async throws {
+        let cueSheetLogger = try makeCueSheetLogger()
+        let service = try makeScriptStubService(
+            body: """
+            echo "model overloaded" >&2
+            exit 0
+            """,
+            cueSheetLogger: cueSheetLogger
+        )
+        var settings = AppSettings()
+        settings.scriptCLIKind = .claude
+
+        do {
+            _ = try await service.generateOpening(
+                tracks: [TrackInfo(name: "Song A", artist: "Artist A", album: "Album A")],
+                settings: settings
+            )
+            XCTFail("invalidOutput が投げられるはずです")
+        } catch ScriptGenerationError.invalidOutput {
+            // expected
+        }
+
+        let logText = try await readScriptLogText(from: cueSheetLogger)
+        XCTAssertTrue(logText.contains("claude: 0"))
+        XCTAssertTrue(logText.contains("model overloaded"))
+    }
+
+    /// 任意のシェル本体を持つ `claude` スタブを PATH に置く。
+    private func makeScriptStubService(
+        body: String,
+        cueSheetLogger: ShowCueSheetLogger
+    ) throws -> ProcessScriptGenerationService {
+        let service = ProcessScriptGenerationService(cueSheetLogger: cueSheetLogger)
+        let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+
+        let executableURL = temporaryDirectoryURL.appendingPathComponent("claude")
+        try "#!/bin/zsh\n\(body)\n".write(to: executableURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executableURL.path)
+
+        let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        setenv("PATH", "\(temporaryDirectoryURL.path):\(originalPath)", 1)
+        addTeardownBlock {
+            setenv("PATH", originalPath, 1)
+            try? FileManager.default.removeItem(at: temporaryDirectoryURL)
+        }
+        return service
+    }
+
+    /// セッションフォルダ内の台本ログ（`.md`）をすべて連結して返す。
+    private func readScriptLogText(from logger: ShowCueSheetLogger) async throws -> String {
+        let directoryURL = try await logger.sessionDirectoryURL()
+        let logURLs = try FileManager.default.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "md" }
+        XCTAssertFalse(logURLs.isEmpty, "台本ログが保存されていません")
+        return try logURLs
+            .map { try String(contentsOf: $0, encoding: .utf8) }
+            .joined(separator: "\n")
+    }
+
     /// 呼び出しごとに `rawOutputs` を先頭から順に返す `claude` スタブを PATH に置く。
     private func makeSequencedService(rawOutputs: [String]) throws -> ProcessScriptGenerationService {
         let service = ProcessScriptGenerationService()
